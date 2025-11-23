@@ -24,7 +24,7 @@ const PHCDashboard = () => {
   // ✅ 1. LOAD HISTORY FROM REAL BACKEND (And keep checking every 2 seconds)
   const fetchRequests = async () => {
     try {
-      const res = await fetch("http://localhost:5001/api/requests");
+      const res = await fetch("https://arogyasparsh-backend.onrender.com/api/requests");
       const data = await res.json();
       
       // Filter requests to only show ones from THIS PHC
@@ -98,7 +98,7 @@ const PHCDashboard = () => {
     };
 
     try {
-        const res = await fetch("http://localhost:5001/api/requests", {
+        const res = await fetch("https://arogyasparsh-backend.onrender.com/api/requests", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(newRequest),

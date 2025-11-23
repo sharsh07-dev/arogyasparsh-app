@@ -37,7 +37,7 @@ const HospitalDashboard = () => {
   // ✅ 1. FETCH REQUESTS FROM REAL BACKEND
   const fetchRequests = async () => {
     try {
-      const res = await fetch("http://localhost:5001/api/requests");
+      const res = await fetch("https://arogyasparsh-backend.onrender.com/api/requests");
       const data = await res.json();
       setRequests(data);
 
@@ -83,7 +83,7 @@ const HospitalDashboard = () => {
   // ✅ 2. UPDATE STATUS IN DATABASE (PUT Request)
   const updateStatusInDB = async (id, newStatus) => {
     try {
-      await fetch(`http://localhost:5001/api/requests/${id}`, {
+      await fetch(`https://arogyasparsh-backend.onrender.com/api/requests/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
