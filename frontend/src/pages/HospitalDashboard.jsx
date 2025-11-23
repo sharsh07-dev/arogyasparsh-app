@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 
 import ambulanceSiren from '../assets/ambulance.mp3';
+import logoMain from '../assets/logo_final.png';
 
 const INITIAL_INVENTORY = [
   { id: 1, name: 'Covishield Vaccine', stock: 450, batch: 'B-992' },
@@ -19,19 +20,10 @@ const INITIAL_INVENTORY = [
 
 const HospitalDashboard = () => {
   const navigate = useNavigate();
-  
-  // ✅ SAFE USER PARSING (Prevents crash if storage is empty)
-  const getUserFromStorage = () => {
-    try {
-      return JSON.parse(localStorage.getItem('userInfo')) || { name: 'District Hospital' };
-    } catch (e) {
-      return { name: 'District Hospital' };
-    }
-  };
-  const user = getUserFromStorage();
+  const user = JSON.parse(localStorage.getItem('userInfo')) || { name: 'District Hospital' };
   
   const [activeTab, setActiveTab] = useState('alerts');
-  const [requests, setRequests] = useState([]); // Start empty
+  const [requests, setRequests] = useState([]); 
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
   const [activeMissions, setActiveMissions] = useState([]);
   
@@ -42,35 +34,24 @@ const HospitalDashboard = () => {
   const [newItem, setNewItem] = useState({ name: '', stock: 0, batch: '' });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // ✅ CRASH-PROOF DATA FETCHING
+  // ✅ LIVE URL
+  const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
+
   const fetchRequests = async () => {
     try {
-      // Ensure you use your LIVE URL here
-      const res = await fetch("https://arogyasparsh-backend.onrender.com/api/requests");
-      
-      if (!res.ok) {
-        console.error("Server Error:", res.status);
-        return;
-      }
-
+      const res = await fetch(API_URL);
+      if (!res.ok) return;
       const data = await res.json();
       
-      // SAFETY CHECK: Only update if data is actually an array
       if (Array.isArray(data)) {
         setRequests(data);
-
-        // Alarm Logic
         const criticalPending = data.find(r => r.urgency === 'Critical' && r.status === 'Pending');
         if (criticalPending && !isAlarmPlaying && audioRef.current.paused) {
             triggerAlarm();
         }
-      } else {
-        console.warn("API returned invalid data:", data);
-        setRequests([]); // Fallback to empty array to prevent crash
       }
-
     } catch (err) {
-      console.error("Network Error fetching data");
+      console.error("Error fetching data");
     }
   };
 
@@ -84,7 +65,7 @@ const HospitalDashboard = () => {
     setIsAlarmPlaying(true);
     audioRef.current.loop = true;
     audioRef.current.volume = 1.0; 
-    audioRef.current.play().catch(e => console.log("Interact to play audio"));
+    audioRef.current.play().catch(e => console.log("Audio blocked by browser"));
   };
 
   const stopAlarm = () => {
@@ -118,7 +99,7 @@ const HospitalDashboard = () => {
   };
 
   const handleDispatch = (id, phc) => {
-    if(!confirm("Ready for takeoff? Confirm Drone Dispatch.")) return;
+    if(!confirm("Confirm Drone Dispatch?")) return;
     updateStatusInDB(id, 'Dispatched');
     setActiveMissions([...activeMissions, { id, phc, progress: 0 }]);
   };
@@ -168,7 +149,9 @@ const HospitalDashboard = () => {
       `}>
         <div className={`p-6 border-b border-slate-800 flex justify-between items-center ${isAlarmPlaying ? 'bg-red-900' : ''}`}>
           <div>
-            <h2 className="text-xl font-bold flex items-center gap-2 tracking-tight"><span className="text-blue-500">🏥</span> ArogyaSparsh</h2>
+            <div className="mb-4">
+               <img src={logoMain} alt="Logo" className="h-10 w-auto object-contain bg-white rounded-lg p-1" />
+            </div>
             <p className="text-xs text-slate-400 mt-1 uppercase tracking-wider">Hospital Command</p>
           </div>
           <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400 hover:text-white">
@@ -179,7 +162,6 @@ const HospitalDashboard = () => {
         <nav className="flex-1 p-4 space-y-2">
           <button onClick={() => {setActiveTab('alerts'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'alerts' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}>
             <Activity size={18} /> Alerts
-            {/* ✅ SAFE CHECK: requests?.filter prevents crash if requests is undefined */}
             {requests?.filter(r => r.status === 'Pending').length > 0 && <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{requests.filter(r => r.status === 'Pending').length}</span>}
           </button>
           <button onClick={() => {setActiveTab('map'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'map' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><MapIcon size={18} /> Global Map</button>
@@ -215,7 +197,6 @@ const HospitalDashboard = () => {
                 <div className="grid gap-6 max-w-5xl mx-auto">
                     {(!requests || requests.length === 0) && <div className="text-center text-slate-400 p-10">No active requests. System All Clear.</div>}
                     
-                    {/* ✅ SAFE MAPPING: requests?.map */}
                     {requests?.map((req) => (
                         <div key={req._id} className={`bg-white rounded-2xl shadow-sm border p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all ${req.status === 'Rejected' ? 'opacity-50 bg-slate-100' : ''} ${req.urgency === 'Critical' && req.status === 'Pending' ? 'border-red-500 ring-4 ring-red-200' : ''}`}>
                             <div className="flex items-start gap-4 w-full">
@@ -260,6 +241,7 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
+            {/* Map and Inventory tabs kept the same */}
             {activeTab === 'map' && (
                 <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] relative overflow-hidden border-4 border-slate-800 shadow-2xl flex items-center justify-center">
                     <div className="text-white text-center">
