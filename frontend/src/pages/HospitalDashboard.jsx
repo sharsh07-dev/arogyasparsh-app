@@ -4,7 +4,8 @@ import {
   Activity, Users, Package, Navigation, LogOut, 
   MapPin, CheckCircle2, Clock, AlertOctagon, 
   Battery, Signal, Plane, Plus, Minus, Search, 
-  Map as MapIcon, VolumeX, Siren, X, Check, Menu // ✅ Added Menu
+  Map as MapIcon, 
+  VolumeX, Siren, X, Check, Menu
 } from 'lucide-react';
 
 import ambulanceSiren from '../assets/ambulance.mp3';
@@ -18,10 +19,19 @@ const INITIAL_INVENTORY = [
 
 const HospitalDashboard = () => {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('userInfo')) || { name: 'District Hospital' };
+  
+  // ✅ SAFE USER PARSING (Prevents crash if storage is empty)
+  const getUserFromStorage = () => {
+    try {
+      return JSON.parse(localStorage.getItem('userInfo')) || { name: 'District Hospital' };
+    } catch (e) {
+      return { name: 'District Hospital' };
+    }
+  };
+  const user = getUserFromStorage();
   
   const [activeTab, setActiveTab] = useState('alerts');
-  const [requests, setRequests] = useState([]); 
+  const [requests, setRequests] = useState([]); // Start empty
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
   const [activeMissions, setActiveMissions] = useState([]);
   
@@ -30,21 +40,37 @@ const HospitalDashboard = () => {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: 0, batch: '' });
-
-  // ✅ MOBILE MENU STATE
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // ✅ CRASH-PROOF DATA FETCHING
   const fetchRequests = async () => {
     try {
-      const res = await fetch("https://arogyasparsh-backend.onrender.com/api/requests"); // Ensure this matches your live or local URL
-      const data = await res.json();
-      setRequests(data);
-      const criticalPending = data.find(r => r.urgency === 'Critical' && r.status === 'Pending');
-      if (criticalPending && !isAlarmPlaying && audioRef.current.paused) {
-          triggerAlarm();
+      // Ensure you use your LIVE URL here
+      const res = await fetch("https://arogyasparsh-backend.onrender.com/api/requests");
+      
+      if (!res.ok) {
+        console.error("Server Error:", res.status);
+        return;
       }
+
+      const data = await res.json();
+      
+      // SAFETY CHECK: Only update if data is actually an array
+      if (Array.isArray(data)) {
+        setRequests(data);
+
+        // Alarm Logic
+        const criticalPending = data.find(r => r.urgency === 'Critical' && r.status === 'Pending');
+        if (criticalPending && !isAlarmPlaying && audioRef.current.paused) {
+            triggerAlarm();
+        }
+      } else {
+        console.warn("API returned invalid data:", data);
+        setRequests([]); // Fallback to empty array to prevent crash
+      }
+
     } catch (err) {
-      console.error("Error fetching data");
+      console.error("Network Error fetching data");
     }
   };
 
@@ -131,12 +157,10 @@ const HospitalDashboard = () => {
         </div>
       )}
 
-      {/* ✅ MOBILE OVERLAY */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>
       )}
 
-      {/* ✅ RESPONSIVE SIDEBAR */}
       <aside className={`
         fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -155,7 +179,8 @@ const HospitalDashboard = () => {
         <nav className="flex-1 p-4 space-y-2">
           <button onClick={() => {setActiveTab('alerts'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'alerts' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}>
             <Activity size={18} /> Alerts
-            {requests.filter(r => r.status === 'Pending').length > 0 && <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{requests.filter(r => r.status === 'Pending').length}</span>}
+            {/* ✅ SAFE CHECK: requests?.filter prevents crash if requests is undefined */}
+            {requests?.filter(r => r.status === 'Pending').length > 0 && <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{requests.filter(r => r.status === 'Pending').length}</span>}
           </button>
           <button onClick={() => {setActiveTab('map'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'map' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><MapIcon size={18} /> Global Map</button>
           <button onClick={() => {setActiveTab('inventory'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'inventory' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><Package size={18} /> Inventory</button>
@@ -169,8 +194,6 @@ const HospitalDashboard = () => {
       </aside>
 
       <main className={`flex-1 overflow-hidden flex flex-col relative w-full ${isAlarmPlaying ? 'mt-32 md:mt-20' : ''}`}>
-        
-        {/* ✅ RESPONSIVE HEADER */}
         <header className="bg-white border-b border-slate-200 px-4 md:px-8 py-4 flex justify-between items-center shadow-sm z-10">
           <div className="flex items-center gap-3">
             <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg">
@@ -190,11 +213,11 @@ const HospitalDashboard = () => {
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
             {activeTab === 'alerts' && (
                 <div className="grid gap-6 max-w-5xl mx-auto">
-                    {requests.length === 0 && <div className="text-center text-slate-400 p-10">No active requests. System All Clear.</div>}
+                    {(!requests || requests.length === 0) && <div className="text-center text-slate-400 p-10">No active requests. System All Clear.</div>}
                     
-                    {requests.map((req) => (
+                    {/* ✅ SAFE MAPPING: requests?.map */}
+                    {requests?.map((req) => (
                         <div key={req._id} className={`bg-white rounded-2xl shadow-sm border p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all ${req.status === 'Rejected' ? 'opacity-50 bg-slate-100' : ''} ${req.urgency === 'Critical' && req.status === 'Pending' ? 'border-red-500 ring-4 ring-red-200' : ''}`}>
-                            
                             <div className="flex items-start gap-4 w-full">
                                 <div className={`p-3 rounded-full shrink-0 ${req.urgency === 'Critical' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600'}`}>
                                     <AlertOctagon size={24} />
@@ -210,6 +233,7 @@ const HospitalDashboard = () => {
                                         }`}>{req.status}</span>
                                     </div>
                                     <p className="text-slate-600 font-medium text-sm md:text-base">Requesting: <span className="text-blue-600 font-bold">{req.qty}x {req.item}</span></p>
+                                    {req.description && <p className="text-xs text-slate-500 mt-1 italic">"{req.description}"</p>}
                                     <div className="flex items-center gap-4 mt-2 text-sm text-slate-400">
                                         <span className="flex items-center gap-1"><Clock size={14} /> {new Date(req.createdAt).toLocaleTimeString()}</span>
                                     </div>
@@ -219,12 +243,8 @@ const HospitalDashboard = () => {
                             <div className="flex items-center gap-3 w-full md:w-auto justify-end">
                                 {req.status === 'Pending' && (
                                     <>
-                                        <button onClick={() => handleReject(req._id, req.urgency)} className="flex-1 md:flex-none px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg font-medium flex justify-center items-center gap-2">
-                                            <X size={18} /> Reject
-                                        </button>
-                                        <button onClick={() => handleApprove(req._id, req.urgency)} className="flex-1 md:flex-none px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-bold shadow-md flex justify-center items-center gap-2">
-                                            <Check size={18} /> Approve
-                                        </button>
+                                        <button onClick={() => handleReject(req._id, req.urgency)} className="flex-1 md:flex-none px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg font-medium flex justify-center items-center gap-2"><X size={18} /> Reject</button>
+                                        <button onClick={() => handleApprove(req._id, req.urgency)} className="flex-1 md:flex-none px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-bold shadow-md flex justify-center items-center gap-2"><Check size={18} /> Approve</button>
                                     </>
                                 )}
                                 {req.status === 'Approved' && (
@@ -247,7 +267,7 @@ const HospitalDashboard = () => {
                         <h2 className="text-xl font-bold">Global Live Map</h2>
                         <p className="text-slate-400">Active Drones: {activeMissions.length}</p>
                     </div>
-                    {activeMissions.map((m, index) => (
+                    {activeMissions.map((m) => (
                         <div key={m.id} className="absolute top-1/2 left-1/2 z-30" style={{ transform: `translateX(${m.progress * 3}px)` }}>
                             <Navigation size={24} className="text-red-500 fill-current" />
                         </div>
