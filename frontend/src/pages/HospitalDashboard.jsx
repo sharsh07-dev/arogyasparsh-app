@@ -20,10 +20,19 @@ const INITIAL_INVENTORY = [
 
 const HospitalDashboard = () => {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('userInfo')) || { name: 'District Hospital' };
+  
+  // Safe User Loading
+  const getUserFromStorage = () => {
+    try {
+      return JSON.parse(localStorage.getItem('userInfo')) || { name: 'District Hospital' };
+    } catch (e) {
+      return { name: 'District Hospital' };
+    }
+  };
+  const user = getUserFromStorage();
   
   const [activeTab, setActiveTab] = useState('alerts');
-  const [requests, setRequests] = useState([]); 
+  const [requests, setRequests] = useState([]); // Default to empty array
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
   const [activeMissions, setActiveMissions] = useState([]);
   
@@ -34,24 +43,30 @@ const HospitalDashboard = () => {
   const [newItem, setNewItem] = useState({ name: '', stock: 0, batch: '' });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // ✅ LIVE URL
-  const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
-
+  // ✅ CRASH-PROOF FETCH
   const fetchRequests = async () => {
     try {
-      const res = await fetch(API_URL);
-      if (!res.ok) return;
+      const res = await fetch("https://arogyasparsh-backend.onrender.com/api/requests");
+      
+      if (!res.ok) {
+        console.warn("Server not responding properly");
+        return;
+      }
+
       const data = await res.json();
       
+      // 🛡️ SAFETY CHECK
       if (Array.isArray(data)) {
         setRequests(data);
         const criticalPending = data.find(r => r.urgency === 'Critical' && r.status === 'Pending');
         if (criticalPending && !isAlarmPlaying && audioRef.current.paused) {
             triggerAlarm();
         }
+      } else {
+        setRequests([]); // Fallback if data is malformed
       }
     } catch (err) {
-      console.error("Error fetching data");
+      console.error("Network Error");
     }
   };
 
@@ -65,7 +80,7 @@ const HospitalDashboard = () => {
     setIsAlarmPlaying(true);
     audioRef.current.loop = true;
     audioRef.current.volume = 1.0; 
-    audioRef.current.play().catch(e => console.log("Audio blocked by browser"));
+    audioRef.current.play().catch(e => console.log("Interact to play audio"));
   };
 
   const stopAlarm = () => {
@@ -99,7 +114,7 @@ const HospitalDashboard = () => {
   };
 
   const handleDispatch = (id, phc) => {
-    if(!confirm("Confirm Drone Dispatch?")) return;
+    if(!confirm("Ready for takeoff? Confirm Drone Dispatch.")) return;
     updateStatusInDB(id, 'Dispatched');
     setActiveMissions([...activeMissions, { id, phc, progress: 0 }]);
   };
@@ -195,8 +210,10 @@ const HospitalDashboard = () => {
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
             {activeTab === 'alerts' && (
                 <div className="grid gap-6 max-w-5xl mx-auto">
+                    {/* ✅ SAFE RENDER: If no requests, show message */}
                     {(!requests || requests.length === 0) && <div className="text-center text-slate-400 p-10">No active requests. System All Clear.</div>}
                     
+                    {/* ✅ SAFE MAP: requests?.map */}
                     {requests?.map((req) => (
                         <div key={req._id} className={`bg-white rounded-2xl shadow-sm border p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all ${req.status === 'Rejected' ? 'opacity-50 bg-slate-100' : ''} ${req.urgency === 'Critical' && req.status === 'Pending' ? 'border-red-500 ring-4 ring-red-200' : ''}`}>
                             <div className="flex items-start gap-4 w-full">
@@ -241,7 +258,7 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* Map and Inventory tabs kept the same */}
+            {/* Map and Inventory are the same as previous version */}
             {activeTab === 'map' && (
                 <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] relative overflow-hidden border-4 border-slate-800 shadow-2xl flex items-center justify-center">
                     <div className="text-white text-center">
