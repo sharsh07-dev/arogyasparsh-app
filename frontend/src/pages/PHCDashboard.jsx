@@ -4,7 +4,7 @@ import {
   Send, LogOut, AlertTriangle, CheckCircle2, 
   MapPin, History, Package, Navigation, 
   XCircle, FileText, Upload, User, Clock, Trash2,
-  Menu, X
+  Menu, X, WifiOff
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
@@ -12,7 +12,7 @@ import logoMain from '../assets/logo_final.png';
 const PHCDashboard = () => {
   const navigate = useNavigate();
   
-  // ✅ SAFE USER LOADING
+  // Safe User Loading
   const getUserFromStorage = () => {
     try {
       return JSON.parse(localStorage.getItem('userInfo')) || { name: 'Wagholi PHC' };
@@ -24,32 +24,31 @@ const PHCDashboard = () => {
   
   const [activeTab, setActiveTab] = useState('new-request');
   const [showTracker, setShowTracker] = useState(false);
-  const [orderHistory, setOrderHistory] = useState([]);
+  const [orderHistory, setOrderHistory] = useState([]); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [serverError, setServerError] = useState(false); // ✅ New Error State
 
   // ✅ LIVE URL
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
-  // ✅ CRASH-PROOF FETCH FUNCTION
   const fetchRequests = async () => {
     try {
       const res = await fetch(API_URL);
+      
       if (!res.ok) {
-        console.warn("Server responded with error:", res.status);
-        return;
+        setServerError(true); // Server replied with 500 or 404
+        return; 
       }
       
       const data = await res.json();
       
-      // 🛡️ SAFETY CHECK: Only filter if data is actually an Array
       if (Array.isArray(data)) {
         const myRequests = data.filter(r => r.phc === user.name);
         setOrderHistory(myRequests);
-      } else {
-        console.error("Invalid data received:", data);
+        setServerError(false); // Connection restored
       }
     } catch (err) {
-      // Ignore network errors to prevent console spamming
+      setServerError(true);
     }
   };
 
@@ -96,7 +95,8 @@ const PHCDashboard = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    if (serverError) return alert("❌ Cannot submit: Server is currently offline.");
+
     if (!checks.isGenuine || !checks.stockUnavailable || !checks.patientAffected) {
       alert("⚠️ Verification Failed: You must tick all 3 confirmation boxes.");
       return;
@@ -134,7 +134,6 @@ const PHCDashboard = () => {
             alert("Failed to send request. Server busy.");
         }
     } catch (err) {
-        console.error(err);
         alert("Network Error. Please check connection.");
     }
   };
@@ -160,6 +159,13 @@ const PHCDashboard = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 relative">
       
+      {/* ✅ SERVER ERROR BANNER */}
+      {serverError && (
+        <div className="fixed top-0 left-0 w-full bg-red-600 text-white z-50 p-2 text-center text-sm font-bold flex items-center justify-center gap-2">
+            <WifiOff size={16} /> SERVER DISCONNECTED - Check Render Logs or Internet
+        </div>
+      )}
+
       {isMobileMenuOpen && (
         <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>
       )}
@@ -174,7 +180,7 @@ const PHCDashboard = () => {
             <div className="mb-4">
                <img src={logoMain} alt="Logo" className="h-10 w-auto object-contain bg-white rounded-lg p-1" />
             </div>
-            <p className="text-xs text-slate-400 uppercase tracking-wider">PHC Portal v2222.0</p>
+            <p className="text-xs text-slate-400 uppercase tracking-wider">PHC Portal v2.0</p>
           </div>
           <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400 hover:text-white">
             <X size={24} />
@@ -206,7 +212,7 @@ const PHCDashboard = () => {
         </div>
       </aside>
 
-      <main className="flex-1 relative overflow-hidden flex flex-col w-full">
+      <main className={`flex-1 relative overflow-hidden flex flex-col w-full ${serverError ? 'mt-10' : ''}`}>
         
         <header className="bg-white border-b border-slate-200 px-4 md:px-8 py-4 flex justify-between items-center shadow-sm z-10">
           <div className="flex items-center gap-3">
@@ -257,7 +263,7 @@ const PHCDashboard = () => {
                          <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-600 rounded-full flex items-center justify-center shadow-xl shadow-blue-600/30 animate-pulse border-4 border-white">
                             <MapPin size={24} className="text-white md:w-8 md:h-8" />
                         </div>
-                        <span className="bg-blue-600 text-white px-2 py-1 md:px-3 rounded-full text-[10px] md:text-xs font-bold mt-3 shadow-sm">Your Location</span>
+                        <span className="bg-blue-600 text-white px-3 py-1 md:px-3 rounded-full text-[10px] md:text-xs font-bold mt-3 shadow-sm">Your Location</span>
                     </div>
                     <div 
                         className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-linear z-20 flex flex-col items-center"
@@ -359,26 +365,30 @@ const PHCDashboard = () => {
                 <table className="w-full text-left min-w-[600px]">
                     <thead className="bg-slate-50 border-b"><tr><th className="p-4">Order ID</th><th className="p-4">Item</th><th className="p-4">Status</th><th className="p-4">Action</th></tr></thead>
                     <tbody>
-                        {orderHistory.map((order) => (
-                            <tr key={order._id || order.id} className="hover:bg-slate-50 transition-colors">
-                                <td className="p-4 font-mono text-sm">{(order._id || order.id).slice(-6).toUpperCase()}</td>
-                                <td className="p-4 font-bold">{order.qty}x {order.item}</td>
-                                <td className="p-4">
-                                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                                        order.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                                        order.status === 'Approved' ? 'bg-blue-100 text-blue-700' :
-                                        order.status === 'Dispatched' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                                    }`}>{order.status}</span>
-                                </td>
-                                <td className="p-4">
-                                    {order.status === 'Dispatched' ? (
-                                        <button onClick={startTracking} className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 shadow-md">
-                                            <Navigation size={14}/> TRACK
-                                        </button>
-                                    ) : (<span className="text-slate-400 text-xs italic">--</span>)}
-                                </td>
-                            </tr>
-                        ))}
+                        {orderHistory.length === 0 ? (
+                            <tr><td colSpan="4" className="p-4 text-center text-slate-400">No history available.</td></tr>
+                        ) : (
+                            orderHistory.map((order) => (
+                                <tr key={order._id || order.id} className="hover:bg-slate-50 transition-colors">
+                                    <td className="p-4 font-mono text-sm">{(order._id || order.id).slice(-6).toUpperCase()}</td>
+                                    <td className="p-4 font-bold">{order.qty}x {order.item}</td>
+                                    <td className="p-4">
+                                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
+                                            order.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                                            order.status === 'Approved' ? 'bg-blue-100 text-blue-700' :
+                                            order.status === 'Dispatched' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                        }`}>{order.status}</span>
+                                    </td>
+                                    <td className="p-4">
+                                        {order.status === 'Dispatched' ? (
+                                            <button onClick={startTracking} className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 shadow-md">
+                                                <Navigation size={14}/> TRACK
+                                            </button>
+                                        ) : (<span className="text-slate-400 text-xs italic">--</span>)}
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
              </div>
