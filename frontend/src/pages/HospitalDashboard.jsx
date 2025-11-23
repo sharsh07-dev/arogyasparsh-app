@@ -44,32 +44,36 @@ const HospitalDashboard = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // ✅ CRASH-PROOF FETCH
+ // ✅ CRASH-PROOF FETCH FUNCTION (Replace your existing one with this)
   const fetchRequests = async () => {
     try {
-      const res = await fetch("https://arogyasparsh-backend.onrender.com/api/requests");
+      const res = await fetch(API_URL);
       
+      // 1. Check if Server is actually okay (200 OK)
       if (!res.ok) {
-        console.warn("Server not responding properly");
-        return;
+        console.warn(`Server Status: ${res.status} (Waiting for recovery...)`);
+        return; // Stop here. Do not try to read data.
       }
-
+      
+      // 2. Try to read the data safely
       const data = await res.json();
       
-      // 🛡️ SAFETY CHECK
-      if (Array.isArray(data)) {
-        setRequests(data);
-        const criticalPending = data.find(r => r.urgency === 'Critical' && r.status === 'Pending');
-        if (criticalPending && !isAlarmPlaying && audioRef.current.paused) {
-            triggerAlarm();
-        }
+      // 3. SAFETY SHIELD: Check if data is actually a list (Array)
+      if (data && Array.isArray(data)) {
+        // Only filter if we are 100% sure it's a list
+        const myRequests = data.filter(r => r.phc === user.name);
+        setOrderHistory(myRequests);
       } else {
-        setRequests([]); // Fallback if data is malformed
+        // If server sends weird data, just show empty list (Don't crash)
+        console.error("Received invalid data format:", data);
+        setOrderHistory([]); 
       }
     } catch (err) {
-      console.error("Network Error");
+      // If internet cuts out or server dies, just stay silent
+      console.error("Connection interrupted - retrying in 3s...");
     }
   };
-
+  
   useEffect(() => {
     fetchRequests();
     const interval = setInterval(fetchRequests, 3000);
