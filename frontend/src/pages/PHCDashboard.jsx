@@ -4,7 +4,7 @@ import {
   Send, LogOut, AlertTriangle, CheckCircle2, 
   MapPin, History, Package, Navigation, 
   XCircle, FileText, Upload, User, Clock, Trash2,
-  Menu, X, RotateCcw, Eye, Plane 
+  Menu, X, RotateCcw, Eye, Building2
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
@@ -26,9 +26,11 @@ const PHCDashboard = () => {
   const [orderHistory, setOrderHistory] = useState([]); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // View Details State
   const [viewOrder, setViewOrder] = useState(null);
 
-  // ✅ FLIGHT BOARD STATE
+  // Flight Board State
   const [trackProgress, setTrackProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -55,7 +57,6 @@ const PHCDashboard = () => {
 
   useEffect(() => {
     fetchRequests();
-    // Update clock every minute for the flight board
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
@@ -136,7 +137,6 @@ const PHCDashboard = () => {
     }
   };
 
-  // ✅ FLIGHT SIMULATION LOGIC
   const startTracking = () => {
     setShowTracker(true);
     setTrackProgress(0);
@@ -146,7 +146,7 @@ const PHCDashboard = () => {
                 clearInterval(interval);
                 return 100;
             }
-            return prev + 0.4; // Speed
+            return prev + 0.4; 
         });
     }, 50);
   };
@@ -156,7 +156,7 @@ const PHCDashboard = () => {
   // Helpers for Flight Board Dates
   const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const timeString = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-  const arrivalTime = new Date(currentTime.getTime() + 15 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); // +15 mins
+  const arrivalTime = new Date(currentTime.getTime() + 15 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 relative">
@@ -229,16 +229,16 @@ const PHCDashboard = () => {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
           
-          {/* 1️⃣ FLIGHT BOARD TRACKER UI (Exact Match to Screenshot) */}
+          {/* 1️⃣ FLIGHT BOARD TRACKER UI */}
           {showTracker && (
              <div className="max-w-4xl mx-auto space-y-6">
                 
-                {/* 🗺️ MAP SECTION */}
+                {/* MAP SECTION */}
                 <div className="bg-slate-200 rounded-3xl h-64 md:h-80 relative overflow-hidden border-4 border-white shadow-2xl">
                     {/* Map Background Texture */}
                     <div className="absolute inset-0 opacity-30 bg-[url('https://img.freepik.com/free-vector/grey-world-map_1053-431.jpg')] bg-cover bg-center grayscale"></div>
                     
-                    {/* Dotted Flight Path (SVG) */}
+                    {/* Dotted Flight Path */}
                     <svg className="absolute inset-0 w-full h-full pointer-events-none">
                         <path 
                             d="M 100,160 Q 400,50 700,160" 
@@ -262,24 +262,47 @@ const PHCDashboard = () => {
                         <span className="font-bold text-slate-700 text-xs mt-1">Wagholi PHC</span>
                     </div>
 
-                    {/* ✈️ MOVING PLANE/DRONE ICON */}
+                    {/* 🚁 CUSTOM DRONE ICON (Moving) */}
                     <div 
                         className="absolute top-0 left-0 transition-all duration-100 ease-linear z-20"
                         style={{ 
-                            // Simple Quadratic Bezier Curve Math for Movement
+                            // Bezier Curve Math for Movement
                             left: `${100 + (trackProgress / 100) * 600}px`,
                             top: `${160 - Math.sin((trackProgress / 100) * Math.PI) * 110}px`,
-                            transform: `translate(-50%, -50%) rotate(${90 + (trackProgress < 50 ? -20 : 20)}deg)`
+                            transform: `translate(-50%, -50%)`
                         }}
                     >
-                        <Plane size={48} className="text-yellow-500 drop-shadow-xl" fill="gold" />
+                        <svg 
+                            width="48" 
+                            height="48" 
+                            viewBox="0 0 24 24" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            strokeWidth="2" 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round"
+                            className="text-yellow-500 drop-shadow-2xl"
+                        >
+                            {/* Central Payload */}
+                            <rect x="9" y="9" width="6" height="6" rx="1" fill="gold" stroke="white" />
+                            
+                            {/* Arms */}
+                            <path d="M9 9L5 5" stroke="white" />
+                            <path d="M15 9l4-4" stroke="white" />
+                            <path d="M9 15l-4 4" stroke="white" />
+                            <path d="M15 15l4 4" stroke="white" />
+                            
+                            {/* Rotors (Spinning) */}
+                            <circle cx="5" cy="5" r="2.5" className="fill-white/80 animate-pulse" />
+                            <circle cx="19" cy="5" r="2.5" className="fill-white/80 animate-pulse" />
+                            <circle cx="5" cy="19" r="2.5" className="fill-white/80 animate-pulse" />
+                            <circle cx="19" cy="19" r="2.5" className="fill-white/80 animate-pulse" />
+                        </svg>
                     </div>
                 </div>
 
-                {/* 📟 FLIGHT BOARD DATA (Departure / Arrival) */}
+                {/* FLIGHT BOARD DATA */}
                 <div className="grid grid-cols-1 md:grid-cols-2 rounded-3xl overflow-hidden shadow-2xl font-mono">
-                    
-                    {/* LEFT: DEPARTURE */}
                     <div className="bg-slate-900 text-white border-r border-slate-700">
                         <div className="bg-blue-600 py-3 text-center">
                             <h2 className="text-2xl font-bold uppercase tracking-widest">Departure</h2>
@@ -307,7 +330,6 @@ const PHCDashboard = () => {
                         </div>
                     </div>
 
-                    {/* RIGHT: ARRIVAL */}
                     <div className="bg-slate-900 text-white">
                         <div className="bg-blue-600 py-3 text-center">
                             <h2 className="text-2xl font-bold uppercase tracking-widest">Arrival</h2>
@@ -334,7 +356,6 @@ const PHCDashboard = () => {
                             </div>
                         </div>
                     </div>
-
                 </div>
 
                 <div className="flex justify-center">
@@ -349,14 +370,12 @@ const PHCDashboard = () => {
           {!showTracker && activeTab === 'new-request' && (
             <div className="max-w-5xl mx-auto">
               <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
-                {/* ... Form Header ... */}
                 <div className="bg-gradient-to-r from-blue-700 to-blue-600 p-4 md:p-6 text-white">
                   <h2 className="text-lg md:text-xl font-bold flex items-center gap-2"><AlertTriangle className="text-yellow-300" /> Emergency Requisition</h2>
                 </div>
                 
                 <div className="p-4 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
                   <div className="space-y-6">
-                    {/* ... Inputs ... */}
                     <div>
                       <label className="block text-sm font-bold text-slate-700 mb-2">Select Medical Item</label>
                       <select className="w-full pl-4 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50" value={formData.itemType} onChange={(e) => setFormData({...formData, itemType: e.target.value})}>
@@ -441,7 +460,7 @@ const PHCDashboard = () => {
                                     }`}>{order.status}</span>
                                 </td>
                                 <td className="p-4 flex items-center gap-2">
-                                    {/* ✅ View Details Button */}
+                                    {/* View Details */}
                                     <button onClick={() => setViewOrder(order)} className="text-slate-500 hover:text-blue-600 p-2 rounded-full hover:bg-blue-50 transition-colors">
                                         <Eye size={18} />
                                     </button>
@@ -462,7 +481,7 @@ const PHCDashboard = () => {
         </div>
       </main>
 
-      {/* ✅ ORDER DETAILS MODAL */}
+      {/* ORDER DETAILS MODAL */}
       {viewOrder && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -471,24 +490,10 @@ const PHCDashboard = () => {
                     <button onClick={() => setViewOrder(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button>
                 </div>
                 <div className="p-6 space-y-4 text-sm">
-                    <div className="flex justify-between border-b pb-2">
-                        <span className="text-slate-500">Order ID</span>
-                        <span className="font-mono font-bold">{(viewOrder._id || viewOrder.id).slice(-6).toUpperCase()}</span>
-                    </div>
-                    <div className="flex justify-between border-b pb-2">
-                        <span className="text-slate-500">Ordered By</span>
-                        <span className="font-medium">{viewOrder.phc}</span>
-                    </div>
-                    <div className="flex justify-between border-b pb-2">
-                        <span className="text-slate-500">Time</span>
-                        <span className="font-medium">{new Date(viewOrder.createdAt || Date.now()).toLocaleString()}</span>
-                    </div>
-                    <div>
-                        <span className="text-slate-500 block mb-1">Reason</span>
-                        <div className="bg-slate-50 p-3 rounded-lg text-slate-700 border border-slate-200 italic">
-                            {viewOrder.description || "No specific reason provided."}
-                        </div>
-                    </div>
+                    <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Order ID</span><span className="font-mono font-bold">{(viewOrder._id || viewOrder.id).slice(-6).toUpperCase()}</span></div>
+                    <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Ordered By</span><span className="font-medium">{viewOrder.phc}</span></div>
+                    <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Time</span><span className="font-medium">{new Date(viewOrder.createdAt || Date.now()).toLocaleString()}</span></div>
+                    <div><span className="text-slate-500 block mb-1">Reason</span><div className="bg-slate-50 p-3 rounded-lg text-slate-700 border border-slate-200 italic">{viewOrder.description || "No specific reason provided."}</div></div>
                 </div>
                 <div className="p-4 bg-slate-50 text-right">
                     <button onClick={() => setViewOrder(null)} className="px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-700 font-bold text-sm">Close</button>
