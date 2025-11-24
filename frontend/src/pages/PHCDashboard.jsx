@@ -4,7 +4,7 @@ import {
   Send, LogOut, AlertTriangle, CheckCircle2, 
   MapPin, History, Package, Navigation, 
   XCircle, FileText, Upload, User, Clock, Trash2,
-  Menu, X, RotateCcw, Eye, Building2 // ✅ Added Eye and Building icons
+  Menu, X, RotateCcw, Eye, Plane 
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
@@ -26,9 +26,11 @@ const PHCDashboard = () => {
   const [orderHistory, setOrderHistory] = useState([]); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  
-  // ✅ NEW: State for View Details Modal
   const [viewOrder, setViewOrder] = useState(null);
+
+  // ✅ FLIGHT BOARD STATE
+  const [trackProgress, setTrackProgress] = useState(0);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
@@ -53,6 +55,9 @@ const PHCDashboard = () => {
 
   useEffect(() => {
     fetchRequests();
+    // Update clock every minute for the flight board
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
   }, []);
 
   const [formData, setFormData] = useState({
@@ -68,9 +73,6 @@ const PHCDashboard = () => {
     stockUnavailable: false,
     patientAffected: false
   });
-
-  const [trackProgress, setTrackProgress] = useState(0);
-  const [trackingStatus, setTrackingStatus] = useState('Initializing...');
 
   const handleLogout = () => {
     localStorage.removeItem('userInfo');
@@ -134,23 +136,27 @@ const PHCDashboard = () => {
     }
   };
 
+  // ✅ FLIGHT SIMULATION LOGIC
   const startTracking = () => {
     setShowTracker(true);
     setTrackProgress(0);
-    setTrackingStatus('Drone Dispatched from Hospital');
     const interval = setInterval(() => {
         setTrackProgress(prev => {
             if (prev >= 100) {
                 clearInterval(interval);
-                setTrackingStatus('Arrived at PHC Landing Pad');
                 return 100;
             }
-            return prev + 0.5; 
+            return prev + 0.4; // Speed
         });
     }, 50);
   };
 
   const isFormValid = checks.isGenuine && checks.stockUnavailable && checks.patientAffected && formData.proofFiles.length > 0;
+
+  // Helpers for Flight Board Dates
+  const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const timeString = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  const arrivalTime = new Date(currentTime.getTime() + 15 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); // +15 mins
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 relative">
@@ -223,81 +229,134 @@ const PHCDashboard = () => {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
           
-          {/* 1️⃣ TRACKER - UPGRADED VISUALS */}
+          {/* 1️⃣ FLIGHT BOARD TRACKER UI (Exact Match to Screenshot) */}
           {showTracker && (
-             <div className="max-w-5xl mx-auto">
-                <div className="bg-white p-4 md:p-6 rounded-2xl shadow-xl border border-slate-100 mb-6">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-2">
-                        <div>
-                            <h2 className="text-xl md:text-2xl font-bold text-slate-800">{trackingStatus}</h2>
-                            <p className="text-slate-500 text-sm">ETA: <span className="text-green-600 font-bold">Arriving Soon</span></p>
-                        </div>
-                        <span className="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wide">Inbound</span>
-                    </div>
-                    <div className="w-full bg-slate-100 h-2 rounded-full mt-4 overflow-hidden">
-                        <div className="bg-green-500 h-full transition-all duration-300" style={{ width: `${trackProgress}%` }}></div>
-                    </div>
-                </div>
-
-                {/* ✅ DARK RADAR MAP STYLE */}
-                <div className="bg-slate-900 rounded-3xl h-64 md:h-96 relative overflow-hidden border-4 border-slate-800 shadow-2xl group">
-                    {/* Grid Background */}
-                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div>
+             <div className="max-w-4xl mx-auto space-y-6">
+                
+                {/* 🗺️ MAP SECTION */}
+                <div className="bg-slate-200 rounded-3xl h-64 md:h-80 relative overflow-hidden border-4 border-white shadow-2xl">
+                    {/* Map Background Texture */}
+                    <div className="absolute inset-0 opacity-30 bg-[url('https://img.freepik.com/free-vector/grey-world-map_1053-431.jpg')] bg-cover bg-center grayscale"></div>
                     
-                    {/* Flight Path */}
+                    {/* Dotted Flight Path (SVG) */}
                     <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                        <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#475569" strokeWidth="4" strokeDasharray="8" />
-                        <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#3b82f6" strokeWidth="4" strokeDasharray="1000" strokeDashoffset={1000 - (trackProgress * 10)} className="transition-all duration-300 ease-linear" />
+                        <path 
+                            d="M 100,160 Q 400,50 700,160" 
+                            fill="none" 
+                            stroke="#3b82f6" 
+                            strokeWidth="3" 
+                            strokeDasharray="10"
+                            className="drop-shadow-md"
+                        />
                     </svg>
 
-                    {/* HOSPITAL ICON (LEFT) */}
-                    <div className="absolute top-1/2 left-[10%] -translate-y-1/2 flex flex-col items-center z-10">
-                        <div className="w-12 h-12 md:w-16 md:h-16 bg-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20">
-                            <Building2 size={24} className="text-slate-900 md:w-8 md:h-8" />
-                        </div>
-                        <span className="text-white text-[10px] md:text-xs font-bold mt-3 bg-slate-800 px-2 py-1 rounded border border-slate-700">District Hospital</span>
+                    {/* Start Point (Hospital) */}
+                    <div className="absolute top-[160px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+                        <MapPin className="text-red-600 drop-shadow-md" size={32} fill="#ef4444" />
+                        <span className="font-bold text-slate-700 text-xs mt-1">Hospital</span>
                     </div>
 
-                    {/* PHC ICON (RIGHT) */}
-                    <div className="absolute top-1/2 right-[10%] -translate-y-1/2 flex flex-col items-center z-10">
-                         <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/50 animate-pulse border-4 border-slate-900">
-                            <MapPin size={24} className="text-white md:w-8 md:h-8" />
-                        </div>
-                        <span className="text-white text-[10px] md:text-xs font-bold mt-3 bg-blue-900 px-2 py-1 rounded border border-blue-700">Your Location</span>
+                    {/* End Point (PHC) */}
+                    <div className="absolute top-[160px] left-[700px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+                        <MapPin className="text-orange-500 drop-shadow-md" size={32} fill="#f97316" />
+                        <span className="font-bold text-slate-700 text-xs mt-1">Wagholi PHC</span>
                     </div>
 
-                    {/* DRONE (MOVING) */}
+                    {/* ✈️ MOVING PLANE/DRONE ICON */}
                     <div 
-                        className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-linear z-20 flex flex-col items-center"
-                        style={{ left: `${10 + (trackProgress * 0.8)}%` }} 
+                        className="absolute top-0 left-0 transition-all duration-100 ease-linear z-20"
+                        style={{ 
+                            // Simple Quadratic Bezier Curve Math for Movement
+                            left: `${100 + (trackProgress / 100) * 600}px`,
+                            top: `${160 - Math.sin((trackProgress / 100) * Math.PI) * 110}px`,
+                            transform: `translate(-50%, -50%) rotate(${90 + (trackProgress < 50 ? -20 : 20)}deg)`
+                        }}
                     >
-                        <div className="bg-white p-2 md:p-3 rounded-full shadow-2xl relative">
-                            <Navigation size={32} className="text-red-500 rotate-90 md:w-10 md:h-10" fill="currentColor" />
-                        </div>
-                        <div className="bg-black/80 text-white text-[10px] px-2 py-1 rounded-md mt-2 backdrop-blur-sm font-mono border border-slate-700">
-                            {Math.round(trackProgress)}%
-                        </div>
+                        <Plane size={48} className="text-yellow-500 drop-shadow-xl" fill="gold" />
                     </div>
                 </div>
 
-                <div className="mt-6 flex justify-center">
-                    <button onClick={() => setShowTracker(false)} className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-6 py-2 rounded-full text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">
-                        <XCircle size={18} /> Close Tracking
+                {/* 📟 FLIGHT BOARD DATA (Departure / Arrival) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 rounded-3xl overflow-hidden shadow-2xl font-mono">
+                    
+                    {/* LEFT: DEPARTURE */}
+                    <div className="bg-slate-900 text-white border-r border-slate-700">
+                        <div className="bg-blue-600 py-3 text-center">
+                            <h2 className="text-2xl font-bold uppercase tracking-widest">Departure</h2>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div className="flex justify-between border-b border-slate-700 pb-2">
+                                <span className="text-slate-400 text-xs uppercase">Time</span>
+                                <div className="text-right">
+                                    <p className="text-xs text-slate-400">SCH. {timeString}</p>
+                                    <p className="text-lg font-bold text-green-400">ACT. {timeString}</p>
+                                </div>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-700 pb-2">
+                                <span className="text-slate-400 text-xs uppercase">Date</span>
+                                <span className="font-bold">{today}</span>
+                            </div>
+                            <div className="text-center py-2">
+                                <h3 className="text-xl font-bold text-blue-300">District Hospital (DH)</h3>
+                                <p className="text-xs text-slate-500 mt-1">Terminal 1, Medical Wing</p>
+                            </div>
+                            <div className="flex justify-between bg-slate-800 p-3 rounded-lg">
+                                <span className="text-xs text-slate-400">Drone No:</span>
+                                <span className="font-bold text-yellow-400">DR-4X9</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* RIGHT: ARRIVAL */}
+                    <div className="bg-slate-900 text-white">
+                        <div className="bg-blue-600 py-3 text-center">
+                            <h2 className="text-2xl font-bold uppercase tracking-widest">Arrival</h2>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div className="flex justify-between border-b border-slate-700 pb-2">
+                                <span className="text-slate-400 text-xs uppercase">Time</span>
+                                <div className="text-right">
+                                    <p className="text-xs text-slate-400">SCH. {arrivalTime}</p>
+                                    <p className="text-lg font-bold text-yellow-400">ETA. {arrivalTime}</p>
+                                </div>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-700 pb-2">
+                                <span className="text-slate-400 text-xs uppercase">Date</span>
+                                <span className="font-bold">{today}</span>
+                            </div>
+                            <div className="text-center py-2">
+                                <h3 className="text-xl font-bold text-blue-300">Wagholi PHC (WAG)</h3>
+                                <p className="text-xs text-slate-500 mt-1">Landing Pad A</p>
+                            </div>
+                            <div className="flex justify-between bg-slate-800 p-3 rounded-lg">
+                                <span className="text-xs text-slate-400">Status:</span>
+                                <span className="font-bold text-green-400 animate-pulse">IN TRANSIT</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div className="flex justify-center">
+                    <button onClick={() => setShowTracker(false)} className="text-slate-500 hover:text-red-500 text-sm flex items-center gap-2 transition-colors">
+                        <XCircle size={20} /> Close Flight View
                     </button>
                 </div>
              </div>
           )}
 
-          {/* NEW REQUEST FORM (Same as before) */}
+          {/* NEW REQUEST FORM */}
           {!showTracker && activeTab === 'new-request' && (
             <div className="max-w-5xl mx-auto">
               <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+                {/* ... Form Header ... */}
                 <div className="bg-gradient-to-r from-blue-700 to-blue-600 p-4 md:p-6 text-white">
                   <h2 className="text-lg md:text-xl font-bold flex items-center gap-2"><AlertTriangle className="text-yellow-300" /> Emergency Requisition</h2>
                 </div>
                 
                 <div className="p-4 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
                   <div className="space-y-6">
+                    {/* ... Inputs ... */}
                     <div>
                       <label className="block text-sm font-bold text-slate-700 mb-2">Select Medical Item</label>
                       <select className="w-full pl-4 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50" value={formData.itemType} onChange={(e) => setFormData({...formData, itemType: e.target.value})}>
@@ -382,12 +441,12 @@ const PHCDashboard = () => {
                                     }`}>{order.status}</span>
                                 </td>
                                 <td className="p-4 flex items-center gap-2">
-                                    {/* ✅ VIEW DETAILS BUTTON */}
+                                    {/* ✅ View Details Button */}
                                     <button onClick={() => setViewOrder(order)} className="text-slate-500 hover:text-blue-600 p-2 rounded-full hover:bg-blue-50 transition-colors">
                                         <Eye size={18} />
                                     </button>
 
-                                    {/* ✅ TRACK BUTTON (Only if Dispatched) */}
+                                    {/* Track Button */}
                                     {order.status === 'Dispatched' && (
                                         <button onClick={startTracking} className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 shadow-md">
                                             <Navigation size={14}/> TRACK
@@ -403,7 +462,7 @@ const PHCDashboard = () => {
         </div>
       </main>
 
-      {/* ✅ ORDER DETAILS MODAL POPUP */}
+      {/* ✅ ORDER DETAILS MODAL */}
       {viewOrder && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
