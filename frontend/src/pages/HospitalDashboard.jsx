@@ -1,15 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
 import { 
   Activity, Users, Package, Navigation, LogOut, 
   MapPin, CheckCircle2, Clock, AlertOctagon, 
   Battery, Signal, Plane, Plus, Minus, Search, 
-  Map as MapIcon, 
-  VolumeX, Siren, X, Check, Menu, RefreshCw
+  Map as MapIcon, VolumeX, Siren, X, Check, Menu,
+  Pill, QrCode, Layers, Save // ✅ Added Icons for the Modal
 } from 'lucide-react';
 
 import ambulanceSiren from '../assets/ambulance.mp3';
 import logoMain from '../assets/logo_final.png';
+
+// Coordinates
+const HOSPITAL_LOC = { lat: 18.5204, lng: 73.8567 }; 
+const PHC_LOC = { lat: 18.5808, lng: 73.9787 };      
+const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
+const center = { lat: 18.5500, lng: 73.9100 }; 
 
 const INITIAL_INVENTORY = [
   { id: 1, name: 'Covishield Vaccine', stock: 450, batch: 'B-992' },
@@ -34,36 +41,32 @@ const HospitalDashboard = () => {
   const [requests, setRequests] = useState([]); 
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
   const [activeMissions, setActiveMissions] = useState([]);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: "" 
+  });
+
+  const [dronePos, setDronePos] = useState(HOSPITAL_LOC);
+  const [droneStats, setDroneStats] = useState({ speed: 0, battery: 100, altitude: 0 });
+  const [flightProgress, setFlightProgress] = useState(0);
+
   const [isAlarmPlaying, setIsAlarmPlaying] = useState(false);
   const audioRef = useRef(new Audio(ambulanceSiren));
 
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newItem, setNewItem] = useState({ name: '', stock: 0, batch: '' });
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '' });
 
-  // ✅ CRITICAL FIX: USE THE LIVE RENDER URL
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
   const fetchRequests = async () => {
-    setLoading(true);
     try {
       const res = await fetch(API_URL);
-      
-      if (!res.ok) {
-        console.warn("Server busy...");
-        setLoading(false);
-        return;
-      }
-
+      if (!res.ok) return;
       const data = await res.json();
-      
-      // ✅ SAFETY SHIELD
       if (Array.isArray(data)) {
         setRequests(data);
-        
-        // Alarm Logic
         const criticalPending = data.find(r => r.urgency === 'Critical' && r.status === 'Pending');
         if (criticalPending && !isAlarmPlaying && audioRef.current.paused) {
             triggerAlarm();
@@ -72,15 +75,32 @@ const HospitalDashboard = () => {
     } catch (err) {
       console.error("Network Error");
     }
-    setLoading(false);
   };
 
-  // Poll every 5 seconds (Slower polling to prevent server overload)
   useEffect(() => {
     fetchRequests();
-    const interval = setInterval(fetchRequests, 5000);
+    const interval = setInterval(fetchRequests, 3000);
     return () => clearInterval(interval);
   }, []); 
+
+  useEffect(() => {
+    if (activeTab !== 'map') return;
+    const interval = setInterval(() => {
+      setFlightProgress((prev) => {
+        const newProgress = prev >= 100 ? 0 : prev + 0.2; 
+        const lat = HOSPITAL_LOC.lat + (PHC_LOC.lat - HOSPITAL_LOC.lat) * (newProgress / 100);
+        const lng = HOSPITAL_LOC.lng + (PHC_LOC.lng - HOSPITAL_LOC.lng) * (newProgress / 100);
+        setDronePos({ lat, lng });
+        setDroneStats({
+            speed: Math.floor(40 + Math.random() * 10),
+            battery: Math.max(0, 100 - Math.floor(newProgress / 2)),
+            altitude: newProgress > 0 && newProgress < 95 ? 120 : 0
+        });
+        return newProgress;
+      });
+    }, 100);
+    return () => clearInterval(interval);
+  }, [activeTab]);
 
   const triggerAlarm = () => {
     setIsAlarmPlaying(true);
@@ -103,18 +123,14 @@ const HospitalDashboard = () => {
 
   const updateStatusInDB = async (id, newStatus) => {
     try {
-      // Optimistic UI Update (Makes it feel faster)
-      setRequests(prev => prev.map(req => req._id === id ? { ...req, status: newStatus } : req));
-
       await fetch(`${API_URL}/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      
-      fetchRequests(); // Sync with server
+      fetchRequests();
     } catch (err) {
-      alert("Failed to update status. Check connection.");
+      alert("Failed to update status");
     }
   };
 
@@ -140,18 +156,11 @@ const HospitalDashboard = () => {
   };
 
   const addNewItem = () => {
-    if(!newItem.name || !newItem.batch) return alert("Please fill details");
+    if(!newItem.name || !newItem.batch || !newItem.stock) return alert("Please fill all details");
     setInventory([...inventory, { id: Date.now(), ...newItem, stock: parseInt(newItem.stock) }]);
     setShowAddModal(false);
-    setNewItem({ name: '', stock: 0, batch: '' });
+    setNewItem({ name: '', stock: '', batch: '' });
   };
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-        setActiveMissions(current => current.map(m => (m.progress >= 100 ? m : { ...m, progress: m.progress + 0.5 })));
-    }, 100);
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <div className={`min-h-screen bg-slate-50 flex font-sans text-slate-800 ${isAlarmPlaying ? 'animate-pulse bg-red-50' : ''} relative`}>
@@ -163,130 +172,94 @@ const HospitalDashboard = () => {
         </div>
       )}
 
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>
-      )}
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
 
-      <aside className={`
-        fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-        md:translate-x-0 md:static md:flex md:flex-col
-      `}>
+      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
         <div className={`p-6 border-b border-slate-800 flex justify-between items-center ${isAlarmPlaying ? 'bg-red-900' : ''}`}>
           <div>
-            <div className="mb-4">
-               <img src={logoMain} alt="Logo" className="h-10 w-auto object-contain bg-white rounded-lg p-1" />
-            </div>
-            <p className="text-xs text-slate-400 mt-1 uppercase tracking-wider">Hospital Command</p>
+            <div className="mb-4"><img src={logoMain} alt="Logo" className="h-10 w-auto object-contain bg-white rounded-lg p-1" /></div>
+            <p className="text-xs text-slate-400 uppercase tracking-wider">Hospital Command</p>
           </div>
-          <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400 hover:text-white">
-            <X size={24} />
-          </button>
+          <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400 hover:text-white"><X size={24} /></button>
         </div>
-        
         <nav className="flex-1 p-4 space-y-2">
-          <button onClick={() => {setActiveTab('alerts'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'alerts' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}>
-            <Activity size={18} /> Alerts
-            {requests?.filter(r => r.status === 'Pending').length > 0 && <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{requests.filter(r => r.status === 'Pending').length}</span>}
-          </button>
-          <button onClick={() => {setActiveTab('map'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'map' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><MapIcon size={18} /> Global Map</button>
+          <button onClick={() => {setActiveTab('alerts'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'alerts' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><Activity size={18} /> Alerts</button>
+          <button onClick={() => {setActiveTab('map'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'map' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><MapIcon size={18} /> Live Tracking</button>
           <button onClick={() => {setActiveTab('inventory'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'inventory' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><Package size={18} /> Inventory</button>
         </nav>
-
         <div className="p-4 border-t border-slate-800">
-          <button onClick={handleLogout} className="w-full flex items-center gap-2 text-red-400 hover:bg-slate-800 p-3 rounded-xl transition-colors text-sm font-medium">
-            <LogOut size={16} /> Logout System
-          </button>
+          <button onClick={handleLogout} className="w-full flex items-center gap-2 text-red-400 hover:bg-slate-800 p-3 rounded-xl text-sm font-medium"><LogOut size={16} /> Logout</button>
         </div>
       </aside>
 
       <main className={`flex-1 overflow-hidden flex flex-col relative w-full ${isAlarmPlaying ? 'mt-32 md:mt-20' : ''}`}>
         <header className="bg-white border-b border-slate-200 px-4 md:px-8 py-4 flex justify-between items-center shadow-sm z-10">
           <div className="flex items-center gap-3">
-            <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg">
-                <Menu size={24} />
-            </button>
-            <div>
-                <h1 className="text-lg md:text-2xl font-bold text-slate-800 truncate">
-                    {activeTab === 'alerts' ? 'Emergency Alerts' : (activeTab === 'map' ? 'Global Tracking' : 'Inventory')}
-                </h1>
-            </div>
+            <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg"><Menu size={24} /></button>
+            <h1 className="text-lg md:text-2xl font-bold text-slate-800">{activeTab === 'alerts' ? 'Emergency Alerts' : (activeTab === 'map' ? 'Live Drone Tracking' : 'Inventory')}</h1>
           </div>
-          <div className="bg-blue-50 px-3 py-1.5 md:px-4 md:py-2 rounded-full border border-blue-100 flex items-center gap-2 text-xs md:text-sm font-semibold text-blue-700 truncate max-w-[120px] md:max-w-none">
-            <Users size={14} /> {user.name}
-          </div>
+          <div className="bg-blue-50 px-3 py-1 rounded-full text-xs font-semibold text-blue-700 flex items-center gap-2"><Users size={14} /> {user.name}</div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 relative">
+            
+            {/* ALERTS */}
             {activeTab === 'alerts' && (
-                <div className="grid gap-6 max-w-5xl mx-auto">
-                    {(!requests || requests.length === 0) && (
-                        <div className="text-center text-slate-400 p-10 flex flex-col items-center">
-                            <p>No active requests.</p>
-                            <button onClick={fetchRequests} className="mt-2 text-blue-600 flex items-center gap-1 text-sm"><RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh List</button>
-                        </div>
-                    )}
-                    
-                    {/* ✅ SAFE MAPPING */}
-                    {requests?.map((req) => (
-                        <div key={req._id} className={`bg-white rounded-2xl shadow-sm border p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all ${req.status === 'Rejected' ? 'opacity-50 bg-slate-100' : ''} ${req.urgency === 'Critical' && req.status === 'Pending' ? 'border-red-500 ring-4 ring-red-200' : ''}`}>
-                            <div className="flex items-start gap-4 w-full">
-                                <div className={`p-3 rounded-full shrink-0 ${req.urgency === 'Critical' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600'}`}>
-                                    <AlertOctagon size={24} />
-                                </div>
-                                <div className="flex-1">
-                                    <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-1">
-                                        <h3 className="text-lg font-bold text-slate-800">{req.phc}</h3>
-                                        <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${
-                                            req.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                                            req.status === 'Approved' ? 'bg-blue-100 text-blue-700' :
-                                            req.status === 'Dispatched' ? 'bg-green-100 text-green-700' :
-                                            'bg-red-100 text-red-700'
-                                        }`}>{req.status}</span>
-                                    </div>
-                                    <p className="text-slate-600 font-medium text-sm md:text-base">Requesting: <span className="text-blue-600 font-bold">{req.qty}x {req.item}</span></p>
-                                    {req.description && <p className="text-xs text-slate-500 mt-1 italic">"{req.description}"</p>}
-                                    <div className="flex items-center gap-4 mt-2 text-sm text-slate-400">
-                                        <span className="flex items-center gap-1"><Clock size={14} /> {new Date(req.createdAt).toLocaleTimeString()}</span>
-                                    </div>
+                <div className="grid gap-4 max-w-5xl mx-auto">
+                    {requests.length === 0 && <p className="text-center text-slate-400 mt-10">No active requests.</p>}
+                    {requests.map((req) => (
+                        <div key={req._id} className={`bg-white rounded-xl shadow-sm border p-4 flex flex-col md:flex-row justify-between gap-4 ${req.status === 'Rejected' ? 'opacity-50' : ''} ${req.urgency === 'Critical' && req.status === 'Pending' ? 'border-red-500 ring-2 ring-red-100' : ''}`}>
+                            <div className="flex items-start gap-4">
+                                <div className={`p-3 rounded-full ${req.urgency === 'Critical' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600'}`}><AlertOctagon size={24} /></div>
+                                <div>
+                                    <h3 className="font-bold text-slate-800">{req.phc}</h3>
+                                    <p className="text-sm text-slate-600">{req.qty}x {req.item} <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
                                 </div>
                             </div>
-
-                            <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+                            <div className="flex items-center gap-2">
                                 {req.status === 'Pending' && (
                                     <>
-                                        <button onClick={() => handleReject(req._id, req.urgency)} className="flex-1 md:flex-none px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg font-medium flex justify-center items-center gap-2"><X size={18} /> Reject</button>
-                                        <button onClick={() => handleApprove(req._id, req.urgency)} className="flex-1 md:flex-none px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-bold shadow-md flex justify-center items-center gap-2"><Check size={18} /> Approve</button>
+                                        <button onClick={() => handleReject(req._id, req.urgency)} className="px-4 py-2 border rounded-lg text-red-600 text-sm">Reject</button>
+                                        <button onClick={() => handleApprove(req._id, req.urgency)} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Approve</button>
                                     </>
                                 )}
-                                {req.status === 'Approved' && (
-                                    <button onClick={() => handleDispatch(req._id, req.phc)} className="w-full md:w-auto px-6 py-2 bg-green-600 text-white hover:bg-green-700 rounded-lg font-bold shadow-md flex justify-center items-center gap-2 animate-pulse">
-                                        <Plane size={18} /> Dispatch
-                                    </button>
-                                )}
-                                {req.status === 'Dispatched' && <div className="flex items-center gap-2 text-green-600 font-bold bg-green-50 px-4 py-2 rounded-lg"><CheckCircle2 size={20} /> In-Flight</div>}
-                                {req.status === 'Rejected' && <span className="text-red-500 font-bold">Rejected</span>}
+                                {req.status === 'Approved' && <button onClick={() => handleDispatch(req._id)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm animate-pulse">Dispatch Drone</button>}
+                                {req.status === 'Dispatched' && <span className="text-green-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> In-Flight</span>}
                             </div>
                         </div>
                     ))}
                 </div>
             )}
 
+            {/* MAP */}
             {activeTab === 'map' && (
-                <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] relative overflow-hidden border-4 border-slate-800 shadow-2xl flex items-center justify-center">
-                    <div className="text-white text-center">
-                        <MapIcon size={48} className="mx-auto mb-4 text-blue-500" />
-                        <h2 className="text-xl font-bold">Global Live Map</h2>
-                        <p className="text-slate-400">Active Drones: {activeMissions.length}</p>
-                    </div>
-                    {activeMissions.map((m) => (
-                        <div key={m.id} className="absolute top-1/2 left-1/2 z-30" style={{ transform: `translateX(${m.progress * 3}px)` }}>
-                            <Navigation size={24} className="text-red-500 fill-current" />
+                <div className="h-full w-full relative rounded-2xl overflow-hidden shadow-xl border-4 border-white">
+                    {isLoaded ? (
+                        <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={13} options={{ disableDefaultUI: true }}>
+                            <Polyline path={[HOSPITAL_LOC, PHC_LOC]} options={{ strokeColor: "#3b82f6", strokeOpacity: 0.8, strokeWeight: 4 }} />
+                            <Marker position={dronePos} icon={{ path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 6, strokeColor: "#ef4444", fillColor: "#ef4444", fillOpacity: 1, rotation: 45 }} />
+                            <Marker position={HOSPITAL_LOC} label="🏥" />
+                            <Marker position={PHC_LOC} label="📍" />
+                        </GoogleMap>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center h-full bg-slate-100 text-slate-500"><MapIcon size={48} className="mb-2 text-slate-300"/><p>Map Visualizer</p></div>
+                    )}
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-2xl w-[90%] max-w-md border border-slate-200">
+                        <div className="flex justify-between items-center mb-3">
+                            <div><h3 className="text-lg font-bold text-slate-800">Drone-04</h3><p className="text-xs text-slate-500">Enroute</p></div>
+                            <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full animate-pulse">LIVE</span>
                         </div>
-                    ))}
+                        <div className="grid grid-cols-3 gap-2 text-center divide-x divide-slate-200">
+                            <div><p className="text-[10px] text-slate-400 font-bold">Speed</p><p className="text-lg font-bold text-blue-600">{droneStats.speed} <span className="text-xs text-slate-500">km/h</span></p></div>
+                            <div><p className="text-[10px] text-slate-400 font-bold">Battery</p><div className="flex items-center justify-center gap-1 text-lg font-bold text-green-600"><Battery size={16} /> {droneStats.battery}%</div></div>
+                            <div><p className="text-[10px] text-slate-400 font-bold">Alt</p><p className="text-lg font-bold text-slate-700">{droneStats.altitude}m</p></div>
+                        </div>
+                    </div>
                 </div>
             )}
 
+            {/* INVENTORY */}
             {activeTab === 'inventory' && (
                 <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden overflow-x-auto">
                     <div className="p-4 flex justify-between">
@@ -306,22 +279,94 @@ const HospitalDashboard = () => {
         </div>
       </main>
 
+      {/* ✅ IMPROVED ADD ITEM MODAL */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white p-6 rounded-2xl w-full max-w-md shadow-2xl">
-                <h3 className="text-xl font-bold mb-4">Add To Inventory</h3>
-                <input className="w-full mb-3 p-3 border rounded-lg" placeholder="Name" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} />
-                <input className="w-full mb-3 p-3 border rounded-lg" placeholder="Batch" value={newItem.batch} onChange={e => setNewItem({...newItem, batch: e.target.value})} />
-                <input className="w-full mb-6 p-3 border rounded-lg" type="number" value={newItem.stock} onChange={e => setNewItem({...newItem, stock: e.target.value})} />
-                <div className="flex justify-end gap-2">
-                    <button onClick={() => setShowAddModal(false)} className="px-4 py-2 text-slate-500">Cancel</button>
-                    <button onClick={addNewItem} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Add</button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-0 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100">
+                
+                {/* Header */}
+                <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <Package className="text-blue-600" size={20}/> Add New Medicine
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">Enter stock details below</p>
+                    </div>
+                    <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1 rounded-full transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div className="p-6 space-y-5">
+                    
+                    {/* Item Name */}
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Medicine Name</label>
+                        <div className="relative">
+                            <Pill className="absolute left-3 top-3.5 text-slate-400" size={18} />
+                            <input 
+                                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium placeholder:text-slate-400" 
+                                placeholder="e.g., Paracetamol 500mg" 
+                                value={newItem.name} 
+                                onChange={e => setNewItem({...newItem, name: e.target.value})} 
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-5">
+                        {/* Batch ID */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Batch ID</label>
+                            <div className="relative">
+                                <QrCode className="absolute left-3 top-3.5 text-slate-400" size={18} />
+                                <input 
+                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium" 
+                                    placeholder="B-1023" 
+                                    value={newItem.batch} 
+                                    onChange={e => setNewItem({...newItem, batch: e.target.value})} 
+                                />
+                            </div>
+                        </div>
+
+                        {/* Stock */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Initial Stock</label>
+                            <div className="relative">
+                                <Layers className="absolute left-3 top-3.5 text-slate-400" size={18} />
+                                <input 
+                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium" 
+                                    type="number" 
+                                    placeholder="0" 
+                                    value={newItem.stock} 
+                                    onChange={e => setNewItem({...newItem, stock: e.target.value})} 
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                    <button 
+                        onClick={() => setShowAddModal(false)} 
+                        className="px-5 py-2.5 text-slate-600 font-medium hover:bg-white hover:text-slate-800 border border-transparent hover:border-slate-200 rounded-xl transition-all"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        onClick={addNewItem} 
+                        className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all transform active:scale-95"
+                    >
+                        <Save size={18} /> Save Item
+                    </button>
                 </div>
             </div>
         </div>
       )}
+
     </div>
   );
 };
-
+//final line
 export default HospitalDashboard;
