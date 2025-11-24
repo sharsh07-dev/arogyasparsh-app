@@ -5,7 +5,7 @@ import {
   MapPin, CheckCircle2, Clock, AlertOctagon, 
   Battery, Signal, Plane, Plus, Minus, Search, 
   Map as MapIcon, 
-  VolumeX, Siren, X, Check, Menu
+  VolumeX, Siren, X, Check, Menu, RefreshCw
 } from 'lucide-react';
 
 import ambulanceSiren from '../assets/ambulance.mp3';
@@ -21,7 +21,6 @@ const INITIAL_INVENTORY = [
 const HospitalDashboard = () => {
   const navigate = useNavigate();
   
-  // Safe User Loading
   const getUserFromStorage = () => {
     try {
       return JSON.parse(localStorage.getItem('userInfo')) || { name: 'District Hospital' };
@@ -32,7 +31,7 @@ const HospitalDashboard = () => {
   const user = getUserFromStorage();
   
   const [activeTab, setActiveTab] = useState('alerts');
-  const [requests, setRequests] = useState([]); // Default to empty array
+  const [requests, setRequests] = useState([]); 
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
   const [activeMissions, setActiveMissions] = useState([]);
   
@@ -42,41 +41,44 @@ const HospitalDashboard = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: 0, batch: '' });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // ✅ CRASH-PROOF FETCH
- // ✅ CRASH-PROOF FETCH FUNCTION (Replace your existing one with this)
+  // ✅ CRITICAL FIX: USE THE LIVE RENDER URL
+  const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
+
   const fetchRequests = async () => {
+    setLoading(true);
     try {
       const res = await fetch(API_URL);
       
-      // 1. Check if Server is actually okay (200 OK)
       if (!res.ok) {
-        console.warn(`Server Status: ${res.status} (Waiting for recovery...)`);
-        return; // Stop here. Do not try to read data.
+        console.warn("Server busy...");
+        setLoading(false);
+        return;
       }
-      
-      // 2. Try to read the data safely
+
       const data = await res.json();
       
-      // 3. SAFETY SHIELD: Check if data is actually a list (Array)
-      if (data && Array.isArray(data)) {
-        // Only filter if we are 100% sure it's a list
-        const myRequests = data.filter(r => r.phc === user.name);
-        setOrderHistory(myRequests);
-      } else {
-        // If server sends weird data, just show empty list (Don't crash)
-        console.error("Received invalid data format:", data);
-        setOrderHistory([]); 
+      // ✅ SAFETY SHIELD
+      if (Array.isArray(data)) {
+        setRequests(data);
+        
+        // Alarm Logic
+        const criticalPending = data.find(r => r.urgency === 'Critical' && r.status === 'Pending');
+        if (criticalPending && !isAlarmPlaying && audioRef.current.paused) {
+            triggerAlarm();
+        }
       }
     } catch (err) {
-      // If internet cuts out or server dies, just stay silent
-      console.error("Connection interrupted - retrying in 3s...");
+      console.error("Network Error");
     }
+    setLoading(false);
   };
-  
+
+  // Poll every 5 seconds (Slower polling to prevent server overload)
   useEffect(() => {
     fetchRequests();
-    const interval = setInterval(fetchRequests, 3000);
+    const interval = setInterval(fetchRequests, 5000);
     return () => clearInterval(interval);
   }, []); 
 
@@ -101,14 +103,18 @@ const HospitalDashboard = () => {
 
   const updateStatusInDB = async (id, newStatus) => {
     try {
-      await fetch(`https://arogyasparsh-backend.onrender.com/api/requests/${id}`, {
+      // Optimistic UI Update (Makes it feel faster)
+      setRequests(prev => prev.map(req => req._id === id ? { ...req, status: newStatus } : req));
+
+      await fetch(`${API_URL}/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      fetchRequests();
+      
+      fetchRequests(); // Sync with server
     } catch (err) {
-      alert("Failed to update status");
+      alert("Failed to update status. Check connection.");
     }
   };
 
@@ -214,10 +220,14 @@ const HospitalDashboard = () => {
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
             {activeTab === 'alerts' && (
                 <div className="grid gap-6 max-w-5xl mx-auto">
-                    {/* ✅ SAFE RENDER: If no requests, show message */}
-                    {(!requests || requests.length === 0) && <div className="text-center text-slate-400 p-10">No active requests. System All Clear.</div>}
+                    {(!requests || requests.length === 0) && (
+                        <div className="text-center text-slate-400 p-10 flex flex-col items-center">
+                            <p>No active requests.</p>
+                            <button onClick={fetchRequests} className="mt-2 text-blue-600 flex items-center gap-1 text-sm"><RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh List</button>
+                        </div>
+                    )}
                     
-                    {/* ✅ SAFE MAP: requests?.map */}
+                    {/* ✅ SAFE MAPPING */}
                     {requests?.map((req) => (
                         <div key={req._id} className={`bg-white rounded-2xl shadow-sm border p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all ${req.status === 'Rejected' ? 'opacity-50 bg-slate-100' : ''} ${req.urgency === 'Critical' && req.status === 'Pending' ? 'border-red-500 ring-4 ring-red-200' : ''}`}>
                             <div className="flex items-start gap-4 w-full">
@@ -262,7 +272,6 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* Map and Inventory are the same as previous version */}
             {activeTab === 'map' && (
                 <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] relative overflow-hidden border-4 border-slate-800 shadow-2xl flex items-center justify-center">
                     <div className="text-white text-center">
