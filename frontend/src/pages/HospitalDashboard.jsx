@@ -6,7 +6,7 @@ import {
   MapPin, CheckCircle2, Clock, AlertOctagon, 
   Battery, Signal, Plane, Plus, Minus, Search, 
   Map as MapIcon, VolumeX, Siren, X, Check, Menu,
-  Pill, QrCode, Layers, Save // ✅ Added Icons for the Modal
+  Pill, QrCode, Layers, Save, Trash2
 } from 'lucide-react';
 
 import ambulanceSiren from '../assets/ambulance.mp3';
@@ -19,23 +19,16 @@ const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' 
 const center = { lat: 18.5500, lng: 73.9100 }; 
 
 const INITIAL_INVENTORY = [
-  { id: 1, name: 'Covishield Vaccine', stock: 450, batch: 'B-992' },
-  { id: 2, name: 'Snake Anti-Venom', stock: 12, batch: 'AV-221' }, 
-  { id: 3, name: 'Rabies Vaccine', stock: 85, batch: 'RB-110' },
-  { id: 4, name: 'O+ Blood Bags', stock: 24, batch: 'BL-004' },
+  { id: 1, name: 'Covishield Vaccine', stock: 450, batch: 'B-992', type: 'Vial' },
+  { id: 2, name: 'Snake Anti-Venom', stock: 12, batch: 'AV-221', type: 'Injection' }, 
+  { id: 3, name: 'Rabies Vaccine', stock: 85, batch: 'RB-110', type: 'Vial' },
+  { id: 4, name: 'O+ Blood Bags', stock: 24, batch: 'BL-004', type: 'Bag' },
+  { id: 5, name: 'Paracetamol 500mg', stock: 1200, batch: 'P-554', type: 'Strip' },
 ];
 
 const HospitalDashboard = () => {
   const navigate = useNavigate();
-  
-  const getUserFromStorage = () => {
-    try {
-      return JSON.parse(localStorage.getItem('userInfo')) || { name: 'District Hospital' };
-    } catch (e) {
-      return { name: 'District Hospital' };
-    }
-  };
-  const user = getUserFromStorage();
+  const user = JSON.parse(localStorage.getItem('userInfo')) || { name: 'District Hospital' };
   
   const [activeTab, setActiveTab] = useState('alerts');
   const [requests, setRequests] = useState([]); 
@@ -172,7 +165,6 @@ const HospitalDashboard = () => {
         </div>
       )}
 
-      {/* Mobile Overlay */}
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
 
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
@@ -259,107 +251,99 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* INVENTORY */}
+            {/* ✅ NEW INVENTORY GRID LAYOUT */}
             {activeTab === 'inventory' && (
-                <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden overflow-x-auto">
-                    <div className="p-4 flex justify-between">
-                        <h3 className="font-bold text-lg">Medicine Stock</h3>
-                        <button onClick={() => setShowAddModal(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"><Plus size={16}/> Add</button>
+                <div className="max-w-6xl mx-auto">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        
+                        {/* Item Cards */}
+                        {inventory.map((item) => (
+                            <div key={item.id} className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-col justify-between hover:shadow-lg transition-all hover:-translate-y-1 duration-300">
+                                
+                                {/* Icon Area */}
+                                <div className="h-32 bg-blue-50 rounded-xl flex items-center justify-center mb-4">
+                                    <Pill size={48} className="text-blue-300" />
+                                </div>
+                                
+                                {/* Info */}
+                                <div>
+                                    <h3 className="font-bold text-slate-800 text-lg leading-tight mb-1 truncate" title={item.name}>{item.name}</h3>
+                                    <div className="flex justify-between items-center mb-4">
+                                        <p className="text-xs text-slate-500 font-mono bg-slate-100 px-2 py-0.5 rounded">{item.batch}</p>
+                                        {item.stock < 20 && <span className="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">LOW</span>}
+                                    </div>
+                                </div>
+
+                                {/* Stock Controller (E-commerce style) */}
+                                <div className="mt-auto">
+                                    <div className="flex items-center justify-between bg-slate-50 rounded-lg border border-slate-200 p-1 shadow-sm">
+                                        <button 
+                                            onClick={() => updateStock(item.id, -1)} 
+                                            className="w-9 h-9 flex items-center justify-center bg-white text-red-500 rounded-md shadow-sm hover:bg-red-50 transition-colors border border-slate-100"
+                                        >
+                                            <Minus size={18} />
+                                        </button>
+                                        
+                                        <div className="flex flex-col items-center w-full">
+                                            <span className="font-bold text-slate-800 text-lg">{item.stock}</span>
+                                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Units</span>
+                                        </div>
+
+                                        <button 
+                                            onClick={() => updateStock(item.id, 1)} 
+                                            className="w-9 h-9 flex items-center justify-center bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 transition-colors border border-transparent"
+                                        >
+                                            <Plus size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+
+                        {/* Add New Card */}
+                        <button 
+                            onClick={() => setShowAddModal(true)}
+                            className="border-2 border-dashed border-slate-300 rounded-2xl p-4 flex flex-col items-center justify-center text-slate-400 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all min-h-[280px] group"
+                        >
+                            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3 group-hover:bg-blue-100 transition-colors">
+                                <Plus size={32} className="text-slate-400 group-hover:text-blue-600" />
+                            </div>
+                            <span className="font-bold text-lg">Add New Item</span>
+                            <span className="text-xs mt-1">Add to Hospital Stock</span>
+                        </button>
+
                     </div>
-                    <table className="w-full text-left min-w-[600px]">
-                        <thead className="bg-slate-50 border-b"><tr><th className="p-4">Item</th><th className="p-4">Stock</th><th className="p-4">Action</th></tr></thead>
-                        <tbody>
-                            {inventory.map(item => (
-                                <tr key={item.id}><td className="p-4 font-bold">{item.name}</td><td className="p-4">{item.stock}</td><td className="p-4 flex gap-2"><button onClick={() => updateStock(item.id, -10)}><Minus size={16}/></button><button onClick={() => updateStock(item.id, 10)}><Plus size={16}/></button></td></tr>
-                            ))}
-                        </tbody>
-                    </table>
                 </div>
             )}
         </div>
       </main>
 
-      {/* ✅ IMPROVED ADD ITEM MODAL */}
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white p-0 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100">
-                
-                {/* Header */}
                 <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-                    <div>
-                        <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                            <Package className="text-blue-600" size={20}/> Add New Medicine
-                        </h3>
-                        <p className="text-xs text-slate-500 mt-0.5">Enter stock details below</p>
-                    </div>
-                    <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1 rounded-full transition-colors">
-                        <X size={20} />
-                    </button>
+                    <div><h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Package className="text-blue-600" size={20}/> Add New Medicine</h3><p className="text-xs text-slate-500 mt-0.5">Enter stock details below</p></div>
+                    <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1 rounded-full transition-colors"><X size={20} /></button>
                 </div>
-
-                {/* Body */}
                 <div className="p-6 space-y-5">
-                    
-                    {/* Item Name */}
                     <div className="space-y-1.5">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Medicine Name</label>
-                        <div className="relative">
-                            <Pill className="absolute left-3 top-3.5 text-slate-400" size={18} />
-                            <input 
-                                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium placeholder:text-slate-400" 
-                                placeholder="e.g., Paracetamol 500mg" 
-                                value={newItem.name} 
-                                onChange={e => setNewItem({...newItem, name: e.target.value})} 
-                            />
-                        </div>
+                        <div className="relative"><Pill className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium placeholder:text-slate-400" placeholder="e.g., Paracetamol 500mg" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} /></div>
                     </div>
-
                     <div className="grid grid-cols-2 gap-5">
-                        {/* Batch ID */}
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Batch ID</label>
-                            <div className="relative">
-                                <QrCode className="absolute left-3 top-3.5 text-slate-400" size={18} />
-                                <input 
-                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium" 
-                                    placeholder="B-1023" 
-                                    value={newItem.batch} 
-                                    onChange={e => setNewItem({...newItem, batch: e.target.value})} 
-                                />
-                            </div>
+                            <div className="relative"><QrCode className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium" placeholder="B-1023" value={newItem.batch} onChange={e => setNewItem({...newItem, batch: e.target.value})} /></div>
                         </div>
-
-                        {/* Stock */}
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Initial Stock</label>
-                            <div className="relative">
-                                <Layers className="absolute left-3 top-3.5 text-slate-400" size={18} />
-                                <input 
-                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium" 
-                                    type="number" 
-                                    placeholder="0" 
-                                    value={newItem.stock} 
-                                    onChange={e => setNewItem({...newItem, stock: e.target.value})} 
-                                />
-                            </div>
+                            <div className="relative"><Layers className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium" type="number" placeholder="0" value={newItem.stock} onChange={e => setNewItem({...newItem, stock: e.target.value})} /></div>
                         </div>
                     </div>
                 </div>
-
-                {/* Footer */}
                 <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-                    <button 
-                        onClick={() => setShowAddModal(false)} 
-                        className="px-5 py-2.5 text-slate-600 font-medium hover:bg-white hover:text-slate-800 border border-transparent hover:border-slate-200 rounded-xl transition-all"
-                    >
-                        Cancel
-                    </button>
-                    <button 
-                        onClick={addNewItem} 
-                        className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all transform active:scale-95"
-                    >
-                        <Save size={18} /> Save Item
-                    </button>
+                    <button onClick={() => setShowAddModal(false)} className="px-5 py-2.5 text-slate-600 font-medium hover:bg-white hover:text-slate-800 border border-transparent hover:border-slate-200 rounded-xl transition-all">Cancel</button>
+                    <button onClick={addNewItem} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all transform active:scale-95"><Save size={18} /> Save Item</button>
                 </div>
             </div>
         </div>
@@ -368,5 +352,5 @@ const HospitalDashboard = () => {
     </div>
   );
 };
-//final line
+
 export default HospitalDashboard;
