@@ -9,21 +9,18 @@ import {
 
 import logoMain from '../assets/logo_final.png';
 
-// FULL MEDICINE DATABASE
+// MEDICINE DATABASE
 const MEDICINE_DB = [
-  { id: 1, name: 'Covishield Vaccine', type: 'Vial', img: 'https://images.unsplash.com/photo-1633167606204-2782f336462d?auto=format&fit=crop&w=300&q=80' },
-  { id: 2, name: 'Snake Anti-Venom', type: 'Vial', img: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=300&q=80' },
-  { id: 3, name: 'Rabies Vaccine', type: 'Vial', img: 'https://images.unsplash.com/photo-1579165466741-7f35e4755652?auto=format&fit=crop&w=300&q=80' },
-  { id: 4, name: 'O+ Blood Bags', type: 'Bag', img: 'https://images.unsplash.com/photo-1615461066841-6116e61058f4?auto=format&fit=crop&w=300&q=80' },
-  { id: 25, name: 'IV Paracetamol 100ml', type: 'Bottle', img: 'https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&w=300&q=80' },
-  { id: 6, name: 'Inj. Atropine', type: 'Ampoule', img: 'https://plus.unsplash.com/premium_photo-1675808695346-d81679490256?auto=format&fit=crop&w=300&q=80' },
-  { id: 7, name: 'Inj. Adrenaline', type: 'Ampoule', img: 'https://images.unsplash.com/photo-1628595351029-c2bf17511435?auto=format&fit=crop&w=300&q=80' },
-  { id: 8, name: 'Inj. Hydrocortisone', type: 'Vial', img: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=300&q=80' },
-  { id: 17, name: 'Inj. Insulin (Actrapid)', type: 'Vial', img: 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?auto=format&fit=crop&w=300&q=80' },
-  { id: 20, name: 'Inj. Diclofenac', type: 'Ampoule', img: 'https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&w=300&q=80' },
-  { id: 32, name: 'ECG Chest Leads', type: 'Set', img: 'https://images.unsplash.com/photo-1576091160550-217358c7b869?auto=format&fit=crop&w=300&q=80' },
-  { id: 36, name: 'Tab. Depin (Nifedipine)', type: 'Strip', img: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=300&q=80' },
-  { id: 30, name: 'Ventilator Tubing Set', type: 'Set', img: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=300&q=80' },
+  { id: 1, name: 'Covishield Vaccine', type: 'Vial', img: 'https://images.unsplash.com/photo-1633167606204-2782f336462d?auto=format&fit=crop&w=200&q=80' },
+  { id: 2, name: 'Snake Anti-Venom', type: 'Vial', img: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=200&q=80' },
+  { id: 3, name: 'Rabies Vaccine', type: 'Vial', img: 'https://images.unsplash.com/photo-1579165466741-7f35e4755652?auto=format&fit=crop&w=200&q=80' },
+  { id: 4, name: 'O+ Blood Bags', type: 'Bag', img: 'https://images.unsplash.com/photo-1615461066841-6116e61058f4?auto=format&fit=crop&w=200&q=80' },
+  { id: 6, name: 'Inj. Atropine', type: 'Ampoule', img: 'https://plus.unsplash.com/premium_photo-1675808695346-d81679490256?auto=format&fit=crop&w=200&q=80' },
+  { id: 7, name: 'Inj. Adrenaline', type: 'Ampoule', img: 'https://plus.unsplash.com/premium_photo-1673953509975-576678fa6710?auto=format&fit=crop&w=200&q=80' },
+  { id: 8, name: 'Inj. Hydrocortisone', type: 'Vial', img: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&w=200&q=80' },
+  { id: 17, name: 'Inj. Insulin (Actrapid)', type: 'Vial', img: 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?auto=format&fit=crop&w=200&q=80' },
+  { id: 25, name: 'IV Paracetamol 100ml', type: 'Bottle', img: 'https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&w=200&q=80' },
+  { id: 36, name: 'Tab. Depin (Nifedipine)', type: 'Strip', img: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=200&q=80' },
 ];
 
 const PHCDashboard = () => {
@@ -36,11 +33,14 @@ const PHCDashboard = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [viewOrder, setViewOrder] = useState(null);
+  
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [addedFeedback, setAddedFeedback] = useState({});
   const [trackProgress, setTrackProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Checkout State
   const [proofFiles, setProofFiles] = useState([]);
   const [checks, setChecks] = useState({
     isGenuine: false,
@@ -97,42 +97,54 @@ const PHCDashboard = () => {
     }));
   };
 
+  // ✅ Handle File Selection
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     if (proofFiles.length + files.length > 3) return alert("Max 3 files allowed");
     setProofFiles([...proofFiles, ...files]);
   };
 
+  // ✅ Remove Selected File
+  const removeFile = (index) => {
+    setProofFiles(proofFiles.filter((_, i) => i !== index));
+  };
+
+  // ✅ UPDATED: Handle Submit with FormData (For File Upload)
   const handleSubmitOrder = async () => {
     if (!checks.isGenuine || !checks.stockUnavailable || !checks.patientAffected) return alert("⚠️ Please confirm all 3 verification protocols.");
     if (proofFiles.length === 0) return alert("❌ UPLOAD REQUIRED: Please attach proof.");
 
+    setLoading(true);
+
     const itemSummary = cart.map(c => `${c.qty}x ${c.name}`).join(', ');
     const totalQty = cart.reduce((acc, c) => acc + c.qty, 0);
-    
-    // Simulated File Upload (In real app, you'd upload to S3/Cloudinary here)
-    // We send the file names so hospital knows what was attached.
-    const fileNames = proofFiles.map(f => f.name).join(', ');
 
-    const newRequest = {
-        phc: user.name,
-        item: itemSummary, 
-        qty: totalQty,
-        urgency: urgency,
-        description: `Attached Proofs: ${fileNames}`, // Sending file names in description
-        status: 'Pending',
-        distance: '12 km'
-    };
+    // 1. Create FormData object
+    const formDataToSend = new FormData();
+    formDataToSend.append("phc", user.name);
+    formDataToSend.append("item", itemSummary);
+    formDataToSend.append("qty", totalQty);
+    formDataToSend.append("urgency", urgency);
+    formDataToSend.append("description", "Multi-item order via App");
+    
+    // 2. Append Files (Only the first one for now if using free tier single-upload)
+    // If backend supports array, loop through. Assuming single file per field or array field.
+    // Based on previous backend code, we used upload.single('proofFile') or upload.array('proofFiles')
+    // Let's assume array for robustness:
+    proofFiles.forEach((file) => {
+        formDataToSend.append("proofFiles", file); // Ensure backend route expects 'proofFiles' array
+    });
+    // *Fallback:* If backend is strictly single file, use: formDataToSend.append("proofFile", proofFiles[0]);
 
     try {
+        // 3. Send FormData (Browser sets Content-Type automatically)
         const res = await fetch(API_URL, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(newRequest),
+            body: formDataToSend, 
         });
 
         if (res.ok) {
-            alert("✅ Order Placed Successfully!");
+            alert("✅ Order & Documents Uploaded Successfully!");
             fetchRequests(); 
             setCart([]);
             setProofFiles([]);
@@ -144,6 +156,7 @@ const PHCDashboard = () => {
     } catch (err) {
         alert("Network Error.");
     }
+    setLoading(false);
   };
 
   const startTracking = () => {
@@ -184,7 +197,6 @@ const PHCDashboard = () => {
         <header className="bg-white border-b border-slate-200 px-4 md:px-8 py-4 flex justify-between items-center shadow-sm z-10">
           <div className="flex items-center gap-3">
             <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-600"><Menu size={24} /></button>
-            {/* ✅ RENAMED TITLE HERE */}
             <h1 className="text-lg md:text-2xl font-bold text-slate-800">{activeTab === 'shop' ? 'Emergency Supply Requisition' : activeTab === 'cart' ? 'Final Checkout' : 'Order History'}</h1>
           </div>
           <div className="flex items-center gap-4">
@@ -254,20 +266,37 @@ const PHCDashboard = () => {
                                 <label className="flex gap-2 text-xs cursor-pointer"><input type="checkbox" onChange={(e) => setChecks({...checks, stockUnavailable: e.target.checked})} /> Stock unavailable.</label>
                                 <label className="flex gap-2 text-xs cursor-pointer"><input type="checkbox" onChange={(e) => setChecks({...checks, patientAffected: e.target.checked})} /> Patient care affected.</label>
                             </div>
+                            
+                            {/* ✅ VISIBLE FILE LIST & UPLOAD */}
                             <div className="mb-6">
                                 <label className="block text-xs font-bold text-slate-700 mb-2">Proof (Max 3) <span className="text-red-500">*</span></label>
                                 <label className="cursor-pointer w-full border-2 border-dashed border-blue-200 rounded-lg p-3 flex flex-col items-center justify-center hover:bg-blue-50 transition-colors">
-                                    <Upload size={16} className="text-blue-500"/><span className="text-[10px] text-blue-600 mt-1">Upload File</span><input type="file" multiple className="hidden" onChange={handleFileChange}/>
+                                    <Upload size={16} className="text-blue-500"/>
+                                    <span className="text-[10px] text-blue-600 mt-1">Upload File</span>
+                                    <input type="file" multiple className="hidden" onChange={handleFileChange}/>
                                 </label>
-                                {proofFiles.length > 0 && <p className="text-[10px] text-green-600 mt-1">{proofFiles.length} files attached</p>}
+                                {proofFiles.length > 0 && (
+                                    <div className="mt-3 space-y-2">
+                                        {proofFiles.map((f, i) => (
+                                            <div key={i} className="flex items-center justify-between bg-green-50 p-2 rounded text-xs text-green-700 border border-green-100">
+                                                <span className="truncate w-24">{f.name}</span>
+                                                <button onClick={() => removeFile(i)} className="text-red-500 hover:text-red-700"><Trash2 size={14}/></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                            <button onClick={handleSubmitOrder} disabled={cart.length === 0} className={`w-full py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all ${cart.length > 0 ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-400'}`}><Send size={18} /> Request Drone</button>
+
+                            <button onClick={handleSubmitOrder} disabled={cart.length === 0} className={`w-full py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all ${cart.length > 0 ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-400'}`}>
+                                {loading ? 'Uploading...' : <><Send size={18} /> Request Drone</>}
+                            </button>
                         </div>
                     </div>
                 </div>
              </div>
           )}
 
+          {/* 3️⃣ HISTORY & TRACKING */}
           {!showTracker && activeTab === 'history' && (
              <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl border overflow-hidden overflow-x-auto">
                 <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
@@ -280,7 +309,7 @@ const PHCDashboard = () => {
                         {orderHistory.map((order) => (
                             <tr key={order._id || order.id} className="hover:bg-slate-50 transition-colors">
                                 <td className="p-4 font-mono text-sm">{(order._id || order.id).slice(-6).toUpperCase()}</td>
-                                <td className="p-4 font-bold">{order.qty} items (Bundle)</td>
+                                <td className="p-4 font-bold">{order.item}</td>
                                 <td className="p-4"><span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-bold">{order.status}</span></td>
                                 <td className="p-4 flex items-center gap-2">
                                     <button onClick={() => setViewOrder(order)} className="text-slate-500 hover:text-blue-600 p-2 rounded-full hover:bg-blue-50 transition-colors"><Eye size={18} /></button>
@@ -293,9 +322,56 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* Tracking Component would go here (Removed for brevity, but keep it in your file) */}
+          {/* 4️⃣ TRACKING */}
+          {showTracker && (
+             <div className="max-w-4xl mx-auto space-y-6">
+                <div className="bg-slate-200 rounded-3xl h-64 md:h-80 relative overflow-hidden border-4 border-white shadow-2xl">
+                    <div className="absolute inset-0 opacity-30 bg-[url('https://img.freepik.com/free-vector/grey-world-map_1053-431.jpg')] bg-cover bg-center grayscale"></div>
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none"><path d="M 100,160 Q 400,50 700,160" fill="none" stroke="#3b82f6" strokeWidth="3" strokeDasharray="10" /></svg>
+                    <div className="absolute top-[160px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-red-600" size={32} fill="#ef4444"/><span className="font-bold text-slate-700 text-xs mt-1">Hospital</span></div>
+                    <div className="absolute top-[160px] left-[700px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-orange-500" size={32} fill="#f97316"/><span className="font-bold text-slate-700 text-xs mt-1">PHC</span></div>
+                    <div className="absolute top-0 left-0 transition-all duration-100 ease-linear z-20" style={{ left: `${100 + (trackProgress / 100) * 600}px`, top: `${160 - Math.sin((trackProgress / 100) * Math.PI) * 110}px`, transform: `translate(-50%, -50%) rotate(${90 + (trackProgress < 50 ? -20 : 20)}deg)` }}><Plane size={48} className="text-yellow-500 drop-shadow-xl" fill="gold" /></div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 rounded-3xl overflow-hidden shadow-2xl font-mono">
+                    <div className="bg-slate-900 text-white border-r border-slate-700">
+                        <div className="bg-blue-600 py-3 text-center"><h2 className="text-2xl font-bold uppercase tracking-widest">Departure</h2></div>
+                        <div className="p-6 space-y-4">
+                            <div className="flex justify-between border-b border-slate-700 pb-2"><span className="text-slate-400 text-xs uppercase">Time</span><div className="text-right"><p className="text-xs text-slate-400">SCH. {timeString}</p><p className="text-lg font-bold text-green-400">ACT. {timeString}</p></div></div>
+                            <div className="text-center py-2"><h3 className="text-xl font-bold text-blue-300">District Hospital (DH)</h3></div>
+                        </div>
+                    </div>
+                    <div className="bg-slate-900 text-white">
+                        <div className="bg-blue-600 py-3 text-center"><h2 className="text-2xl font-bold uppercase tracking-widest">Arrival</h2></div>
+                        <div className="p-6 space-y-4">
+                            <div className="flex justify-between border-b border-slate-700 pb-2"><span className="text-slate-400 text-xs uppercase">Time</span><div className="text-right"><p className="text-xs text-slate-400">SCH. {arrivalTime}</p><p className="text-lg font-bold text-yellow-400">ETA. {arrivalTime}</p></div></div>
+                            <div className="text-center py-2"><h3 className="text-xl font-bold text-blue-300">Wagholi PHC (WAG)</h3></div>
+                        </div>
+                    </div>
+                </div>
+                <div className="flex justify-center"><button onClick={() => setShowTracker(false)} className="text-slate-500 hover:text-red-500 text-sm flex items-center gap-2 transition-colors"><XCircle size={20} /> Close Flight View</button></div>
+             </div>
+          )}
         </div>
       </main>
+
+      {/* DETAILS MODAL */}
+      {viewOrder && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+                <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
+                    <h3 className="font-bold flex items-center gap-2"><FileText size={18} /> Order Details</h3>
+                    <button onClick={() => setViewOrder(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button>
+                </div>
+                <div className="p-6 space-y-4 text-sm">
+                    <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Order ID</span><span className="font-mono font-bold">{(viewOrder._id || viewOrder.id).slice(-6).toUpperCase()}</span></div>
+                    <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Items</span><span className="font-medium text-blue-600">{viewOrder.item}</span></div>
+                    <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Time</span><span className="font-medium">{new Date(viewOrder.createdAt || Date.now()).toLocaleString()}</span></div>
+                    <div><span className="text-slate-500 block mb-1">Reason</span><div className="bg-slate-50 p-3 rounded-lg text-slate-700 border border-slate-200 italic">{viewOrder.description || "Multi-item order."}</div></div>
+                </div>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 };

@@ -333,24 +333,43 @@ const HospitalDashboard = () => {
       )}
 
       {/* ✅ VIEW PROOF MODAL */}
+  {/* ✅ VIEW PROOF MODAL */}
       {viewProof && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
                 <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
-                    <h3 className="font-bold flex items-center gap-2"><FileText size={18} /> Proof Documents</h3>
+                    <h3 className="font-bold flex items-center gap-2"><FileText size={18} /> Proof Document</h3>
                     <button onClick={() => setViewProof(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button>
                 </div>
                 <div className="p-8 flex flex-col items-center justify-center space-y-4 bg-slate-50">
-                    {/* Placeholder for file content (Simulating image viewing) */}
-                    <div className="w-full h-64 bg-white border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-slate-400">
-                        <FileText size={48} className="mb-2 text-blue-200" />
-                        <p className="text-sm font-bold text-slate-500">Medical Report Preview</p>
-                        <p className="text-xs text-slate-400 mt-1 text-center px-4">{viewProof.description}</p>
-                    </div>
-                    <a href="#" className="text-blue-600 hover:underline text-sm font-bold flex items-center gap-1" onClick={(e) => e.preventDefault()}><Eye size={16}/> Open Full Document</a>
+                    
+                    {/* ✅ REAL IMAGE FROM CLOUDINARY */}
+                    {viewProof.proofFile ? (
+                        <div className="w-full border-2 border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                            <img 
+                                src={viewProof.proofFile} 
+                                alt="Proof Document" 
+                                className="w-full h-64 object-contain bg-black/5" 
+                            />
+                            <a 
+                                href={viewProof.proofFile} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="block bg-blue-50 text-blue-600 text-center text-xs py-2 hover:bg-blue-100 font-bold border-t border-slate-200"
+                            >
+                                Open Full Document ↗
+                            </a>
+                        </div>
+                    ) : (
+                        <div className="w-full h-64 bg-white border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-slate-400">
+                            <FileText size={48} className="mb-2 text-blue-200" />
+                            <p className="text-sm font-bold text-slate-500">No Document Attached</p>
+                        </div>
+                    )}
+
                 </div>
                 <div className="p-4 bg-white text-right border-t border-slate-200">
-                    <button onClick={() => setViewProof(null)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold text-sm">Close Viewer</button>
+                    <button onClick={() => setViewProof(null)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold text-sm">Close</button>
                 </div>
             </div>
         </div>
