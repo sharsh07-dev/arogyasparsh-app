@@ -4,10 +4,30 @@ import {
   Send, LogOut, AlertTriangle, CheckCircle2, 
   MapPin, History, Package, Navigation, 
   XCircle, FileText, Upload, User, Clock, Trash2,
-  Menu, X, RotateCcw, Eye, Building2
+  Menu, X, RotateCcw, Eye, Building2, Search, Pill, Check
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
+
+// ✅ SHARED MEDICINE DATABASE (Same as Hospital)
+const MEDICINE_DB = [
+  // VACCINES
+  { id: 1, name: 'Covishield Vaccine', type: 'Vial', img: 'https://images.unsplash.com/photo-1633167606204-2782f336462d?auto=format&fit=crop&w=100&q=80' },
+  { id: 2, name: 'Snake Anti-Venom', type: 'Vial', img: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=100&q=80' },
+  { id: 3, name: 'Rabies Vaccine', type: 'Vial', img: 'https://images.unsplash.com/photo-1579165466741-7f35e4755652?auto=format&fit=crop&w=100&q=80' },
+  { id: 4, name: 'O+ Blood Bags', type: 'Bag', img: 'https://images.unsplash.com/photo-1615461066841-6116e61058f4?auto=format&fit=crop&w=100&q=80' },
+  // INJECTIONS
+  { id: 6, name: 'Inj. Atropine', type: 'Ampoule', img: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=100&q=80' },
+  { id: 7, name: 'Inj. Adrenaline', type: 'Ampoule', img: 'https://plus.unsplash.com/premium_photo-1673953509975-576678fa6710?auto=format&fit=crop&w=100&q=80' },
+  { id: 8, name: 'Inj. Hydrocortisone', type: 'Vial', img: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&w=100&q=80' },
+  { id: 17, name: 'Inj. Insulin (Actrapid)', type: 'Vial', img: 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?auto=format&fit=crop&w=100&q=80' },
+  { id: 20, name: 'Inj. Diclofenac', type: 'Ampoule', img: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=100&q=80' },
+  // FLUIDS & EQUIPMENT
+  { id: 25, name: 'IV Paracetamol 100ml', type: 'Bottle', img: 'https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&w=100&q=80' },
+  { id: 32, name: 'ECG Chest Leads', type: 'Set', img: 'https://images.unsplash.com/photo-1576091160550-217358c7b869?auto=format&fit=crop&w=100&q=80' },
+  { id: 36, name: 'Tab. Depin (Nifedipine)', type: 'Strip', img: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=100&q=80' },
+  { id: 30, name: 'Ventilator Tubing Set', type: 'Set', img: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=100&q=80' },
+];
 
 const PHCDashboard = () => {
   const navigate = useNavigate();
@@ -26,9 +46,11 @@ const PHCDashboard = () => {
   const [orderHistory, setOrderHistory] = useState([]); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  
-  // View Details State
   const [viewOrder, setViewOrder] = useState(null);
+
+  // ✅ SEARCH STATE
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
 
   // Flight Board State
   const [trackProgress, setTrackProgress] = useState(0);
@@ -62,7 +84,8 @@ const PHCDashboard = () => {
   }, []);
 
   const [formData, setFormData] = useState({
-    itemType: 'Vaccine',
+    itemType: '', // Will be filled by search
+    selectedItemImg: '', // To show image after selection
     urgency: 'Standard',
     quantity: 1,
     description: '',
@@ -80,6 +103,22 @@ const PHCDashboard = () => {
     navigate('/login');
   };
 
+  // ✅ HANDLE SEARCH SELECTION
+  const selectMedicine = (medicine) => {
+    setFormData(prev => ({
+        ...prev, 
+        itemType: medicine.name,
+        selectedItemImg: medicine.img
+    }));
+    setSearchTerm(''); // Clear search
+    setShowDropdown(false); // Hide list
+  };
+
+  // Filter medicines based on search
+  const filteredMedicines = MEDICINE_DB.filter(med => 
+    med.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     if (formData.proofFiles.length + files.length > 3) {
@@ -96,6 +135,11 @@ const PHCDashboard = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    if (!formData.itemType) {
+        alert("❌ Please search and select a medicine first.");
+        return;
+    }
+
     if (!checks.isGenuine || !checks.stockUnavailable || !checks.patientAffected) {
       alert("⚠️ Verification Failed: You must tick all 3 confirmation boxes.");
       return;
@@ -127,7 +171,8 @@ const PHCDashboard = () => {
             alert("✅ Request Sent Successfully!");
             fetchRequests(); 
             setActiveTab('history');
-            setFormData({ itemType: 'Vaccine', urgency: 'Standard', quantity: 1, description: '', proofFiles: [] });
+            // Reset Form
+            setFormData({ itemType: '', selectedItemImg: '', urgency: 'Standard', quantity: 1, description: '', proofFiles: [] });
             setChecks({ isGenuine: false, stockUnavailable: false, patientAffected: false });
         } else {
             alert("Failed to send request. Server busy.");
@@ -151,9 +196,7 @@ const PHCDashboard = () => {
     }, 50);
   };
 
-  const isFormValid = checks.isGenuine && checks.stockUnavailable && checks.patientAffected && formData.proofFiles.length > 0;
-
-  // Helpers for Flight Board Dates
+  const isFormValid = checks.isGenuine && checks.stockUnavailable && checks.patientAffected && formData.proofFiles.length > 0 && formData.itemType;
   const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const timeString = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   const arrivalTime = new Date(currentTime.getTime() + 15 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -166,203 +209,68 @@ const PHCDashboard = () => {
       )}
 
       {/* SIDEBAR */}
-      <aside className={`
-        fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-        md:translate-x-0 md:static md:flex md:flex-col
-      `}>
+      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
         <div className="p-6 border-b border-slate-800 flex justify-between items-center">
           <div>
-            <div className="mb-4">
-               <img src={logoMain} alt="Logo" className="h-10 w-auto object-contain bg-white rounded-lg p-1" />
-            </div>
+            <div className="mb-4"><img src={logoMain} alt="Logo" className="h-10 w-auto object-contain bg-white rounded-lg p-1" /></div>
             <p className="text-xs text-slate-400 uppercase tracking-wider">PHC Portal v2.0</p>
           </div>
-          <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400 hover:text-white">
-            <X size={24} />
-          </button>
+          <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400 hover:text-white"><X size={24} /></button>
         </div>
-
         <nav className="flex-1 p-4 space-y-2">
-          <button 
-            onClick={() => { setActiveTab('new-request'); setShowTracker(false); setIsMobileMenuOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${!showTracker && activeTab === 'new-request' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
-          >
-            <Send size={18} /> New Request
-          </button>
-          <button 
-            onClick={() => { setActiveTab('history'); setShowTracker(false); setIsMobileMenuOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'history' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
-          >
-            <History size={18} /> Past Orders
-          </button>
-          
-          {showTracker && (
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-green-600 text-white animate-pulse shadow-lg">
-                <Navigation size={18} /> Live Tracking
-            </button>
-          )}
+          <button onClick={() => { setActiveTab('new-request'); setShowTracker(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${!showTracker && activeTab === 'new-request' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><Send size={18} /> New Request</button>
+          <button onClick={() => { setActiveTab('history'); setShowTracker(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'history' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><History size={18} /> Past Orders</button>
+          {showTracker && <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-green-600 text-white animate-pulse shadow-lg"><Navigation size={18} /> Live Tracking</button>}
         </nav>
-        <div className="p-4 border-t border-slate-800">
-          <button onClick={handleLogout} className="w-full flex items-center gap-2 text-red-400 hover:bg-slate-800 p-3 rounded-xl text-sm font-medium"><LogOut size={16} /> Logout</button>
-        </div>
+        <div className="p-4 border-t border-slate-800"><button onClick={handleLogout} className="w-full flex items-center gap-2 text-red-400 hover:bg-slate-800 p-3 rounded-xl text-sm font-medium"><LogOut size={16} /> Logout</button></div>
       </aside>
 
-      {/* MAIN CONTENT */}
       <main className="flex-1 relative overflow-hidden flex flex-col w-full">
-        
         <header className="bg-white border-b border-slate-200 px-4 md:px-8 py-4 flex justify-between items-center shadow-sm z-10">
           <div className="flex items-center gap-3">
-            <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg">
-                <Menu size={24} />
-            </button>
-            <div>
-                <h1 className="text-lg md:text-2xl font-bold text-slate-800 truncate">
-                    {showTracker ? 'Live Drone Telemetry' : (activeTab === 'new-request' ? 'Emergency Request' : 'Order History')}
-                </h1>
-            </div>
+            <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg"><Menu size={24} /></button>
+            <div><h1 className="text-lg md:text-2xl font-bold text-slate-800 truncate">{showTracker ? 'Live Drone Telemetry' : (activeTab === 'new-request' ? 'Emergency Request' : 'Order History')}</h1></div>
           </div>
-          <div className="bg-blue-50 px-3 py-1.5 md:px-4 md:py-2 rounded-full border border-blue-100 flex items-center gap-2 text-xs md:text-sm font-semibold text-blue-700 truncate max-w-[120px] md:max-w-none">
-            <MapPin size={14} /> {user.name}
-          </div>
+          <div className="bg-blue-50 px-3 py-1.5 md:px-4 md:py-2 rounded-full border border-blue-100 flex items-center gap-2 text-xs md:text-sm font-semibold text-blue-700 truncate max-w-[120px] md:max-w-none"><MapPin size={14} /> {user.name}</div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
           
-          {/* 1️⃣ FLIGHT BOARD TRACKER UI */}
+          {/* TRACKER */}
           {showTracker && (
              <div className="max-w-4xl mx-auto space-y-6">
-                
-                {/* MAP SECTION */}
                 <div className="bg-slate-200 rounded-3xl h-64 md:h-80 relative overflow-hidden border-4 border-white shadow-2xl">
-                    {/* Map Background Texture */}
                     <div className="absolute inset-0 opacity-30 bg-[url('https://img.freepik.com/free-vector/grey-world-map_1053-431.jpg')] bg-cover bg-center grayscale"></div>
-                    
-                    {/* Dotted Flight Path */}
                     <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                        <path 
-                            d="M 100,160 Q 400,50 700,160" 
-                            fill="none" 
-                            stroke="#3b82f6" 
-                            strokeWidth="3" 
-                            strokeDasharray="10"
-                            className="drop-shadow-md"
-                        />
+                        <path d="M 100,160 Q 400,50 700,160" fill="none" stroke="#3b82f6" strokeWidth="3" strokeDasharray="10" className="drop-shadow-md" />
                     </svg>
-
-                    {/* Start Point (Hospital) */}
-                    <div className="absolute top-[160px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-                        <MapPin className="text-red-600 drop-shadow-md" size={32} fill="#ef4444" />
-                        <span className="font-bold text-slate-700 text-xs mt-1">Hospital</span>
-                    </div>
-
-                    {/* End Point (PHC) */}
-                    <div className="absolute top-[160px] left-[700px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-                        <MapPin className="text-orange-500 drop-shadow-md" size={32} fill="#f97316" />
-                        <span className="font-bold text-slate-700 text-xs mt-1">Wagholi PHC</span>
-                    </div>
-
-                    {/* 🚁 CUSTOM DRONE ICON (Moving) */}
-                    <div 
-                        className="absolute top-0 left-0 transition-all duration-100 ease-linear z-20"
-                        style={{ 
-                            // Bezier Curve Math for Movement
-                            left: `${100 + (trackProgress / 100) * 600}px`,
-                            top: `${160 - Math.sin((trackProgress / 100) * Math.PI) * 110}px`,
-                            transform: `translate(-50%, -50%)`
-                        }}
-                    >
-                        <svg 
-                            width="48" 
-                            height="48" 
-                            viewBox="0 0 24 24" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            strokeWidth="2" 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round"
-                            className="text-yellow-500 drop-shadow-2xl"
-                        >
-                            {/* Central Payload */}
+                    <div className="absolute top-[160px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-red-600 drop-shadow-md" size={32} fill="#ef4444" /><span className="font-bold text-slate-700 text-xs mt-1">Hospital</span></div>
+                    <div className="absolute top-[160px] left-[700px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-orange-500 drop-shadow-md" size={32} fill="#f97316" /><span className="font-bold text-slate-700 text-xs mt-1">Wagholi PHC</span></div>
+                    <div className="absolute top-0 left-0 transition-all duration-100 ease-linear z-20" style={{ left: `${100 + (trackProgress / 100) * 600}px`, top: `${160 - Math.sin((trackProgress / 100) * Math.PI) * 110}px`, transform: `translate(-50%, -50%)` }}>
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-yellow-500 drop-shadow-2xl">
                             <rect x="9" y="9" width="6" height="6" rx="1" fill="gold" stroke="white" />
-                            
-                            {/* Arms */}
-                            <path d="M9 9L5 5" stroke="white" />
-                            <path d="M15 9l4-4" stroke="white" />
-                            <path d="M9 15l-4 4" stroke="white" />
-                            <path d="M15 15l4 4" stroke="white" />
-                            
-                            {/* Rotors (Spinning) */}
-                            <circle cx="5" cy="5" r="2.5" className="fill-white/80 animate-pulse" />
-                            <circle cx="19" cy="5" r="2.5" className="fill-white/80 animate-pulse" />
-                            <circle cx="5" cy="19" r="2.5" className="fill-white/80 animate-pulse" />
-                            <circle cx="19" cy="19" r="2.5" className="fill-white/80 animate-pulse" />
+                            <path d="M9 9L5 5" stroke="white" /><path d="M15 9l4-4" stroke="white" /><path d="M9 15l-4 4" stroke="white" /><path d="M15 15l4 4" stroke="white" />
+                            <circle cx="5" cy="5" r="2.5" className="fill-white/80 animate-pulse" /><circle cx="19" cy="5" r="2.5" className="fill-white/80 animate-pulse" /><circle cx="5" cy="19" r="2.5" className="fill-white/80 animate-pulse" /><circle cx="19" cy="19" r="2.5" className="fill-white/80 animate-pulse" />
                         </svg>
                     </div>
                 </div>
-
-                {/* FLIGHT BOARD DATA */}
                 <div className="grid grid-cols-1 md:grid-cols-2 rounded-3xl overflow-hidden shadow-2xl font-mono">
                     <div className="bg-slate-900 text-white border-r border-slate-700">
-                        <div className="bg-blue-600 py-3 text-center">
-                            <h2 className="text-2xl font-bold uppercase tracking-widest">Departure</h2>
-                        </div>
+                        <div className="bg-blue-600 py-3 text-center"><h2 className="text-2xl font-bold uppercase tracking-widest">Departure</h2></div>
                         <div className="p-6 space-y-4">
-                            <div className="flex justify-between border-b border-slate-700 pb-2">
-                                <span className="text-slate-400 text-xs uppercase">Time</span>
-                                <div className="text-right">
-                                    <p className="text-xs text-slate-400">SCH. {timeString}</p>
-                                    <p className="text-lg font-bold text-green-400">ACT. {timeString}</p>
-                                </div>
-                            </div>
-                            <div className="flex justify-between border-b border-slate-700 pb-2">
-                                <span className="text-slate-400 text-xs uppercase">Date</span>
-                                <span className="font-bold">{today}</span>
-                            </div>
-                            <div className="text-center py-2">
-                                <h3 className="text-xl font-bold text-blue-300">District Hospital (DH)</h3>
-                                <p className="text-xs text-slate-500 mt-1">Terminal 1, Medical Wing</p>
-                            </div>
-                            <div className="flex justify-between bg-slate-800 p-3 rounded-lg">
-                                <span className="text-xs text-slate-400">Drone No:</span>
-                                <span className="font-bold text-yellow-400">DR-4X9</span>
-                            </div>
+                            <div className="flex justify-between border-b border-slate-700 pb-2"><span className="text-slate-400 text-xs uppercase">Time</span><div className="text-right"><p className="text-xs text-slate-400">SCH. {timeString}</p><p className="text-lg font-bold text-green-400">ACT. {timeString}</p></div></div>
+                            <div className="text-center py-2"><h3 className="text-xl font-bold text-blue-300">District Hospital (DH)</h3><p className="text-xs text-slate-500 mt-1">Terminal 1, Medical Wing</p></div>
                         </div>
                     </div>
-
                     <div className="bg-slate-900 text-white">
-                        <div className="bg-blue-600 py-3 text-center">
-                            <h2 className="text-2xl font-bold uppercase tracking-widest">Arrival</h2>
-                        </div>
+                        <div className="bg-blue-600 py-3 text-center"><h2 className="text-2xl font-bold uppercase tracking-widest">Arrival</h2></div>
                         <div className="p-6 space-y-4">
-                            <div className="flex justify-between border-b border-slate-700 pb-2">
-                                <span className="text-slate-400 text-xs uppercase">Time</span>
-                                <div className="text-right">
-                                    <p className="text-xs text-slate-400">SCH. {arrivalTime}</p>
-                                    <p className="text-lg font-bold text-yellow-400">ETA. {arrivalTime}</p>
-                                </div>
-                            </div>
-                            <div className="flex justify-between border-b border-slate-700 pb-2">
-                                <span className="text-slate-400 text-xs uppercase">Date</span>
-                                <span className="font-bold">{today}</span>
-                            </div>
-                            <div className="text-center py-2">
-                                <h3 className="text-xl font-bold text-blue-300">Wagholi PHC (WAG)</h3>
-                                <p className="text-xs text-slate-500 mt-1">Landing Pad A</p>
-                            </div>
-                            <div className="flex justify-between bg-slate-800 p-3 rounded-lg">
-                                <span className="text-xs text-slate-400">Status:</span>
-                                <span className="font-bold text-green-400 animate-pulse">IN TRANSIT</span>
-                            </div>
+                            <div className="flex justify-between border-b border-slate-700 pb-2"><span className="text-slate-400 text-xs uppercase">Time</span><div className="text-right"><p className="text-xs text-slate-400">SCH. {arrivalTime}</p><p className="text-lg font-bold text-yellow-400">ETA. {arrivalTime}</p></div></div>
+                            <div className="text-center py-2"><h3 className="text-xl font-bold text-blue-300">Wagholi PHC (WAG)</h3><p className="text-xs text-slate-500 mt-1">Landing Pad A</p></div>
                         </div>
                     </div>
                 </div>
-
-                <div className="flex justify-center">
-                    <button onClick={() => setShowTracker(false)} className="text-slate-500 hover:text-red-500 text-sm flex items-center gap-2 transition-colors">
-                        <XCircle size={20} /> Close Flight View
-                    </button>
-                </div>
+                <div className="flex justify-center"><button onClick={() => setShowTracker(false)} className="text-slate-500 hover:text-red-500 text-sm flex items-center gap-2 transition-colors"><XCircle size={20} /> Close Flight View</button></div>
              </div>
           )}
 
@@ -376,15 +284,65 @@ const PHCDashboard = () => {
                 
                 <div className="p-4 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
                   <div className="space-y-6">
+                    
+                    {/* ✅ SEARCHABLE MEDICINE SELECTOR */}
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Select Medical Item</label>
-                      <select className="w-full pl-4 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50" value={formData.itemType} onChange={(e) => setFormData({...formData, itemType: e.target.value})}>
-                          <option>Covishield Vaccine</option>
-                          <option>Snake Anti-Venom</option>
-                          <option>Rabies Vaccine</option>
-                          <option>O+ Blood Bags</option>
-                        </select>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Search & Select Medicine</label>
+                      <div className="relative">
+                         <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500">
+                             <Search className="ml-3 text-slate-400" size={18}/>
+                             <input 
+                                type="text"
+                                className="w-full p-3 bg-transparent outline-none font-medium"
+                                placeholder="Type to search (e.g., Rabies, Cobra...)"
+                                value={searchTerm}
+                                onChange={(e) => {
+                                    setSearchTerm(e.target.value);
+                                    setShowDropdown(true);
+                                }}
+                             />
+                         </div>
+                         
+                         {/* SEARCH RESULTS DROPDOWN */}
+                         {showDropdown && searchTerm && (
+                             <div className="absolute z-20 top-full mt-2 w-full bg-white rounded-xl shadow-xl border border-slate-100 max-h-60 overflow-y-auto">
+                                 {filteredMedicines.length > 0 ? (
+                                     filteredMedicines.map((med) => (
+                                         <div 
+                                            key={med.id} 
+                                            className="flex items-center p-3 hover:bg-blue-50 cursor-pointer border-b border-slate-50 last:border-none"
+                                            onClick={() => selectMedicine(med)}
+                                         >
+                                             <img src={med.img} alt={med.name} className="w-10 h-10 rounded-lg object-cover mr-3 bg-slate-100" />
+                                             <div>
+                                                 <p className="font-bold text-sm text-slate-800">{med.name}</p>
+                                                 <p className="text-xs text-slate-500">{med.type}</p>
+                                             </div>
+                                             <button className="ml-auto text-blue-600 font-bold text-xs bg-blue-100 px-3 py-1 rounded-full">Add</button>
+                                         </div>
+                                     ))
+                                 ) : (
+                                     <div className="p-4 text-center text-slate-500 text-sm">No medicines found.</div>
+                                 )}
+                             </div>
+                         )}
+
+                         {/* ✅ SELECTED ITEM PREVIEW CARD */}
+                         {formData.itemType && (
+                             <div className="mt-4 bg-blue-50 p-4 rounded-xl border border-blue-200 flex items-center justify-between">
+                                 <div className="flex items-center gap-3">
+                                     <img src={formData.selectedItemImg} className="w-12 h-12 rounded-lg object-cover border border-white shadow-sm" alt="Selected" />
+                                     <div>
+                                         <p className="text-xs text-slate-500 uppercase font-bold">Selected Item</p>
+                                         <p className="text-sm font-bold text-blue-900">{formData.itemType}</p>
+                                     </div>
+                                 </div>
+                                 <div className="bg-white p-1 rounded-full text-green-600 shadow-sm"><Check size={20}/></div>
+                             </div>
+                         )}
+                      </div>
                     </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-2">Urgency</label>
@@ -436,7 +394,7 @@ const PHCDashboard = () => {
             </div>
           )}
 
-          {/* 3️⃣ PAST ORDERS TAB (With View Details) */}
+          {/* PAST ORDERS (With View Details & Tracker) */}
           {!showTracker && activeTab === 'history' && (
              <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl border overflow-hidden overflow-x-auto">
                 <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
@@ -460,12 +418,7 @@ const PHCDashboard = () => {
                                     }`}>{order.status}</span>
                                 </td>
                                 <td className="p-4 flex items-center gap-2">
-                                    {/* View Details */}
-                                    <button onClick={() => setViewOrder(order)} className="text-slate-500 hover:text-blue-600 p-2 rounded-full hover:bg-blue-50 transition-colors">
-                                        <Eye size={18} />
-                                    </button>
-
-                                    {/* Track Button */}
+                                    <button onClick={() => setViewOrder(order)} className="text-slate-500 hover:text-blue-600 p-2 rounded-full hover:bg-blue-50 transition-colors"><Eye size={18} /></button>
                                     {order.status === 'Dispatched' && (
                                         <button onClick={startTracking} className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 shadow-md">
                                             <Navigation size={14}/> TRACK
