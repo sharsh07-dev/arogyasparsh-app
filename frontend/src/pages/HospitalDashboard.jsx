@@ -18,12 +18,43 @@ const PHC_LOC = { lat: 18.5808, lng: 73.9787 };
 const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 18.5500, lng: 73.9100 }; 
 
+// ✅ UPDATED INVENTORY WITH IMAGES
 const INITIAL_INVENTORY = [
-  { id: 1, name: 'Covishield Vaccine', stock: 450, batch: 'B-992', type: 'Vial' },
-  { id: 2, name: 'Snake Anti-Venom', stock: 12, batch: 'AV-221', type: 'Injection' }, 
-  { id: 3, name: 'Rabies Vaccine', stock: 85, batch: 'RB-110', type: 'Vial' },
-  { id: 4, name: 'O+ Blood Bags', stock: 24, batch: 'BL-004', type: 'Bag' },
-  { id: 5, name: 'Paracetamol 500mg', stock: 1200, batch: 'P-554', type: 'Strip' },
+  { 
+    id: 1, 
+    name: 'Covishield Vaccine', 
+    stock: 450, 
+    batch: 'B-992', 
+    img: 'https://images.unsplash.com/photo-1633167606204-2782f336462d?auto=format&fit=crop&w=500&q=80' 
+  },
+  { 
+    id: 2, 
+    name: 'Snake Anti-Venom', 
+    stock: 12, 
+    batch: 'AV-221', 
+    img: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=500&q=80' 
+  }, 
+  { 
+    id: 3, 
+    name: 'Rabies Vaccine', 
+    stock: 85, 
+    batch: 'RB-110', 
+    img: 'https://images.unsplash.com/photo-1579165466741-7f35e4755652?auto=format&fit=crop&w=500&q=80' 
+  },
+  { 
+    id: 4, 
+    name: 'O+ Blood Bags', 
+    stock: 24, 
+    batch: 'BL-004', 
+    img: 'https://images.unsplash.com/photo-1615461066841-6116e61058f4?auto=format&fit=crop&w=500&q=80' 
+  },
+  { 
+    id: 5, 
+    name: 'Paracetamol 500mg', 
+    stock: 1200, 
+    batch: 'P-554', 
+    img: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=500&q=80' 
+  },
 ];
 
 const HospitalDashboard = () => {
@@ -150,7 +181,13 @@ const HospitalDashboard = () => {
 
   const addNewItem = () => {
     if(!newItem.name || !newItem.batch || !newItem.stock) return alert("Please fill all details");
-    setInventory([...inventory, { id: Date.now(), ...newItem, stock: parseInt(newItem.stock) }]);
+    // Add new item with a default placeholder image if user adds one manually
+    setInventory([...inventory, { 
+        id: Date.now(), 
+        ...newItem, 
+        stock: parseInt(newItem.stock),
+        img: 'https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=500&q=80' // Default box image
+    }]);
     setShowAddModal(false);
     setNewItem({ name: '', stock: '', batch: '' });
   };
@@ -196,7 +233,7 @@ const HospitalDashboard = () => {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 relative">
             
-            {/* ALERTS */}
+            {/* ALERTS TAB */}
             {activeTab === 'alerts' && (
                 <div className="grid gap-4 max-w-5xl mx-auto">
                     {requests.length === 0 && <p className="text-center text-slate-400 mt-10">No active requests.</p>}
@@ -224,7 +261,7 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* MAP */}
+            {/* MAP TAB */}
             {activeTab === 'map' && (
                 <div className="h-full w-full relative rounded-2xl overflow-hidden shadow-xl border-4 border-white">
                     {isLoaded ? (
@@ -251,50 +288,42 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* ✅ NEW INVENTORY GRID LAYOUT */}
+            {/* ✅ INVENTORY TAB - WITH IMAGES */}
             {activeTab === 'inventory' && (
                 <div className="max-w-6xl mx-auto">
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                         
-                        {/* Item Cards */}
                         {inventory.map((item) => (
                             <div key={item.id} className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-col justify-between hover:shadow-lg transition-all hover:-translate-y-1 duration-300">
                                 
-                                {/* Icon Area */}
-                                <div className="h-32 bg-blue-50 rounded-xl flex items-center justify-center mb-4">
-                                    <Pill size={48} className="text-blue-300" />
+                                {/* ✅ Product Image Area */}
+                                <div className="h-32 w-full bg-slate-50 rounded-xl mb-4 overflow-hidden relative flex items-center justify-center border border-slate-100">
+                                    {item.img ? (
+                                        <img src={item.img} alt={item.name} className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" />
+                                    ) : (
+                                        <Pill size={40} className="text-blue-200" />
+                                    )}
                                 </div>
                                 
                                 {/* Info */}
                                 <div>
-                                    <h3 className="font-bold text-slate-800 text-lg leading-tight mb-1 truncate" title={item.name}>{item.name}</h3>
+                                    <h3 className="font-bold text-slate-800 text-md leading-tight mb-1 truncate" title={item.name}>{item.name}</h3>
                                     <div className="flex justify-between items-center mb-4">
-                                        <p className="text-xs text-slate-500 font-mono bg-slate-100 px-2 py-0.5 rounded">{item.batch}</p>
-                                        {item.stock < 20 && <span className="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">LOW</span>}
+                                        <p className="text-[10px] text-slate-500 font-mono bg-slate-100 px-2 py-0.5 rounded uppercase">{item.batch}</p>
+                                        {item.stock < 20 && <span className="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full border border-red-100">LOW STOCK</span>}
                                     </div>
                                 </div>
 
-                                {/* Stock Controller (E-commerce style) */}
+                                {/* Controls */}
                                 <div className="mt-auto">
-                                    <div className="flex items-center justify-between bg-slate-50 rounded-lg border border-slate-200 p-1 shadow-sm">
-                                        <button 
-                                            onClick={() => updateStock(item.id, -1)} 
-                                            className="w-9 h-9 flex items-center justify-center bg-white text-red-500 rounded-md shadow-sm hover:bg-red-50 transition-colors border border-slate-100"
-                                        >
-                                            <Minus size={18} />
-                                        </button>
+                                    <div className="flex items-center justify-between bg-slate-50 rounded-xl border border-slate-200 p-1 shadow-sm">
+                                        <button onClick={() => updateStock(item.id, -1)} className="w-8 h-8 flex items-center justify-center bg-white text-slate-600 rounded-lg shadow-sm hover:text-red-500 transition-colors border border-slate-100"><Minus size={16} /></button>
                                         
                                         <div className="flex flex-col items-center w-full">
-                                            <span className="font-bold text-slate-800 text-lg">{item.stock}</span>
-                                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Units</span>
+                                            <span className="font-bold text-slate-800 text-sm">{item.stock}</span>
                                         </div>
 
-                                        <button 
-                                            onClick={() => updateStock(item.id, 1)} 
-                                            className="w-9 h-9 flex items-center justify-center bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 transition-colors border border-transparent"
-                                        >
-                                            <Plus size={18} />
-                                        </button>
+                                        <button onClick={() => updateStock(item.id, 1)} className="w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 transition-colors border border-transparent"><Plus size={16} /></button>
                                     </div>
                                 </div>
                             </div>
@@ -305,11 +334,10 @@ const HospitalDashboard = () => {
                             onClick={() => setShowAddModal(true)}
                             className="border-2 border-dashed border-slate-300 rounded-2xl p-4 flex flex-col items-center justify-center text-slate-400 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all min-h-[280px] group"
                         >
-                            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3 group-hover:bg-blue-100 transition-colors">
-                                <Plus size={32} className="text-slate-400 group-hover:text-blue-600" />
+                            <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mb-3 group-hover:bg-blue-100 transition-colors">
+                                <Plus size={28} className="text-slate-400 group-hover:text-blue-600" />
                             </div>
-                            <span className="font-bold text-lg">Add New Item</span>
-                            <span className="text-xs mt-1">Add to Hospital Stock</span>
+                            <span className="font-bold text-md">Add Medicine</span>
                         </button>
 
                     </div>
@@ -318,6 +346,7 @@ const HospitalDashboard = () => {
         </div>
       </main>
 
+      {/* Add Item Modal (Kept Clean) */}
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white p-0 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100">
