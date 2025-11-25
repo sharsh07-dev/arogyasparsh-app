@@ -6,6 +6,8 @@ const requestSchema = new mongoose.Schema({
   qty: { type: Number, required: true },
   urgency: { type: String, required: true },
   description: { type: String },
+  // ✅ NEW FIELD FOR FILE LINKS
+  proofFiles: [{ type: String }], 
   status: { 
     type: String, 
     enum: ['Pending', 'Approved', 'Dispatched', 'Rejected', 'Delivered'], 

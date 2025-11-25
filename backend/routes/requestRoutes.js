@@ -1,15 +1,34 @@
 const express = require("express");
 const router = express.Router();
 const Request = require("../models/Request");
+const multer = require("multer");
+const { storage } = require("../config/cloudinary");
 
-// 1. POST: Create a new request
-router.post("/", async (req, res) => {
+// Initialize Upload Tool
+const upload = multer({ storage });
+
+// 1. POST: Create Request with Files
+// 'proofFiles' matches the name we will use in the frontend form
+router.post("/", upload.array('proofFiles'), async (req, res) => {
   try {
-    const newRequest = new Request(req.body);
+    // Get file links from Cloudinary
+    const fileLinks = req.files.map(file => file.path);
+
+    const newRequest = new Request({
+      phc: req.body.phc,
+      item: req.body.item,
+      qty: req.body.qty,
+      urgency: req.body.urgency,
+      description: req.body.description,
+      proofFiles: fileLinks, // ✅ Save the links!
+      status: 'Pending'
+    });
+
     const savedRequest = await newRequest.save();
     res.status(201).json(savedRequest);
   } catch (err) {
-    res.status(500).json(err);
+    console.error("Upload Error:", err);
+    res.status(500).json({ message: "Failed to upload", error: err });
   }
 });
 
@@ -37,5 +56,4 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// ⚠️ THIS LINE IS CRITICAL. IT MUST BE EXACTLY THIS:
 module.exports = router;
