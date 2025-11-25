@@ -4,7 +4,7 @@ import {
   Send, LogOut, AlertTriangle, CheckCircle2, 
   MapPin, History, Package, Navigation, 
   XCircle, FileText, Upload, User, Clock, Trash2,
-  Menu, X, RotateCcw, Eye, ShoppingCart, Search, Plus, Minus, ArrowLeft, Plane, Building2, Check
+  Menu, X, RotateCcw, Eye, ShoppingCart, Search, Plus, Minus, ArrowLeft, Building2, Check
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
@@ -25,15 +25,7 @@ const MEDICINE_DB = [
 
 const PHCDashboard = () => {
   const navigate = useNavigate();
-  
-  const getUserFromStorage = () => {
-    try {
-      return JSON.parse(localStorage.getItem('userInfo')) || { name: 'Wagholi PHC' };
-    } catch (e) {
-      return { name: 'Wagholi PHC' };
-    }
-  };
-  const user = getUserFromStorage();
+  const user = JSON.parse(localStorage.getItem('userInfo')) || { name: 'Wagholi PHC' };
   
   const [activeTab, setActiveTab] = useState('shop'); 
   const [showTracker, setShowTracker] = useState(false);
@@ -41,13 +33,11 @@ const PHCDashboard = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [viewOrder, setViewOrder] = useState(null);
+  const [addedFeedback, setAddedFeedback] = useState({});
 
-  // Cart & Search
+  // Cart State
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // ✅ NEW STATE: To track which item was just added (for animation)
-  const [addedFeedback, setAddedFeedback] = useState({});
 
   // Flight Board State
   const [trackProgress, setTrackProgress] = useState(0);
@@ -74,20 +64,14 @@ const PHCDashboard = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // ✅ ANIMATED ADD TO CART
   const addToCart = (item) => {
-    // Logic to add item
     const existing = cart.find(c => c.id === item.id);
     if (existing) {
         setCart(cart.map(c => c.id === item.id ? { ...c, qty: c.qty + 1 } : c));
     } else {
         setCart([...cart, { ...item, qty: 1 }]);
     }
-
-    // Trigger Animation for this specific item ID
     setAddedFeedback(prev => ({ ...prev, [item.id]: true }));
-
-    // Remove Animation after 1.5 seconds
     setTimeout(() => {
         setAddedFeedback(prev => ({ ...prev, [item.id]: false }));
     }, 1500);
@@ -183,6 +167,7 @@ const PHCDashboard = () => {
       
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
 
+      {/* SIDEBAR */}
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
         <div className="p-6 border-b border-slate-800 flex justify-between items-center">
           <div className="mb-4"><img src={logoMain} className="h-10 w-auto bg-white rounded p-1" /></div>
@@ -213,13 +198,13 @@ const PHCDashboard = () => {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50">
           
-          {/* 1️⃣ SHOP VIEW (Search & Grid) */}
+          {/* 1️⃣ SHOP VIEW */}
           {!showTracker && activeTab === 'shop' && (
              <div className="max-w-6xl mx-auto">
                 <div className="relative mb-8">
                     <div className="flex items-center bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-blue-500 p-1">
                         <Search className="ml-3 text-slate-400" size={20}/>
-                        <input type="text" className="w-full p-3 outline-none text-slate-700 font-medium" placeholder="Search for medicines..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}/>
+                        <input type="text" className="w-full p-3 outline-none text-slate-700 font-medium" placeholder="Search for medicines (e.g. Paracetamol, Insulin...)" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}/>
                     </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -228,19 +213,11 @@ const PHCDashboard = () => {
                             <div className="h-40 bg-white p-4 flex items-center justify-center"><img src={med.img} alt={med.name} className="h-full object-contain" /></div>
                             <div className="p-4 flex-1 flex flex-col border-t border-slate-50">
                                 <div className="flex-1"><h3 className="font-bold text-slate-800 leading-tight mb-1">{med.name}</h3><span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{med.type}</span></div>
-                                
-                                {/* ✅ ANIMATED ADD BUTTON */}
                                 <button 
                                     onClick={() => addToCart(med)}
-                                    className={`mt-4 w-full py-2 rounded-lg font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all transform active:scale-95 ${
-                                        addedFeedback[med.id] ? 'bg-green-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'
-                                    }`}
+                                    className={`mt-4 w-full py-2 rounded-lg font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all transform active:scale-95 ${addedFeedback[med.id] ? 'bg-green-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
                                 >
-                                    {addedFeedback[med.id] ? (
-                                        <><CheckCircle2 size={18} /> Added!</>
-                                    ) : (
-                                        <><Plus size={16} /> Add to Cart</>
-                                    )}
+                                    {addedFeedback[med.id] ? <><Check size={16} /> Added!</> : <><Plus size={16} /> Add to Cart</>}
                                 </button>
                             </div>
                         </div>
@@ -313,7 +290,7 @@ const PHCDashboard = () => {
                                 <td className="p-4"><span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-bold">{order.status}</span></td>
                                 <td className="p-4 flex items-center gap-2">
                                     <button onClick={() => setViewOrder(order)} className="text-slate-500 hover:text-blue-600 p-2 rounded-full hover:bg-blue-50 transition-colors"><Eye size={18} /></button>
-                                    {order.status === 'Dispatched' ? <button onClick={startTracking} className="text-green-600 font-bold text-sm flex gap-1"><Navigation size={14}/> Track</button> : <span className="text-slate-400 text-xs">--</span>}
+                                    {order.status === 'Dispatched' && <button onClick={startTracking} className="text-green-600 font-bold text-sm flex gap-1"><Navigation size={14}/> Track</button>}
                                 </td>
                             </tr>
                         ))}
@@ -322,7 +299,7 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* 4️⃣ FLIGHT BOARD TRACKER */}
+          {/* 4️⃣ FLIGHT BOARD TRACKER (Detailed Version) */}
           {showTracker && (
              <div className="max-w-4xl mx-auto space-y-6">
                 <div className="bg-slate-200 rounded-3xl h-64 md:h-80 relative overflow-hidden border-4 border-white shadow-2xl">
@@ -332,8 +309,13 @@ const PHCDashboard = () => {
                     </svg>
                     <div className="absolute top-[160px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-red-600 drop-shadow-md" size={32} fill="#ef4444" /><span className="font-bold text-slate-700 text-xs mt-1">Hospital</span></div>
                     <div className="absolute top-[160px] left-[700px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-orange-500 drop-shadow-md" size={32} fill="#f97316" /><span className="font-bold text-slate-700 text-xs mt-1">Wagholi PHC</span></div>
+                    {/* 🚁 DRONE ICON */}
                     <div className="absolute top-0 left-0 transition-all duration-100 ease-linear z-20" style={{ left: `${100 + (trackProgress / 100) * 600}px`, top: `${160 - Math.sin((trackProgress / 100) * Math.PI) * 110}px`, transform: `translate(-50%, -50%) rotate(${90 + (trackProgress < 50 ? -20 : 20)}deg)` }}>
-                        <Plane size={48} className="text-yellow-500 drop-shadow-xl" fill="gold" />
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-yellow-500 drop-shadow-2xl">
+                            <rect x="9" y="9" width="6" height="6" rx="1" fill="gold" stroke="white" />
+                            <path d="M9 9L5 5" stroke="white" /><path d="M15 9l4-4" stroke="white" /><path d="M9 15l-4 4" stroke="white" /><path d="M15 15l4 4" stroke="white" />
+                            <circle cx="5" cy="5" r="2.5" className="fill-white/80 animate-pulse" /><circle cx="19" cy="5" r="2.5" className="fill-white/80 animate-pulse" /><circle cx="5" cy="19" r="2.5" className="fill-white/80 animate-pulse" /><circle cx="19" cy="19" r="2.5" className="fill-white/80 animate-pulse" />
+                        </svg>
                     </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 rounded-3xl overflow-hidden shadow-2xl font-mono">
@@ -341,14 +323,18 @@ const PHCDashboard = () => {
                         <div className="bg-blue-600 py-3 text-center"><h2 className="text-2xl font-bold uppercase tracking-widest">Departure</h2></div>
                         <div className="p-6 space-y-4">
                             <div className="flex justify-between border-b border-slate-700 pb-2"><span className="text-slate-400 text-xs uppercase">Time</span><div className="text-right"><p className="text-xs text-slate-400">SCH. {timeString}</p><p className="text-lg font-bold text-green-400">ACT. {timeString}</p></div></div>
-                            <div className="text-center py-2"><h3 className="text-xl font-bold text-blue-300">District Hospital (DH)</h3></div>
+                            <div className="flex justify-between border-b border-slate-700 pb-2"><span className="text-slate-400 text-xs uppercase">Date</span><span className="font-bold">{today}</span></div>
+                            <div className="text-center py-2"><h3 className="text-xl font-bold text-blue-300">District Hospital (DH)</h3><p className="text-xs text-slate-500 mt-1">Terminal 1, Medical Wing</p></div>
+                            <div className="flex justify-between bg-slate-800 p-3 rounded-lg"><span className="text-xs text-slate-400">Drone No:</span><span className="font-bold text-yellow-400">DR-4X9</span></div>
                         </div>
                     </div>
                     <div className="bg-slate-900 text-white">
                         <div className="bg-blue-600 py-3 text-center"><h2 className="text-2xl font-bold uppercase tracking-widest">Arrival</h2></div>
                         <div className="p-6 space-y-4">
                             <div className="flex justify-between border-b border-slate-700 pb-2"><span className="text-slate-400 text-xs uppercase">Time</span><div className="text-right"><p className="text-xs text-slate-400">SCH. {arrivalTime}</p><p className="text-lg font-bold text-yellow-400">ETA. {arrivalTime}</p></div></div>
-                            <div className="text-center py-2"><h3 className="text-xl font-bold text-blue-300">Wagholi PHC (WAG)</h3></div>
+                            <div className="flex justify-between border-b border-slate-700 pb-2"><span className="text-slate-400 text-xs uppercase">Date</span><span className="font-bold">{today}</span></div>
+                            <div className="text-center py-2"><h3 className="text-xl font-bold text-blue-300">Wagholi PHC (WAG)</h3><p className="text-xs text-slate-500 mt-1">Landing Pad A</p></div>
+                            <div className="flex justify-between bg-slate-800 p-3 rounded-lg"><span className="text-xs text-slate-400">Status:</span><span className="font-bold text-green-400 animate-pulse">IN TRANSIT</span></div>
                         </div>
                     </div>
                 </div>
@@ -358,7 +344,7 @@ const PHCDashboard = () => {
         </div>
       </main>
 
-      {/* DETAILS MODAL */}
+      {/* 5️⃣ ORDER DETAILS MODAL */}
       {viewOrder && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
