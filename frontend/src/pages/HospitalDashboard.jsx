@@ -18,13 +18,13 @@ const PHC_LOC = { lat: 18.5808, lng: 73.9787 };
 const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 18.5500, lng: 73.9100 }; 
 
-// ✅ INVENTORY WITH IMAGES
+// Inventory Data
 const INITIAL_INVENTORY = [
   { id: 1, name: 'Covishield Vaccine', stock: 450, batch: 'B-992', img: 'https://images.unsplash.com/photo-1633167606204-2782f336462d?auto=format&fit=crop&w=300&q=80' },
   { id: 2, name: 'Snake Anti-Venom', stock: 12, batch: 'AV-221', img: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=300&q=80' },
   { id: 3, name: 'Rabies Vaccine', stock: 85, batch: 'RB-110', img: 'https://images.unsplash.com/photo-1579165466741-7f35e4755652?auto=format&fit=crop&w=300&q=80' },
   { id: 4, name: 'O+ Blood Bags', stock: 24, batch: 'BL-004', img: 'https://images.unsplash.com/photo-1615461066841-6116e61058f4?auto=format&fit=crop&w=300&q=80' },
-  { id: 6, name: 'Inj. Atropine', stock: 10, batch: 'EM-001', img: 'https://plus.unsplash.com/premium_photo-1675808695346-d81679490256?auto=format&fit=crop&w=300&q=80' },
+  { id: 5, name: 'Paracetamol 500mg', stock: 1200, batch: 'P-554', img: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=500&q=80' },
 ];
 
 const HospitalDashboard = () => {
@@ -37,7 +37,7 @@ const HospitalDashboard = () => {
   const [activeMissions, setActiveMissions] = useState([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  // ✅ VIEW PROOF STATE
+  // View Proof State
   const [viewProof, setViewProof] = useState(null);
 
   const { isLoaded } = useJsApiLoader({
@@ -215,13 +215,13 @@ const HospitalDashboard = () => {
                                 <div className={`p-3 rounded-full ${req.urgency === 'Critical' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600'}`}><AlertOctagon size={24} /></div>
                                 <div>
                                     <h3 className="font-bold text-slate-800">{req.phc}</h3>
-                                    <p className="text-sm text-slate-600">{req.qty}x {req.item} <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
+                                    <p className="text-sm text-slate-600">{req.qty} items <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
                                 {/* ✅ VIEW PROOF BUTTON */}
                                 <button onClick={() => setViewProof(req)} className="px-3 py-2 border border-slate-300 text-slate-600 rounded-lg hover:bg-blue-50 font-medium flex items-center gap-2" title="View Proof">
-                                    <FileText size={18} /> <span className="text-xs">Proof</span>
+                                    <FileText size={18} /> <span className="text-xs hidden md:inline">Proof</span>
                                 </button>
 
                                 {req.status === 'Pending' && (
@@ -300,6 +300,43 @@ const HospitalDashboard = () => {
         </div>
       </main>
 
+      {/* ✅ VIEW PROOF MODAL */}
+      {viewProof && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+                <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
+                    <h3 className="font-bold flex items-center gap-2"><FileText size={18} /> Proof Document</h3>
+                    <button onClick={() => setViewProof(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button>
+                </div>
+                <div className="p-8 flex flex-col items-center justify-center space-y-4 bg-slate-50">
+                    
+                    {/* ✅ SHOW IMAGE IF AVAILABLE */}
+                    {viewProof.proofFiles && viewProof.proofFiles.length > 0 ? (
+                        <div className="w-full space-y-4">
+                            {viewProof.proofFiles.map((fileUrl, idx) => (
+                                <div key={idx} className="border-2 border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                                    <img src={fileUrl} alt="Proof" className="w-full h-48 object-contain bg-black/5" />
+                                    <a href={fileUrl} target="_blank" className="block bg-blue-50 text-blue-600 text-center text-xs py-2 hover:bg-blue-100 font-bold border-t border-slate-200">
+                                        Open Full Size ↗
+                                    </a>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="w-full h-64 bg-white border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-slate-400">
+                            <FileText size={48} className="mb-2 text-blue-200" />
+                            <p className="text-sm font-bold text-slate-500">No Document Attached</p>
+                        </div>
+                    )}
+
+                </div>
+                <div className="p-4 bg-white text-right border-t border-slate-200">
+                    <button onClick={() => setViewProof(null)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold text-sm">Close</button>
+                </div>
+            </div>
+        </div>
+      )}
+
       {/* ADD ITEM MODAL */}
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -327,49 +364,6 @@ const HospitalDashboard = () => {
                 <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
                     <button onClick={() => setShowAddModal(false)} className="px-5 py-2.5 text-slate-600 font-medium hover:bg-white hover:text-slate-800 border border-transparent hover:border-slate-200 rounded-xl transition-all">Cancel</button>
                     <button onClick={addNewItem} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all transform active:scale-95"><Save size={18} /> Save Item</button>
-                </div>
-            </div>
-        </div>
-      )}
-
-      {/* ✅ VIEW PROOF MODAL */}
-  {/* ✅ VIEW PROOF MODAL */}
-      {viewProof && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
-                <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
-                    <h3 className="font-bold flex items-center gap-2"><FileText size={18} /> Proof Document</h3>
-                    <button onClick={() => setViewProof(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button>
-                </div>
-                <div className="p-8 flex flex-col items-center justify-center space-y-4 bg-slate-50">
-                    
-                    {/* ✅ REAL IMAGE FROM CLOUDINARY */}
-                    {viewProof.proofFile ? (
-                        <div className="w-full border-2 border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                            <img 
-                                src={viewProof.proofFile} 
-                                alt="Proof Document" 
-                                className="w-full h-64 object-contain bg-black/5" 
-                            />
-                            <a 
-                                href={viewProof.proofFile} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="block bg-blue-50 text-blue-600 text-center text-xs py-2 hover:bg-blue-100 font-bold border-t border-slate-200"
-                            >
-                                Open Full Document ↗
-                            </a>
-                        </div>
-                    ) : (
-                        <div className="w-full h-64 bg-white border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-slate-400">
-                            <FileText size={48} className="mb-2 text-blue-200" />
-                            <p className="text-sm font-bold text-slate-500">No Document Attached</p>
-                        </div>
-                    )}
-
-                </div>
-                <div className="p-4 bg-white text-right border-t border-slate-200">
-                    <button onClick={() => setViewProof(null)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold text-sm">Close</button>
                 </div>
             </div>
         </div>
