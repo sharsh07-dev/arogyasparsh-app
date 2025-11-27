@@ -61,7 +61,7 @@ const Login = () => {
             <div className="flex items-center gap-2 mb-2">
                 <img src={logoLeft} alt="Left Logo" className="h-20 w-auto object-contain" />
                 <img src={logoMain} alt="ArogyaSparsh Logo" className="h-10 w-auto object-contain" />
-                <h1 className="text-2xl font-bold text-slate-800 tracking-tight">ArogyaSparsh</h1>
+            
             </div>
             <p className="text-slate-500 text-sm pl-1">Emergency Medical Drone Network</p>
         </div>
