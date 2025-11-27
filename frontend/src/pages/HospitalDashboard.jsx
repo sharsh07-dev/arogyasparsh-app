@@ -19,7 +19,7 @@ import imgDopamine from '../assets/medicines/dopamine.png';
 import imgAvil from '../assets/medicines/Avil.webp';
 import imgAdrenaline from '../assets/medicines/Adranaline.webp';
 import imgDexa from '../assets/medicines/Dexa.jpg';
-import imgDiclo from '../assets/medicines/Diclo.jpg';
+import imgDiclo from '../assets/medicines/Diclo.jpg';//updated
 // ⚠️ FIXED IMPORT NAME (Changed from 25%_Dex.jpg to Dex25.jpg)
 import imgDex25 from '../assets/medicines/Dex25.jpg';
 import imgDeriphylline from '../assets/medicines/Deriphylline.webp';
