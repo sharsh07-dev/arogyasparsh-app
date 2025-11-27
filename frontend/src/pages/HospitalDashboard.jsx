@@ -15,7 +15,7 @@ import logoMain from '../assets/logo_final.png';
 // ✅ 1. IMPORT YOUR 19 LOCAL IMAGES (Fixed Filename)
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
-import imgDopamine from '../assets/medicines/dopamine.png';
+import imgDopamine from '../assets/medicines/Dopamine.png';
 import imgAvil from '../assets/medicines/Avil.webp';
 import imgAdrenaline from '../assets/medicines/Adranaline.webp';
 import imgDexa from '../assets/medicines/Dexa.jpg';
