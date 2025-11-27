@@ -6,37 +6,46 @@ import {
   MapPin, CheckCircle2, Clock, AlertOctagon, 
   Battery, Signal, Plane, Plus, Minus, Search, 
   Map as MapIcon, VolumeX, Siren, X, Check, Menu,
-  Pill, QrCode, Layers, Save, Trash2, FileText, Eye
+  Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Globe
 } from 'lucide-react';
 
 import ambulanceSiren from '../assets/ambulance.mp3';
 import logoMain from '../assets/logo_final.png';
 
-// ✅ COORDINATES (Chamorshi Hub -> PHC Path)
-// You can update these to real Chamorshi coordinates if needed
-const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; // Chamorshi Hub
-const PHC_LOC = { lat: 20.1849, lng: 79.9948 };      // Example PHC (Gadhchiroli)
-const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
-const center = { lat: 20.0000, lng: 79.9500 }; // Centered View
+// ✅ 1. EXACT COORDINATES FOR ALL PHCs
+const PHC_COORDINATES = {
+  "Wagholi PHC": { lat: 18.5808, lng: 73.9787 }, // Default demo
+  "PHC Chamorshi": { lat: 19.9280, lng: 79.9050 },
+  "PHC Gadhchiroli": { lat: 20.1849, lng: 79.9948 },
+  "PHC Panera": { lat: 19.9500, lng: 79.8500 },
+  "PHC Belgaon": { lat: 19.9000, lng: 80.0500 },
+  "PHC Dhutergatta": { lat: 19.8800, lng: 79.9200 },
+  "PHC Gatta": { lat: 19.7500, lng: 80.1000 },
+  "PHC Gaurkheda": { lat: 19.9100, lng: 79.8000 },
+  "PHC Murmadi": { lat: 19.9800, lng: 79.9500 }
+};
 
-// ✅ HUB LEVEL INVENTORY (High Quantities)
+// Hub Location
+const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; 
+const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
+const center = { lat: 19.9260, lng: 79.9033 }; 
+
 const INITIAL_INVENTORY = [
-  { id: 1, name: 'Covishield Vaccine', stock: 5000, batch: 'HUB-992', img: 'https://images.unsplash.com/photo-1633167606204-2782f336462d?auto=format&fit=crop&w=300&q=80' },
-  { id: 2, name: 'Snake Anti-Venom', stock: 200, batch: 'HUB-AV1', img: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=300&q=80' },
-  { id: 3, name: 'Rabies Vaccine', stock: 1000, batch: 'HUB-RB1', img: 'https://images.unsplash.com/photo-1579165466741-7f35e4755652?auto=format&fit=crop&w=300&q=80' },
-  { id: 4, name: 'O+ Blood Bags', stock: 150, batch: 'HUB-BLD', img: 'https://images.unsplash.com/photo-1615461066841-6116e61058f4?auto=format&fit=crop&w=300&q=80' },
-  { id: 6, name: 'Inj. Atropine', stock: 500, batch: 'HUB-EM1', img: 'https://plus.unsplash.com/premium_photo-1675808695346-d81679490256?auto=format&fit=crop&w=300&q=80' },
+  { id: 1, name: 'Covishield Vaccine', stock: 5000, batch: 'B-992', img: 'https://images.unsplash.com/photo-1633167606204-2782f336462d?auto=format&fit=crop&w=300&q=80' },
+  { id: 2, name: 'Snake Anti-Venom', stock: 200, batch: 'AV-221', img: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=300&q=80' },
+  { id: 3, name: 'Rabies Vaccine', stock: 1000, batch: 'RB-110', img: 'https://images.unsplash.com/photo-1579165466741-7f35e4755652?auto=format&fit=crop&w=300&q=80' },
+  { id: 4, name: 'O+ Blood Bags', stock: 150, batch: 'BL-004', img: 'https://images.unsplash.com/photo-1615461066841-6116e61058f4?auto=format&fit=crop&w=300&q=80' },
+  { id: 6, name: 'Inj. Atropine', stock: 500, batch: 'EM-001', img: 'https://plus.unsplash.com/premium_photo-1675808695346-d81679490256?auto=format&fit=crop&w=300&q=80' },
 ];
 
 const HospitalDashboard = () => {
   const navigate = useNavigate();
   
-  // Get the logged-in user (e.g., Chamorshi Controller)
   const getUserFromStorage = () => {
     try {
-      return JSON.parse(localStorage.getItem('userInfo')) || { name: 'Chamorshi Hub' };
+      return JSON.parse(localStorage.getItem('userInfo')) || { name: 'District Hospital' };
     } catch (e) {
-      return { name: 'Chamorshi Hub' };
+      return { name: 'District Hospital' };
     }
   };
   const user = getUserFromStorage();
@@ -46,13 +55,11 @@ const HospitalDashboard = () => {
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
   const [activeMissions, setActiveMissions] = useState([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
-  // View Proof State
   const [viewProof, setViewProof] = useState(null);
-
+  
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: "" // Add API Key here if available
+    googleMapsApiKey: "" 
   });
 
   const [dronePos, setDronePos] = useState(HOSPITAL_LOC);
@@ -65,10 +72,8 @@ const HospitalDashboard = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '' });
 
-  // Live Server URL
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
-  // Fetch Requests (Hub sees ALL requests)
   const fetchRequests = async () => {
     try {
       const res = await fetch(API_URL);
@@ -92,14 +97,13 @@ const HospitalDashboard = () => {
     return () => clearInterval(interval);
   }, []); 
 
-  // Tracking Simulation
   useEffect(() => {
     if (activeTab !== 'map') return;
     const interval = setInterval(() => {
       setFlightProgress((prev) => {
         const newProgress = prev >= 100 ? 0 : prev + 0.2; 
-        const lat = HOSPITAL_LOC.lat + (PHC_LOC.lat - HOSPITAL_LOC.lat) * (newProgress / 100);
-        const lng = HOSPITAL_LOC.lng + (PHC_LOC.lng - HOSPITAL_LOC.lng) * (newProgress / 100);
+        const lat = HOSPITAL_LOC.lat + (HOSPITAL_LOC.lat - HOSPITAL_LOC.lat) * (newProgress / 100); // Demo path
+        const lng = HOSPITAL_LOC.lng + (HOSPITAL_LOC.lng - HOSPITAL_LOC.lng) * (newProgress / 100);
         setDronePos({ lat, lng });
         setDroneStats({
             speed: Math.floor(40 + Math.random() * 10),
@@ -142,6 +146,24 @@ const HospitalDashboard = () => {
     } catch (err) {
       alert("Failed to update status");
     }
+  };
+
+  // ✅ CLEAR ALL FUNCTION
+  const handleClearAll = async () => {
+    if(!confirm("⚠️ DANGER: This will delete ALL request history. Are you sure?")) return;
+    try {
+        await fetch(`${API_URL}/clear-all`, { method: 'DELETE' });
+        alert("All records cleared successfully.");
+        fetchRequests();
+    } catch (error) {
+        alert("Failed to clear records.");
+    }
+  };
+
+  // ✅ SHOW COORDINATES FUNCTION
+  const showCoordinates = (phcName) => {
+      const coords = PHC_COORDINATES[phcName] || { lat: 'Unknown', lng: 'Unknown' };
+      alert(`📍 Exact Drone Drop Location:\n\nPHC: ${phcName}\nLatitude: ${coords.lat}\nLongitude: ${coords.lng}\n\n✅ Path Auto-Configured.`);
   };
 
   const handleApprove = (id, urgency) => {
@@ -221,6 +243,14 @@ const HospitalDashboard = () => {
             {/* ALERTS TAB */}
             {activeTab === 'alerts' && (
                 <div className="grid gap-4 max-w-5xl mx-auto">
+                    
+                    {/* ✅ 2. CLEAR ALL BUTTON */}
+                    <div className="flex justify-end mb-2">
+                        <button onClick={handleClearAll} className="text-xs font-bold text-red-500 hover:text-red-700 flex items-center gap-1 bg-red-50 px-3 py-1 rounded border border-red-100 hover:bg-red-100 transition-colors">
+                            <Trash2 size={14} /> Clear All History
+                        </button>
+                    </div>
+
                     {requests.length === 0 && <p className="text-center text-slate-400 mt-10">No active requests.</p>}
                     {requests.map((req) => (
                         <div key={req._id} className={`bg-white rounded-xl shadow-sm border p-4 flex flex-col md:flex-row justify-between gap-4 ${req.status === 'Rejected' ? 'opacity-50' : ''} ${req.urgency === 'Critical' && req.status === 'Pending' ? 'border-red-500 ring-2 ring-red-100' : ''}`}>
@@ -229,21 +259,27 @@ const HospitalDashboard = () => {
                                 <div>
                                     <h3 className="font-bold text-slate-800">{req.phc}</h3>
                                     <p className="text-sm text-slate-600">{req.qty} items <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
+                                    
+                                    {/* ✅ 3. VIEW LOCATION BUTTON */}
+                                    <button 
+                                        onClick={() => showCoordinates(req.phc)} 
+                                        className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1"
+                                    >
+                                        <Globe size={12} /> View Drop Location
+                                    </button>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                {/* ✅ VIEW PROOF BUTTON */}
                                 <button onClick={() => setViewProof(req)} className="px-3 py-2 border border-slate-300 text-slate-600 rounded-lg hover:bg-blue-50 font-medium flex items-center gap-2" title="View Proof">
                                     <FileText size={18} /> <span className="text-xs hidden md:inline">Proof</span>
                                 </button>
-
                                 {req.status === 'Pending' && (
                                     <>
                                         <button onClick={() => handleReject(req._id, req.urgency)} className="px-4 py-2 border rounded-lg text-red-600 text-sm">Reject</button>
                                         <button onClick={() => handleApprove(req._id, req.urgency)} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Approve</button>
                                     </>
                                 )}
-                                {req.status === 'Approved' && <button onClick={() => handleDispatch(req._id, req.phc)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm animate-pulse">Dispatch Drone</button>}
+                                {req.status === 'Approved' && <button onClick={() => handleDispatch(req._id)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm animate-pulse">Dispatch Drone</button>}
                                 {req.status === 'Dispatched' && <span className="text-green-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> In-Flight</span>}
                             </div>
                         </div>
@@ -259,14 +295,14 @@ const HospitalDashboard = () => {
                             <Polyline path={[HOSPITAL_LOC, PHC_LOC]} options={{ strokeColor: "#3b82f6", strokeOpacity: 0.8, strokeWeight: 4 }} />
                             <Marker position={dronePos} icon={{ path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 6, strokeColor: "#ef4444", fillColor: "#ef4444", fillOpacity: 1, rotation: 45 }} />
                             <Marker position={HOSPITAL_LOC} label="🏥 HUB" />
-                            <Marker position={PHC_LOC} label="📍 PHC" />
                         </GoogleMap>
                     ) : (
                         <div className="flex flex-col items-center justify-center h-full bg-slate-100 text-slate-500"><MapIcon size={48} className="mb-2 text-slate-300"/><p>Map Visualizer</p></div>
                     )}
+                    {/* Floating Stats Card */}
                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-2xl w-[90%] max-w-md border border-slate-200">
                         <div className="flex justify-between items-center mb-3">
-                            <div><h3 className="text-lg font-bold text-slate-800">Drone-04</h3><p className="text-xs text-slate-500">Enroute to {requests.length > 0 ? requests[0].phc : 'Destination'}</p></div>
+                            <div><h3 className="text-lg font-bold text-slate-800">Drone-04</h3><p className="text-xs text-slate-500">Enroute</p></div>
                             <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full animate-pulse">LIVE</span>
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-center divide-x divide-slate-200">

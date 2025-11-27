@@ -99,7 +99,7 @@ const Login = () => {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">
-                 Official Email or ID (e.g., PHC-001)
+                 Official Email or ID 
               </label>
               <div className="relative group">
                 <Mail className="absolute left-4 top-3.5 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} />
