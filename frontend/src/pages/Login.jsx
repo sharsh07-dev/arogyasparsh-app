@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, Mail, AlertCircle } from 'lucide-react';
 
-// ✅ IMPORT ASSETS (Fixed: Using logo_final.png for both to prevent errors)
-//fjkbew
+// ✅ RESTORED YOUR ORIGINAL IMPORTS
 import droneVideo from '../assets/drone.mp4';
 import logoMain from '../assets/logo_final.png';
-import logoLeft from '../assets/left_logo.png'; // Replaced missing 'logo.png' with 'logo_final.png'
-//dda
+import logoLeft from '../assets/left_logo.png'; 
+
 const Login = () => {
+  // 'identifier' accepts either Email or Official ID
   const [identifier, setIdentifier] = useState(''); 
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('phc');
@@ -21,10 +21,12 @@ const Login = () => {
     setError('');
     setIsLoading(true);
 
+    // Clean input
     const cleanIdentifier = identifier.trim();
     const cleanPassword = password.trim();
 
     try {
+      // Live Backend URL
       const response = await fetch('https://arogyasparsh-backend.onrender.com/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -59,8 +61,11 @@ const Login = () => {
         {/* Header with DUAL LOGOS */}
         <div className="mb-12">
             <div className="flex items-center gap-4 mb-2">
-                <img src={logoLeft} alt="Logo 1" className="h-16 w-auto object-contain" />
-                <img src={logoMain} alt="Logo 2" className="h-12 w-auto object-contain" />
+                {/* Left Logo */}
+                <img src={logoLeft} alt="Left Logo" className="h-16 w-auto object-contain" />
+                
+                {/* Main Logo */}
+                <img src={logoMain} alt="ArogyaSparsh Logo" className="h-12 w-auto object-contain" />
             </div>
             <h1 className="text-2xl font-bold text-slate-800 tracking-tight mt-2">ArogyaSparsh</h1>
             <p className="text-slate-500 text-sm pl-1">Integrated Emergency Medical Drone Network</p>
@@ -79,6 +84,7 @@ const Login = () => {
         )}
 
         <form onSubmit={handleLogin} className="space-y-6">
+          {/* Role Selector */}
           <div className="bg-slate-100 p-1.5 rounded-xl flex gap-1 mb-6">
             {['phc', 'sub-district', 'admin'].map((r) => (
               <button
@@ -97,6 +103,7 @@ const Login = () => {
           </div>
 
           <div className="space-y-4">
+            {/* Identifier Input */}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">
                  Official Email or ID (e.g., PHC-001)
@@ -104,7 +111,7 @@ const Login = () => {
               <div className="relative group">
                 <Mail className="absolute left-4 top-3.5 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} />
                 <input
-                  type="text"
+                  type="text" 
                   required
                   className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-medium text-slate-700"
                   placeholder="name@govt.in OR PHC-001"
@@ -114,6 +121,7 @@ const Login = () => {
               </div>
             </div>
 
+            {/* Password Input */}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">Secure Password</label>
               <div className="relative group">
