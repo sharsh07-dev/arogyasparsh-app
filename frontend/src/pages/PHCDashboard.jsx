@@ -8,9 +8,9 @@ import {
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
-
+//checking just code
 // ✅ 1. IMPORT THE 19 LOCAL IMAGES (Matching Hospital Dashboard)
-import imgAtropine from '../assets/medicines/Atropine.jpg';
+import imgAtropine from '../assets/medicines/Atropine.jpg';//asd
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
 // ⚠️ UPDATED: Using your new file name
 import imgDopamine from '../assets/medicines/Dopamine_med.jpg'; 
