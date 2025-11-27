@@ -12,24 +12,34 @@ import {
 import ambulanceSiren from '../assets/ambulance.mp3';
 import logoMain from '../assets/logo_final.png';
 
-// Coordinates
-const HOSPITAL_LOC = { lat: 18.5204, lng: 73.8567 }; 
-const PHC_LOC = { lat: 18.5808, lng: 73.9787 };      
+// ✅ COORDINATES (Chamorshi Hub -> PHC Path)
+// You can update these to real Chamorshi coordinates if needed
+const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; // Chamorshi Hub
+const PHC_LOC = { lat: 20.1849, lng: 79.9948 };      // Example PHC (Gadhchiroli)
 const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
-const center = { lat: 18.5500, lng: 73.9100 }; 
+const center = { lat: 20.0000, lng: 79.9500 }; // Centered View
 
-// Inventory Data
+// ✅ HUB LEVEL INVENTORY (High Quantities)
 const INITIAL_INVENTORY = [
-  { id: 1, name: 'Covishield Vaccine', stock: 450, batch: 'B-992', img: 'https://images.unsplash.com/photo-1633167606204-2782f336462d?auto=format&fit=crop&w=300&q=80' },
-  { id: 2, name: 'Snake Anti-Venom', stock: 12, batch: 'AV-221', img: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=300&q=80' },
-  { id: 3, name: 'Rabies Vaccine', stock: 85, batch: 'RB-110', img: 'https://images.unsplash.com/photo-1579165466741-7f35e4755652?auto=format&fit=crop&w=300&q=80' },
-  { id: 4, name: 'O+ Blood Bags', stock: 24, batch: 'BL-004', img: 'https://images.unsplash.com/photo-1615461066841-6116e61058f4?auto=format&fit=crop&w=300&q=80' },
-  { id: 5, name: 'Paracetamol 500mg', stock: 1200, batch: 'P-554', img: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=500&q=80' },
+  { id: 1, name: 'Covishield Vaccine', stock: 5000, batch: 'HUB-992', img: 'https://images.unsplash.com/photo-1633167606204-2782f336462d?auto=format&fit=crop&w=300&q=80' },
+  { id: 2, name: 'Snake Anti-Venom', stock: 200, batch: 'HUB-AV1', img: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=300&q=80' },
+  { id: 3, name: 'Rabies Vaccine', stock: 1000, batch: 'HUB-RB1', img: 'https://images.unsplash.com/photo-1579165466741-7f35e4755652?auto=format&fit=crop&w=300&q=80' },
+  { id: 4, name: 'O+ Blood Bags', stock: 150, batch: 'HUB-BLD', img: 'https://images.unsplash.com/photo-1615461066841-6116e61058f4?auto=format&fit=crop&w=300&q=80' },
+  { id: 6, name: 'Inj. Atropine', stock: 500, batch: 'HUB-EM1', img: 'https://plus.unsplash.com/premium_photo-1675808695346-d81679490256?auto=format&fit=crop&w=300&q=80' },
 ];
 
 const HospitalDashboard = () => {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('userInfo')) || { name: 'District Hospital' };
+  
+  // Get the logged-in user (e.g., Chamorshi Controller)
+  const getUserFromStorage = () => {
+    try {
+      return JSON.parse(localStorage.getItem('userInfo')) || { name: 'Chamorshi Hub' };
+    } catch (e) {
+      return { name: 'Chamorshi Hub' };
+    }
+  };
+  const user = getUserFromStorage();
   
   const [activeTab, setActiveTab] = useState('alerts');
   const [requests, setRequests] = useState([]); 
@@ -42,7 +52,7 @@ const HospitalDashboard = () => {
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: "" 
+    googleMapsApiKey: "" // Add API Key here if available
   });
 
   const [dronePos, setDronePos] = useState(HOSPITAL_LOC);
@@ -55,8 +65,10 @@ const HospitalDashboard = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '' });
 
+  // Live Server URL
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
+  // Fetch Requests (Hub sees ALL requests)
   const fetchRequests = async () => {
     try {
       const res = await fetch(API_URL);
@@ -80,6 +92,7 @@ const HospitalDashboard = () => {
     return () => clearInterval(interval);
   }, []); 
 
+  // Tracking Simulation
   useEffect(() => {
     if (activeTab !== 'map') return;
     const interval = setInterval(() => {
@@ -230,7 +243,7 @@ const HospitalDashboard = () => {
                                         <button onClick={() => handleApprove(req._id, req.urgency)} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Approve</button>
                                     </>
                                 )}
-                                {req.status === 'Approved' && <button onClick={() => handleDispatch(req._id)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm animate-pulse">Dispatch Drone</button>}
+                                {req.status === 'Approved' && <button onClick={() => handleDispatch(req._id, req.phc)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm animate-pulse">Dispatch Drone</button>}
                                 {req.status === 'Dispatched' && <span className="text-green-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> In-Flight</span>}
                             </div>
                         </div>
@@ -242,18 +255,18 @@ const HospitalDashboard = () => {
             {activeTab === 'map' && (
                 <div className="h-full w-full relative rounded-2xl overflow-hidden shadow-xl border-4 border-white">
                     {isLoaded ? (
-                        <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={13} options={{ disableDefaultUI: true }}>
+                        <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={10} options={{ disableDefaultUI: true }}>
                             <Polyline path={[HOSPITAL_LOC, PHC_LOC]} options={{ strokeColor: "#3b82f6", strokeOpacity: 0.8, strokeWeight: 4 }} />
                             <Marker position={dronePos} icon={{ path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 6, strokeColor: "#ef4444", fillColor: "#ef4444", fillOpacity: 1, rotation: 45 }} />
-                            <Marker position={HOSPITAL_LOC} label="🏥" />
-                            <Marker position={PHC_LOC} label="📍" />
+                            <Marker position={HOSPITAL_LOC} label="🏥 HUB" />
+                            <Marker position={PHC_LOC} label="📍 PHC" />
                         </GoogleMap>
                     ) : (
                         <div className="flex flex-col items-center justify-center h-full bg-slate-100 text-slate-500"><MapIcon size={48} className="mb-2 text-slate-300"/><p>Map Visualizer</p></div>
                     )}
                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-2xl w-[90%] max-w-md border border-slate-200">
                         <div className="flex justify-between items-center mb-3">
-                            <div><h3 className="text-lg font-bold text-slate-800">Drone-04</h3><p className="text-xs text-slate-500">Enroute</p></div>
+                            <div><h3 className="text-lg font-bold text-slate-800">Drone-04</h3><p className="text-xs text-slate-500">Enroute to {requests.length > 0 ? requests[0].phc : 'Destination'}</p></div>
                             <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full animate-pulse">LIVE</span>
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-center divide-x divide-slate-200">
@@ -278,7 +291,7 @@ const HospitalDashboard = () => {
                                     <h3 className="font-bold text-slate-800 text-md leading-tight mb-1 truncate" title={item.name}>{item.name}</h3>
                                     <div className="flex justify-between items-center mb-4">
                                         <p className="text-[10px] text-slate-500 font-mono bg-slate-100 px-2 py-0.5 rounded uppercase">{item.batch}</p>
-                                        {item.stock < 20 && <span className="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full border border-red-100">LOW STOCK</span>}
+                                        {item.stock < 50 && <span className="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full border border-red-100">LOW STOCK</span>}
                                     </div>
                                 </div>
                                 <div className="mt-auto">
@@ -300,7 +313,7 @@ const HospitalDashboard = () => {
         </div>
       </main>
 
-      {/* ✅ VIEW PROOF MODAL */}
+      {/* VIEW PROOF MODAL */}
       {viewProof && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
@@ -309,16 +322,12 @@ const HospitalDashboard = () => {
                     <button onClick={() => setViewProof(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button>
                 </div>
                 <div className="p-8 flex flex-col items-center justify-center space-y-4 bg-slate-50">
-                    
-                    {/* ✅ SHOW IMAGE IF AVAILABLE */}
                     {viewProof.proofFiles && viewProof.proofFiles.length > 0 ? (
                         <div className="w-full space-y-4">
                             {viewProof.proofFiles.map((fileUrl, idx) => (
                                 <div key={idx} className="border-2 border-slate-200 rounded-xl overflow-hidden shadow-sm">
                                     <img src={fileUrl} alt="Proof" className="w-full h-48 object-contain bg-black/5" />
-                                    <a href={fileUrl} target="_blank" className="block bg-blue-50 text-blue-600 text-center text-xs py-2 hover:bg-blue-100 font-bold border-t border-slate-200">
-                                        Open Full Size ↗
-                                    </a>
+                                    <a href={fileUrl} target="_blank" className="block bg-blue-50 text-blue-600 text-center text-xs py-2 hover:bg-blue-100 font-bold border-t border-slate-200">Open Full Size ↗</a>
                                 </div>
                             ))}
                         </div>
@@ -328,7 +337,6 @@ const HospitalDashboard = () => {
                             <p className="text-sm font-bold text-slate-500">No Document Attached</p>
                         </div>
                     )}
-
                 </div>
                 <div className="p-4 bg-white text-right border-t border-slate-200">
                     <button onClick={() => setViewProof(null)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold text-sm">Close</button>
@@ -351,14 +359,8 @@ const HospitalDashboard = () => {
                         <div className="relative"><Pill className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium placeholder:text-slate-400" placeholder="e.g., Paracetamol 500mg" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} /></div>
                     </div>
                     <div className="grid grid-cols-2 gap-5">
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Batch ID</label>
-                            <div className="relative"><QrCode className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium" placeholder="B-1023" value={newItem.batch} onChange={e => setNewItem({...newItem, batch: e.target.value})} /></div>
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Initial Stock</label>
-                            <div className="relative"><Layers className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium" type="number" placeholder="0" value={newItem.stock} onChange={e => setNewItem({...newItem, stock: e.target.value})} /></div>
-                        </div>
+                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Batch ID</label><div className="relative"><QrCode className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium" placeholder="B-1023" value={newItem.batch} onChange={e => setNewItem({...newItem, batch: e.target.value})} /></div></div>
+                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Initial Stock</label><div className="relative"><Layers className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium" type="number" placeholder="0" value={newItem.stock} onChange={e => setNewItem({...newItem, stock: e.target.value})} /></div></div>
                     </div>
                 </div>
                 <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
