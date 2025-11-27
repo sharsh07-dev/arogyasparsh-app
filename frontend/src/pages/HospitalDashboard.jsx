@@ -1,26 +1,41 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
 import { 
   Activity, Users, Package, Navigation, LogOut, 
   MapPin, CheckCircle2, Clock, AlertOctagon, 
   Battery, Signal, Plane, Plus, Minus, Search, 
   Map as MapIcon, VolumeX, Siren, X, Check, Menu,
-  Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2
+  Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2, Globe
 } from 'lucide-react';
 
 import ambulanceSiren from '../assets/ambulance.mp3';
 import logoMain from '../assets/logo_final.png';
 
-// ✅ FULL INVENTORY LIST
+// ✅ 1. RESTORED PHC COORDINATES
+const PHC_COORDINATES = {
+  "Wagholi PHC": { lat: 18.5808, lng: 73.9787 },
+  "PHC Chamorshi": { lat: 19.9280, lng: 79.9050 },
+  "PHC Gadhchiroli": { lat: 20.1849, lng: 79.9948 },
+  "PHC Panera": { lat: 19.9500, lng: 79.8500 },
+  "PHC Belgaon": { lat: 19.9000, lng: 80.0500 },
+  "PHC Dhutergatta": { lat: 19.8800, lng: 79.9200 },
+  "PHC Gatta": { lat: 19.7500, lng: 80.1000 },
+  "PHC Gaurkheda": { lat: 19.9100, lng: 79.8000 },
+  "PHC Murmadi": { lat: 19.9800, lng: 79.9500 }
+};
+
+const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; 
+const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
+const center = { lat: 19.9260, lng: 79.9033 }; 
+
+// Inventory Data
 const INITIAL_INVENTORY = [
   { id: 1, name: 'Covishield Vaccine', stock: 450, batch: 'B-992', img: 'https://images.unsplash.com/photo-1633167606204-2782f336462d?auto=format&fit=crop&w=300&q=80' },
   { id: 2, name: 'Snake Anti-Venom', stock: 12, batch: 'AV-221', img: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=300&q=80' },
   { id: 3, name: 'Rabies Vaccine', stock: 85, batch: 'RB-110', img: 'https://images.unsplash.com/photo-1579165466741-7f35e4755652?auto=format&fit=crop&w=300&q=80' },
   { id: 4, name: 'O+ Blood Bags', stock: 24, batch: 'BL-004', img: 'https://images.unsplash.com/photo-1615461066841-6116e61058f4?auto=format&fit=crop&w=300&q=80' },
   { id: 6, name: 'Inj. Atropine', stock: 10, batch: 'EM-001', img: 'https://plus.unsplash.com/premium_photo-1675808695346-d81679490256?auto=format&fit=crop&w=300&q=80' },
-  { id: 7, name: 'Inj. Adrenaline', stock: 10, batch: 'EM-002', img: 'https://images.unsplash.com/photo-1628595351029-c2bf17511435?auto=format&fit=crop&w=300&q=80' },
-  { id: 8, name: 'Inj. Hydrocortisone', stock: 15, batch: 'EM-003', img: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=300&q=80' },
-  { id: 25, name: 'IV Paracetamol 100ml', stock: 5, batch: 'IV-101', img: 'https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&w=300&q=80' },
 ];
 
 const HospitalDashboard = () => {
@@ -38,14 +53,19 @@ const HospitalDashboard = () => {
   const [activeTab, setActiveTab] = useState('alerts');
   const [requests, setRequests] = useState([]); 
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
+  const [activeMissions, setActiveMissions] = useState([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
-  // View Proof State
   const [viewProof, setViewProof] = useState(null);
 
-  // ✅ SIMULATION STATE (No API Key needed)
-  const [trackProgress, setTrackProgress] = useState(0);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  // Map Loader
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: "" 
+  });
+
+  const [dronePos, setDronePos] = useState(HOSPITAL_LOC);
+  const [droneStats, setDroneStats] = useState({ speed: 0, battery: 100, altitude: 0 });
+  const [flightProgress, setFlightProgress] = useState(0);
 
   const [isAlarmPlaying, setIsAlarmPlaying] = useState(false);
   const audioRef = useRef(new Audio(ambulanceSiren));
@@ -78,18 +98,27 @@ const HospitalDashboard = () => {
     return () => clearInterval(interval);
   }, []); 
 
-  // ✅ LIVE TRACKING ANIMATION LOOP
+  // Simulation Loop (Only runs if there are active missions)
   useEffect(() => {
-    if (activeTab !== 'map') return;
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    if (activeTab !== 'map' || activeMissions.length === 0) return;
+    
     const interval = setInterval(() => {
-      setTrackProgress((prev) => {
-        const newProgress = prev >= 100 ? 0 : prev + 0.3; 
+      setFlightProgress((prev) => {
+        const newProgress = prev >= 100 ? 0 : prev + 0.2; 
+        // Demo Path Logic
+        const lat = HOSPITAL_LOC.lat + (HOSPITAL_LOC.lat - HOSPITAL_LOC.lat) * (newProgress / 100);
+        const lng = HOSPITAL_LOC.lng + (HOSPITAL_LOC.lng - HOSPITAL_LOC.lng) * (newProgress / 100);
+        setDronePos({ lat, lng });
+        setDroneStats({
+            speed: Math.floor(40 + Math.random() * 10),
+            battery: Math.max(0, 100 - Math.floor(newProgress / 2)),
+            altitude: newProgress > 0 && newProgress < 95 ? 120 : 0
+        });
         return newProgress;
       });
-    }, 50);
-    return () => { clearInterval(interval); clearInterval(timer); };
-  }, [activeTab]);
+    }, 100);
+    return () => clearInterval(interval);
+  }, [activeTab, activeMissions]);
 
   const triggerAlarm = () => {
     setIsAlarmPlaying(true);
@@ -108,6 +137,12 @@ const HospitalDashboard = () => {
     stopAlarm();
     localStorage.removeItem('userInfo');
     navigate('/login');
+  };
+
+  // ✅ 2. SHOW LOCATION FUNCTION
+  const showCoordinates = (phcName) => {
+    const coords = PHC_COORDINATES[phcName] || { lat: 'Unknown', lng: 'Unknown' };
+    alert(`📍 Exact Drop Location for ${phcName}:\n\nLatitude: ${coords.lat}\nLongitude: ${coords.lng}\n\n✅ Flight path calibrated.`);
   };
 
   const updateStatusInDB = async (id, newStatus) => {
@@ -131,6 +166,7 @@ const HospitalDashboard = () => {
   const handleDispatch = (id, phc) => {
     if(!confirm("Ready for takeoff? Confirm Drone Dispatch.")) return;
     updateStatusInDB(id, 'Dispatched');
+    setActiveMissions([...activeMissions, { id, phc, progress: 0 }]);
   };
 
   const handleReject = (id, urgency) => {
@@ -155,11 +191,6 @@ const HospitalDashboard = () => {
     setNewItem({ name: '', stock: '', batch: '' });
   };
 
-  // Time Helpers
-  const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-  const timeString = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-  const arrivalTime = new Date(currentTime.getTime() + 15 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-
   return (
     <div className={`min-h-screen bg-slate-50 flex font-sans text-slate-800 ${isAlarmPlaying ? 'animate-pulse bg-red-50' : ''} relative`}>
       
@@ -182,7 +213,7 @@ const HospitalDashboard = () => {
         </div>
         <nav className="flex-1 p-4 space-y-2">
           <button onClick={() => {setActiveTab('alerts'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'alerts' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><Activity size={18} /> Alerts</button>
-          <button onClick={() => {setActiveTab('map'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'map' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><MapIcon size={18} /> Global Map</button>
+          <button onClick={() => {setActiveTab('map'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'map' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><MapIcon size={18} /> Live Tracking</button>
           <button onClick={() => {setActiveTab('inventory'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'inventory' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><Package size={18} /> Inventory</button>
         </nav>
         <div className="p-4 border-t border-slate-800">
@@ -194,7 +225,7 @@ const HospitalDashboard = () => {
         <header className="bg-white border-b border-slate-200 px-4 md:px-8 py-4 flex justify-between items-center shadow-sm z-10">
           <div className="flex items-center gap-3">
             <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg"><Menu size={24} /></button>
-            <h1 className="text-lg md:text-2xl font-bold text-slate-800">{activeTab === 'alerts' ? 'Emergency Alerts' : (activeTab === 'map' ? 'Global Tracking' : 'Inventory')}</h1>
+            <h1 className="text-lg md:text-2xl font-bold text-slate-800">{activeTab === 'alerts' ? 'Emergency Alerts' : (activeTab === 'map' ? 'Live Drone Tracking' : 'Inventory')}</h1>
           </div>
           <div className="bg-blue-50 px-3 py-1 rounded-full text-xs font-semibold text-blue-700 flex items-center gap-2"><Users size={14} /> {user.name}</div>
         </header>
@@ -212,14 +243,16 @@ const HospitalDashboard = () => {
                                 <div>
                                     <h3 className="font-bold text-slate-800">{req.phc}</h3>
                                     <p className="text-sm text-slate-600">{req.qty} items <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
+                                    {/* ✅ 3. RESTORED VIEW LOCATION BUTTON */}
+                                    <button onClick={() => showCoordinates(req.phc)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                        <Globe size={12} /> View Drop Location
+                                    </button>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                {/* View Proof */}
                                 <button onClick={() => setViewProof(req)} className="px-3 py-2 border border-slate-300 text-slate-600 rounded-lg hover:bg-blue-50 font-medium flex items-center gap-2" title="View Proof">
                                     <FileText size={18} /> <span className="text-xs hidden md:inline">Proof</span>
                                 </button>
-
                                 {req.status === 'Pending' && (
                                     <>
                                         <button onClick={() => handleReject(req._id, req.urgency)} className="px-4 py-2 border rounded-lg text-red-600 text-sm">Reject</button>
@@ -234,69 +267,49 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* ✅ FIXED: MAP TAB (Replaced Google Maps with Flight Radar) */}
+            {/* ✅ 4. FIXED MAP TAB (Handles Empty State) */}
             {activeTab === 'map' && (
-                <div className="max-w-4xl mx-auto space-y-6">
-                    {/* RADAR MAP */}
-                    <div className="bg-slate-900 rounded-3xl h-64 md:h-80 relative overflow-hidden border-4 border-slate-800 shadow-2xl group">
-                        {/* Grid */}
-                        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div>
-                        
-                        {/* Path */}
-                        <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                            <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#475569" strokeWidth="4" strokeDasharray="8" />
-                            <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#3b82f6" strokeWidth="4" strokeDasharray="1000" strokeDashoffset={1000 - (trackProgress * 10)} className="transition-all duration-300 ease-linear" />
-                        </svg>
-
-                        {/* Hospital Icon */}
-                        <div className="absolute top-1/2 left-[10%] -translate-y-1/2 flex flex-col items-center z-10">
-                            <div className="w-12 h-12 md:w-16 md:h-16 bg-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20">
-                                <Building2 size={24} className="text-slate-900 md:w-8 md:h-8" />
+                <div className="h-full w-full relative rounded-2xl overflow-hidden shadow-xl border-4 border-white min-h-[500px]">
+                    {activeMissions.length === 0 ? (
+                        // ⚠️ EMPTY STATE (No Missions)
+                        <div className="flex flex-col items-center justify-center h-full bg-slate-900 text-slate-400">
+                            <div className="relative w-24 h-24 mb-4">
+                                <div className="absolute inset-0 bg-blue-500/20 rounded-full animate-ping"></div>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <MapIcon size={48} className="text-blue-400"/>
+                                </div>
                             </div>
-                            <span className="text-white text-[10px] md:text-xs font-bold mt-3 bg-slate-800 px-2 py-1 rounded border border-slate-700">District Hospital</span>
+                            <h3 className="text-xl font-bold text-white">Radar Active</h3>
+                            <p className="text-sm">No drones are currently in flight.</p>
+                            <p className="text-xs mt-2 text-slate-500">Waiting for dispatch command...</p>
                         </div>
-
-                        {/* PHC Icon */}
-                        <div className="absolute top-1/2 right-[10%] -translate-y-1/2 flex flex-col items-center z-10">
-                            <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/50 animate-pulse border-4 border-slate-900">
-                                <MapPin size={24} className="text-white md:w-8 md:h-8" />
+                    ) : (
+                        // 🗺️ LIVE MAP (When Mission Exists)
+                        <>
+                             {isLoaded ? (
+                                <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={13} options={{ disableDefaultUI: true }}>
+                                    <Polyline path={[HOSPITAL_LOC, PHC_LOC]} options={{ strokeColor: "#3b82f6", strokeOpacity: 0.8, strokeWeight: 4 }} />
+                                    <Marker position={dronePos} icon={{ path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 6, strokeColor: "#ef4444", fillColor: "#ef4444", fillOpacity: 1, rotation: 45 }} />
+                                    <Marker position={HOSPITAL_LOC} label="🏥" />
+                                    <Marker position={PHC_LOC} label="📍" />
+                                </GoogleMap>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-full bg-slate-100 text-slate-500"><MapIcon size={48} className="mb-2 text-slate-300"/><p>Map Visualizer</p></div>
+                            )}
+                            {/* Stats Card */}
+                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-2xl w-[90%] max-w-md border border-slate-200">
+                                <div className="flex justify-between items-center mb-3">
+                                    <div><h3 className="text-lg font-bold text-slate-800">Drone-04</h3><p className="text-xs text-slate-500">Enroute</p></div>
+                                    <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full animate-pulse">LIVE</span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 text-center divide-x divide-slate-200">
+                                    <div><p className="text-[10px] text-slate-400 font-bold">Speed</p><p className="text-lg font-bold text-blue-600">{droneStats.speed} <span className="text-xs text-slate-500">km/h</span></p></div>
+                                    <div><p className="text-[10px] text-slate-400 font-bold">Battery</p><div className="flex items-center justify-center gap-1 text-lg font-bold text-green-600"><Battery size={16} /> {droneStats.battery}%</div></div>
+                                    <div><p className="text-[10px] text-slate-400 font-bold">Alt</p><p className="text-lg font-bold text-slate-700">{droneStats.altitude}m</p></div>
+                                </div>
                             </div>
-                            <span className="text-white text-[10px] md:text-xs font-bold mt-3 bg-blue-900 px-2 py-1 rounded border border-blue-700">Destination</span>
-                        </div>
-
-                        {/* 🚁 DRONE (Moving Left to Right) */}
-                        <div 
-                            className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-linear z-20 flex flex-col items-center"
-                            style={{ left: `${10 + (trackProgress * 0.8)}%` }} 
-                        >
-                            <div className="bg-white p-2 md:p-3 rounded-full shadow-2xl relative">
-                                <Navigation size={32} className="text-red-500 rotate-90 md:w-10 md:h-10" fill="currentColor" />
-                                {/* Propeller Animation */}
-                                <div className="absolute -top-1 -left-1 w-full h-full border-2 border-slate-300 rounded-full animate-spin opacity-50"></div>
-                            </div>
-                            <div className="bg-black/80 text-white text-[10px] px-2 py-1 rounded-md mt-2 backdrop-blur-sm font-mono border border-slate-700">
-                                {Math.round(trackProgress)}%
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* FLIGHT BOARD */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 rounded-3xl overflow-hidden shadow-2xl font-mono">
-                        <div className="bg-slate-900 text-white border-r border-slate-700">
-                            <div className="bg-blue-600 py-3 text-center"><h2 className="text-2xl font-bold uppercase tracking-widest">Departure</h2></div>
-                            <div className="p-6 space-y-4">
-                                <div className="flex justify-between border-b border-slate-700 pb-2"><span className="text-slate-400 text-xs uppercase">Time</span><div className="text-right"><p className="text-xs text-slate-400">SCH. {timeString}</p><p className="text-lg font-bold text-green-400">ACT. {timeString}</p></div></div>
-                                <div className="text-center py-2"><h3 className="text-xl font-bold text-blue-300">District Hospital (DH)</h3></div>
-                            </div>
-                        </div>
-                        <div className="bg-slate-900 text-white">
-                            <div className="bg-blue-600 py-3 text-center"><h2 className="text-2xl font-bold uppercase tracking-widest">Arrival</h2></div>
-                            <div className="p-6 space-y-4">
-                                <div className="flex justify-between border-b border-slate-700 pb-2"><span className="text-slate-400 text-xs uppercase">Time</span><div className="text-right"><p className="text-xs text-slate-400">SCH. {arrivalTime}</p><p className="text-lg font-bold text-yellow-400">ETA. {arrivalTime}</p></div></div>
-                                <div className="text-center py-2"><h3 className="text-xl font-bold text-blue-300">PHC Landing Zone</h3></div>
-                            </div>
-                        </div>
-                    </div>
+                        </>
+                    )}
                 </div>
             )}
 
