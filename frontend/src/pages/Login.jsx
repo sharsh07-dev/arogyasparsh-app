@@ -2,15 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, Mail, AlertCircle } from 'lucide-react';
 
-// ✅ IMPORT ASSETS
-// Make sure these paths match your actual folder structure shown in your screenshots
+// ✅ IMPORT ASSETS (Fixed: Using logo_final.png for both to prevent errors)
 import droneVideo from '../assets/drone.mp4';
 import logoMain from '../assets/logo_final.png';
-// If you don't have a separate left logo, you can use the same one or remove this line
-import logoLeft from '../assets/logo.png'; 
+import logoLeft from '../assets/logo_final.png'; // Replaced missing 'logo.png' with 'logo_final.png'
 
 const Login = () => {
-  // We use 'identifier' instead of 'email' to represent either Email or Official ID
   const [identifier, setIdentifier] = useState(''); 
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('phc');
@@ -23,18 +20,13 @@ const Login = () => {
     setError('');
     setIsLoading(true);
 
-    // Clean input: remove spaces. We do NOT lowercase because IDs might be case-sensitive (e.g. PHC-001)
     const cleanIdentifier = identifier.trim();
     const cleanPassword = password.trim();
 
     try {
-      // Make sure this URL matches your backend (Local or Render)
-      // If running locally, use http://localhost:5001/api/auth/login
-      // If deployed, use your Render URL
       const response = await fetch('https://arogyasparsh-backend.onrender.com/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // Send 'email' field as the identifier (backend logic checks both fields against this value)
         body: JSON.stringify({ email: cleanIdentifier, password: cleanPassword }),
       });
 
@@ -42,7 +34,6 @@ const Login = () => {
 
       if (response.ok) {
         localStorage.setItem('userInfo', JSON.stringify(data));
-        // Simulate a small loading delay for smooth feel
         setTimeout(() => {
             if (data.role === 'phc') navigate('/phc-dashboard');
             else if (data.role === 'sub-district') navigate('/hospital-dashboard');
@@ -67,11 +58,8 @@ const Login = () => {
         {/* Header with DUAL LOGOS */}
         <div className="mb-12">
             <div className="flex items-center gap-4 mb-2">
-                {/* Left Logo */}
-                <img src={logoLeft} alt="Left Logo" className="h-16 w-auto object-contain" />
-                
-                {/* Main Logo */}
-                <img src={logoMain} alt="ArogyaSparsh Logo" className="h-12 w-auto object-contain" />
+                <img src={logoLeft} alt="Logo 1" className="h-16 w-auto object-contain" />
+                <img src={logoMain} alt="Logo 2" className="h-12 w-auto object-contain" />
             </div>
             <h1 className="text-2xl font-bold text-slate-800 tracking-tight mt-2">ArogyaSparsh</h1>
             <p className="text-slate-500 text-sm pl-1">Integrated Emergency Medical Drone Network</p>
@@ -90,7 +78,6 @@ const Login = () => {
         )}
 
         <form onSubmit={handleLogin} className="space-y-6">
-          {/* Role Selector */}
           <div className="bg-slate-100 p-1.5 rounded-xl flex gap-1 mb-6">
             {['phc', 'sub-district', 'admin'].map((r) => (
               <button
@@ -109,7 +96,6 @@ const Login = () => {
           </div>
 
           <div className="space-y-4">
-            {/* Identifier Input (Email OR ID) */}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">
                  Official Email or ID (e.g., PHC-001)
@@ -117,7 +103,7 @@ const Login = () => {
               <div className="relative group">
                 <Mail className="absolute left-4 top-3.5 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} />
                 <input
-                  type="text" // Changed from 'email' to 'text' to allow IDs
+                  type="text"
                   required
                   className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-medium text-slate-700"
                   placeholder="name@govt.in OR PHC-001"
@@ -127,7 +113,6 @@ const Login = () => {
               </div>
             </div>
 
-            {/* Password Input */}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">Secure Password</label>
               <div className="relative group">
