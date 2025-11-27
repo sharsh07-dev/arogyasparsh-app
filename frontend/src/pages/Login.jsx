@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
-// ✅ 1. THIS IMPORT IS CRITICAL FOR THE 'FORGOT PASSWORD' LINK TO WORK
-import { useNavigate, Link } from 'react-router-dom'; 
-import { Lock, Mail, AlertCircle, ChevronRight } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Lock, Mail, AlertCircle } from 'lucide-react';
 
-// Assets
+// ✅ IMPORT ASSETS
 import droneVideo from '../assets/drone.mp4';
 import logoMain from '../assets/logo_final.png';
 import logoLeft from '../assets/left_logo.png';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(''); // This now handles Email OR ID
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('phc');
   const [error, setError] = useState('');
@@ -21,11 +20,15 @@ const Login = () => {
     setError('');
     setIsLoading(true);
 
+    const cleanInput = email.trim(); // Don't lowercase strictly, some IDs might be case sensitive
+    const cleanPassword = password.trim();
+
     try {
+      // Make sure this URL matches your backend (Local or Render)
       const response = await fetch('https://arogyasparsh-backend.onrender.com/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: cleanInput, password: cleanPassword }),
       });
 
       const data = await response.json();
@@ -58,7 +61,7 @@ const Login = () => {
             <div className="flex items-center gap-2 mb-2">
                 <img src={logoLeft} alt="Left Logo" className="h-20 w-auto object-contain" />
                 <img src={logoMain} alt="ArogyaSparsh Logo" className="h-10 w-auto object-contain" />
-                
+                <h1 className="text-2xl font-bold text-slate-800 tracking-tight">ArogyaSparsh</h1>
             </div>
             <p className="text-slate-500 text-sm pl-1">Emergency Medical Drone Network</p>
         </div>
@@ -88,21 +91,23 @@ const Login = () => {
                     : 'text-slate-500 hover:bg-slate-200'
                 }`}
               >
-                {r === 'sub-district' ? 'Sub-district' : r}
+                {r === 'sub-district' ? 'Sub-District' : r}
               </button>
             ))}
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">Official ID</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">
+                 Official Email or ID (e.g., PHC-001)
+              </label>
               <div className="relative group">
                 <Mail className="absolute left-4 top-3.5 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} />
                 <input
-                  type="email"
+                  type="text"
                   required
                   className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-medium text-slate-700"
-                  placeholder="name@govt.in"
+                  placeholder="name@govt.in OR PHC-001"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -131,7 +136,6 @@ const Login = () => {
                 <span className="text-sm text-slate-500">Remember me</span>
             </label>
             
-            {/* ✅ LINK TO FORGOT PASSWORD PAGE */}
             <Link to="/forgot-password" className="text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline">
                 Forgot Password?
             </Link>
@@ -174,7 +178,7 @@ const Login = () => {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
                 </span>
-                <span className="text-sm font-bold tracking-widest text-red-100 uppercase">Medical Drone</span>
+                <span className="text-sm font-bold tracking-widest text-red-100 uppercase">Live Drone Feed • Cam-04</span>
             </div>
         </div>
       </div>
