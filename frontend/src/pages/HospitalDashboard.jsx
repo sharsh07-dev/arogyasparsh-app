@@ -12,18 +12,31 @@ import {
 import ambulanceSiren from '../assets/ambulance.mp3';
 import logoMain from '../assets/logo_final.png';
 
-// ✅ 1. IMPORT THE 9 NEW IMAGES (Exact Filenames)
-import imgAdrenaline from '../assets/medicines/Adranaline.webp'; // Note spelling in your file
-import imgInsulin from '../assets/medicines/Actrapid_Plain.webp';
+// ✅ 1. IMPORT NEW MEDICINE IMAGES
 import imgAtropine from '../assets/medicines/Atropine.jpg';
+import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
+import imgDopamine from '../assets/medicines/Dopamine.jpg';
 import imgAvil from '../assets/medicines/Avil.webp';
-import imgDeriphylline from '../assets/medicines/Deriphylline.webp';
+import imgAdrenaline from '../assets/medicines/Adranaline.webp';
 import imgDexa from '../assets/medicines/Dexa.jpg';
 import imgDiclo from '../assets/medicines/Diclo.jpg';
-import imgDopamine from '../assets/medicines/Dopamine.jpg';
-import imgDex25 from '../assets/medicines/25%_Dex.jpg'; 
+import imgDex25 from '../assets/medicines/25%_Dex.jpg';
+import imgDeriphylline from '../assets/medicines/Deriphylline.webp';
+import imgHamaccyl from '../assets/medicines/Hamaccyl.webp';
+import imgHydrocort from '../assets/medicines/Hydrocort.webp';
+import imgNTG from '../assets/medicines/Inj_Nitroglycerine.webp';
+import imgIVPara from '../assets/medicines/IV_Paracetamol.webp';
+import imgMidazolam from '../assets/medicines/Midazolam.jpg';
+import imgNeostigmine from '../assets/medicines/Neostigmine.webp';
+import imgNorAd from '../assets/medicines/Nor_adrenaline.webp';
+import imgPhenargan from '../assets/medicines/Phenargan.webp';
+import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
+import imgGluconate from '../assets/medicines/gluconate.png';
 
-// ✅ 2. PHC COORDINATES
+// Placeholder for others
+const defaultImg = "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=300&q=80";
+
+// PHC COORDINATES
 const PHC_COORDINATES = {
   "Wagholi PHC": { lat: 18.5808, lng: 73.9787 },
   "PHC Chamorshi": { lat: 19.9280, lng: 79.9050 },
@@ -40,46 +53,30 @@ const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 };
 const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 19.9260, lng: 79.9033 }; 
 
-// ✅ 3. UPDATED INVENTORY LIST
+// ✅ 2. UPDATED INVENTORY LIST WITH IMAGES
 const INITIAL_INVENTORY = [
-  // --- ITEMS WITH YOUR UPLOADED IMAGES ---
+  { id: 1, name: 'Covishield Vaccine', stock: 450, batch: 'B-992', img: defaultImg },
+  { id: 2, name: 'Snake Anti-Venom', stock: 12, batch: 'AV-221', img: defaultImg },
   { id: 6, name: 'Inj. Atropine', stock: 10, batch: 'EM-001', img: imgAtropine },
   { id: 7, name: 'Inj. Adrenaline', stock: 10, batch: 'EM-002', img: imgAdrenaline },
-  { id: 9, name: 'Inj. Deriphyllin', stock: 10, batch: 'EM-004', img: imgDeriphylline },
-  { id: 10, name: 'Inj. Dexamethasone', stock: 10, batch: 'EM-005', img: imgDexa },
+  { id: 8, name: 'Inj. Hydrocortisone', stock: 15, batch: 'EM-003', img: imgHydrocort },
+  { id: 9, name: 'Inj. Deriphylline', stock: 10, batch: 'EM-004', img: imgDeriphylline },
+  { id: 10, name: 'Inj. Dexa', stock: 10, batch: 'EM-005', img: imgDexa },
+  { id: 11, name: 'Inj. KCl (Potassium)', stock: 5, batch: 'EM-006', img: imgKCL },
+  { id: 12, name: 'Inj. Cal. Gluconate', stock: 5, batch: 'EM-007', img: imgGluconate },
+  { id: 13, name: 'Inj. Sodabicarb', stock: 5, batch: 'EM-008', img: defaultImg },
+  { id: 14, name: 'Inj. Midazolam', stock: 3, batch: 'EM-009', img: imgMidazolam },
+  { id: 15, name: 'Inj. Phenargan', stock: 10, batch: 'EM-010', img: imgPhenargan },
   { id: 16, name: 'Inj. Dopamine', stock: 5, batch: 'EM-011', img: imgDopamine },
-  { id: 17, name: 'Inj. Actrapid (Insulin)', stock: 2, batch: 'EM-012', img: imgInsulin },
-  { id: 20, name: 'Inj. Diclofenac', stock: 10, batch: 'EM-015', img: imgDiclo },
+  { id: 17, name: 'Inj. Actrapid (Insulin)', stock: 2, batch: 'EM-012', img: imgActrapid },
+  { id: 18, name: 'Inj. Nor Adrenaline', stock: 6, batch: 'EM-013', img: imgNorAd },
+  { id: 19, name: 'Inj. NTG', stock: 3, batch: 'EM-014', img: imgNTG },
+  { id: 20, name: 'Inj. Diclo', stock: 10, batch: 'EM-015', img: imgDiclo },
+  { id: 22, name: 'Inj. Neostigmine', stock: 5, batch: 'EM-017', img: imgNeostigmine },
   { id: 24, name: 'Inj. Avil', stock: 5, batch: 'EM-019', img: imgAvil },
-  { id: 26, name: 'IV Dextrose 25%', stock: 10, batch: 'IV-102', img: imgDex25 },
-
-  // --- OTHER EMERGENCY ITEMS (Using Default Logo/Placeholder until you add images) ---
-  { id: 1, name: 'Covishield Vaccine', stock: 450, batch: 'B-992', img: logoMain },
-  { id: 2, name: 'Snake Anti-Venom', stock: 12, batch: 'AV-221', img: logoMain },
-  { id: 3, name: 'Rabies Vaccine', stock: 85, batch: 'RB-110', img: logoMain },
-  { id: 4, name: 'O+ Blood Bags', stock: 24, batch: 'BL-004', img: logoMain },
-  { id: 8, name: 'Inj. Hydrocortisone', stock: 15, batch: 'EM-003', img: logoMain },
-  { id: 11, name: 'Inj. KCl (Potassium)', stock: 5, batch: 'EM-006', img: logoMain },
-  { id: 12, name: 'Inj. Calcium Gluconate', stock: 5, batch: 'EM-007', img: logoMain },
-  { id: 13, name: 'Inj. Soda Bicarbonate', stock: 5, batch: 'EM-008', img: logoMain },
-  { id: 14, name: 'Inj. Midazolam', stock: 3, batch: 'EM-009', img: logoMain },
-  { id: 15, name: 'Inj. Phenergan', stock: 10, batch: 'EM-010', img: logoMain },
-  { id: 18, name: 'Inj. Noradrenaline', stock: 6, batch: 'EM-013', img: logoMain },
-  { id: 19, name: 'Inj. Nitroglycerine (NTG)', stock: 3, batch: 'EM-014', img: logoMain },
-  { id: 21, name: 'Inj. Tetanus Toxoid (TT)', stock: 10, batch: 'EM-016', img: logoMain },
-  { id: 22, name: 'Inj. Neostigmine', stock: 5, batch: 'EM-017', img: logoMain },
-  { id: 23, name: 'Inj. Lasix (Furosemide)', stock: 10, batch: 'EM-018', img: logoMain },
-  { id: 25, name: 'IV Paracetamol 100ml', stock: 5, batch: 'IV-101', img: logoMain },
-  { id: 27, name: 'IV Haemaccel', stock: 6, batch: 'IV-103', img: logoMain },
-  { id: 28, name: 'Suction Catheter (Set)', stock: 10, batch: 'EQ-501', img: logoMain },
-  { id: 29, name: 'Syringe 50cc', stock: 2, batch: 'EQ-502', img: logoMain },
-  { id: 30, name: 'Ventilator Tubing Set', stock: 1, batch: 'EQ-503', img: logoMain },
-  { id: 31, name: 'Foleys Catheter (Set)', stock: 20, batch: 'EQ-504', img: logoMain },
-  { id: 32, name: 'ECG Chest Leads', stock: 10, batch: 'EQ-505', img: logoMain },
-  { id: 33, name: 'Infant Feeding Tube', stock: 10, batch: 'EQ-506', img: logoMain },
-  { id: 34, name: 'IV Cannula (Intracath)', stock: 40, batch: 'EQ-507', img: logoMain },
-  { id: 35, name: 'Guedel Airway (Set)', stock: 4, batch: 'EQ-508', img: logoMain },
-  { id: 36, name: 'Tab. Depin (Nifedipine)', stock: 20, batch: 'TB-801', img: logoMain },
+  { id: 25, name: 'IV Paracetamol 100ml', stock: 5, batch: 'IV-101', img: imgIVPara },
+  { id: 26, name: 'IV 25% Dex', stock: 10, batch: 'IV-102', img: imgDex25 },
+  { id: 27, name: 'IV Haemaccel', stock: 6, batch: 'IV-103', img: imgHamaccyl },
 ];
 
 const HospitalDashboard = () => {
@@ -100,7 +97,6 @@ const HospitalDashboard = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [viewProof, setViewProof] = useState(null);
 
-  // Missions State
   const [activeMissions, setActiveMissions] = useState(() => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
   });
@@ -163,7 +159,7 @@ const HospitalDashboard = () => {
       const now = Date.now();
       const elapsed = now - mission.startTime; 
       
-      // PHASE 1: PREPARING (0 - 30 Seconds)
+      // PHASE 1: PREPARING
       if (elapsed < 30000) {
         const timeLeft = Math.ceil((30000 - elapsed) / 1000);
         setCountdown(timeLeft);
@@ -171,18 +167,24 @@ const HospitalDashboard = () => {
         setMissionStatusText(`Pre-Flight Checks`);
         setDroneStats({ speed: 0, battery: 100, altitude: 0 });
       } 
-      // PHASE 2: IN-FLIGHT (30s - 90s)
+      // PHASE 2: IN-FLIGHT
       else if (elapsed < 90000) {
         setCountdown(0);
         const flightTime = elapsed - 30000;
         const percent = (flightTime / 60000) * 100;
-        
         setTrackProgress(percent);
         setMissionStatusText('In-Flight');
+        
+        // Physics
+        let currentSpeed = 60;
+        let currentAlt = 120;
+        if (percent < 10) { currentSpeed = percent * 6; currentAlt = percent * 12; } // Takeoff
+        else if (percent > 90) { currentSpeed = 60 - (percent-90)*6; currentAlt = 120 - (percent-90)*12; } // Landing
+
         setDroneStats({
-            speed: Math.floor(50 + Math.random() * 10),
+            speed: Math.floor(currentSpeed),
             battery: Math.max(0, 100 - Math.floor(percent / 1.5)),
-            altitude: 120
+            altitude: Math.floor(currentAlt)
         });
       }
       // PHASE 3: DELIVERED
@@ -274,7 +276,7 @@ const HospitalDashboard = () => {
         id: Date.now(), 
         ...newItem, 
         stock: parseInt(newItem.stock),
-        img: 'https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=500&q=80' 
+        img: defaultImg // Use default for manual adds
     }]);
     setShowAddModal(false);
     setNewItem({ name: '', stock: '', batch: '' });
@@ -337,7 +339,6 @@ const HospitalDashboard = () => {
                                 <div>
                                     <h3 className="font-bold text-slate-800">{req.phc}</h3>
                                     <p className="text-sm text-slate-600">{req.qty} items <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
-                                    {/* ✅ View Location Button */}
                                     <button onClick={() => showCoordinates(req.phc)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1">
                                         <Globe size={12} /> View Drop Location
                                     </button>
@@ -395,7 +396,7 @@ const HospitalDashboard = () => {
                                 <span className="text-white text-xs font-bold mt-3 bg-blue-900 px-2 py-1 rounded border border-blue-700">Destination</span>
                             </div>
 
-                            {/* CONDITIONAL: TIMER or DRONE */}
+                            {/* TIMER OR DRONE */}
                             {countdown > 0 ? (
                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center">
                                     <div className="bg-black/80 backdrop-blur-md p-6 rounded-2xl border border-yellow-500 text-center shadow-2xl">
