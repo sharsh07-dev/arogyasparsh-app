@@ -9,7 +9,7 @@ import {
 
 import logoMain from '../assets/logo_final.png';
 
-// MEDICINE DATABASE
+// FULL MEDICINE DATABASE
 const MEDICINE_DB = [
   { id: 1, name: 'Covishield Vaccine', type: 'Vial', img: 'https://images.unsplash.com/photo-1633167606204-2782f336462d?auto=format&fit=crop&w=200&q=80' },
   { id: 2, name: 'Snake Anti-Venom', type: 'Vial', img: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=200&q=80' },
@@ -42,11 +42,6 @@ const PHCDashboard = () => {
 
   // Checkout State
   const [proofFiles, setProofFiles] = useState([]);
-  const [checks, setChecks] = useState({
-    isGenuine: false,
-    stockUnavailable: false,
-    patientAffected: false
-  });
   const [urgency, setUrgency] = useState('Standard');
 
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
@@ -97,29 +92,25 @@ const PHCDashboard = () => {
     }));
   };
 
-  // ✅ Handle File Selection
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     if (proofFiles.length + files.length > 3) return alert("Max 3 files allowed");
     setProofFiles([...proofFiles, ...files]);
   };
 
-  // ✅ Remove Selected File
   const removeFile = (index) => {
     setProofFiles(proofFiles.filter((_, i) => i !== index));
   };
 
-  // ✅ UPDATED: Handle Submit with FormData (For File Upload)
   const handleSubmitOrder = async () => {
-    if (!checks.isGenuine || !checks.stockUnavailable || !checks.patientAffected) return alert("⚠️ Please confirm all 3 verification protocols.");
-    if (proofFiles.length === 0) return alert("❌ UPLOAD REQUIRED: Please attach proof.");
+    // ✅ Removed Checkbox Validation
+    if (proofFiles.length === 0) return alert("❌ UPLOAD REQUIRED: Please attach proof documents.");
 
     setLoading(true);
 
     const itemSummary = cart.map(c => `${c.qty}x ${c.name}`).join(', ');
     const totalQty = cart.reduce((acc, c) => acc + c.qty, 0);
 
-    // 1. Create FormData object
     const formDataToSend = new FormData();
     formDataToSend.append("phc", user.name);
     formDataToSend.append("item", itemSummary);
@@ -127,17 +118,11 @@ const PHCDashboard = () => {
     formDataToSend.append("urgency", urgency);
     formDataToSend.append("description", "Multi-item order via App");
     
-    // 2. Append Files (Only the first one for now if using free tier single-upload)
-    // If backend supports array, loop through. Assuming single file per field or array field.
-    // Based on previous backend code, we used upload.single('proofFile') or upload.array('proofFiles')
-    // Let's assume array for robustness:
     proofFiles.forEach((file) => {
-        formDataToSend.append("proofFiles", file); // Ensure backend route expects 'proofFiles' array
+        formDataToSend.append("proofFiles", file); 
     });
-    // *Fallback:* If backend is strictly single file, use: formDataToSend.append("proofFile", proofFiles[0]);
 
     try {
-        // 3. Send FormData (Browser sets Content-Type automatically)
         const res = await fetch(API_URL, {
             method: "POST",
             body: formDataToSend, 
@@ -148,7 +133,6 @@ const PHCDashboard = () => {
             fetchRequests(); 
             setCart([]);
             setProofFiles([]);
-            setChecks({ isGenuine: false, stockUnavailable: false, patientAffected: false });
             setActiveTab('history');
         } else {
             alert("Server busy. Try again.");
@@ -254,32 +238,36 @@ const PHCDashboard = () => {
                             ))
                         )}
                     </div>
+                    
+                    {/* ✅ UPDATED CHECKOUT CARD */}
                     <div className="md:col-span-1">
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-lg sticky top-4">
-                            <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><CheckCircle2 className="text-green-600" size={20}/> Final Verification</h3>
-                            <div className="space-y-3 mb-6">
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Urgency Level</label>
-                                <select className="w-full p-2 border rounded-lg bg-slate-50 text-sm" value={urgency} onChange={(e) => setUrgency(e.target.value)}><option>Standard</option><option>High</option><option>Critical</option></select>
-                            </div>
-                            <div className="space-y-3 mb-6">
-                                <label className="flex gap-2 text-xs cursor-pointer"><input type="checkbox" onChange={(e) => setChecks({...checks, isGenuine: e.target.checked})} /> Confirm genuine emergency.</label>
-                                <label className="flex gap-2 text-xs cursor-pointer"><input type="checkbox" onChange={(e) => setChecks({...checks, stockUnavailable: e.target.checked})} /> Stock unavailable.</label>
-                                <label className="flex gap-2 text-xs cursor-pointer"><input type="checkbox" onChange={(e) => setChecks({...checks, patientAffected: e.target.checked})} /> Patient care affected.</label>
-                            </div>
+                        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-lg sticky top-4 flex flex-col gap-6">
+                            <h3 className="font-bold text-xl flex items-center gap-2"><CheckCircle2 className="text-green-600" size={22}/> Confirm Order</h3>
                             
-                            {/* ✅ VISIBLE FILE LIST & UPLOAD */}
-                            <div className="mb-6">
-                                <label className="block text-xs font-bold text-slate-700 mb-2">Proof (Max 3) <span className="text-red-500">*</span></label>
-                                <label className="cursor-pointer w-full border-2 border-dashed border-blue-200 rounded-lg p-3 flex flex-col items-center justify-center hover:bg-blue-50 transition-colors">
-                                    <Upload size={16} className="text-blue-500"/>
-                                    <span className="text-[10px] text-blue-600 mt-1">Upload File</span>
+                            <div className="space-y-2">
+                                <label className="block text-sm font-bold text-slate-700">Urgency Level</label>
+                                <select className="w-full p-3 border rounded-xl bg-slate-50 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500" value={urgency} onChange={(e) => setUrgency(e.target.value)}>
+                                    <option>Standard</option>
+                                    <option>High</option>
+                                    <option>Critical</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Proof Documents <span className="text-red-500">*</span></label>
+                                <label className="cursor-pointer w-full border-2 border-dashed border-blue-200 rounded-xl p-6 flex flex-col items-center justify-center hover:bg-blue-50 transition-colors bg-slate-50">
+                                    <Upload size={24} className="text-blue-500 mb-2"/>
+                                    <span className="text-xs text-blue-600 font-bold">Click to Upload</span>
+                                    <span className="text-[10px] text-slate-400 mt-1">Max 3 files (JPG, PNG, PDF)</span>
                                     <input type="file" multiple className="hidden" onChange={handleFileChange}/>
                                 </label>
+                                
+                                {/* File List */}
                                 {proofFiles.length > 0 && (
                                     <div className="mt-3 space-y-2">
                                         {proofFiles.map((f, i) => (
-                                            <div key={i} className="flex items-center justify-between bg-green-50 p-2 rounded text-xs text-green-700 border border-green-100">
-                                                <span className="truncate w-24">{f.name}</span>
+                                            <div key={i} className="flex items-center justify-between bg-green-50 p-2 rounded-lg text-xs text-green-700 border border-green-100">
+                                                <span className="truncate w-28 font-medium">{f.name}</span>
                                                 <button onClick={() => removeFile(i)} className="text-red-500 hover:text-red-700"><Trash2 size={14}/></button>
                                             </div>
                                         ))}
@@ -287,8 +275,12 @@ const PHCDashboard = () => {
                                 )}
                             </div>
 
-                            <button onClick={handleSubmitOrder} disabled={cart.length === 0} className={`w-full py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all ${cart.length > 0 ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-400'}`}>
-                                {loading ? 'Uploading...' : <><Send size={18} /> Request Drone</>}
+                            <button 
+                                onClick={handleSubmitOrder} 
+                                disabled={cart.length === 0 || loading} 
+                                className={`w-full py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all text-white ${loading ? 'bg-gray-400 cursor-wait' : 'bg-blue-600 hover:bg-blue-700 hover:scale-[1.02] active:scale-95'}`}
+                            >
+                                {loading ? 'Uploading...' : <><Send size={18} /> Send Request</>}
                             </button>
                         </div>
                     </div>
@@ -296,7 +288,6 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* 3️⃣ HISTORY & TRACKING */}
           {!showTracker && activeTab === 'history' && (
              <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl border overflow-hidden overflow-x-auto">
                 <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
@@ -322,14 +313,13 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* 4️⃣ TRACKING */}
           {showTracker && (
              <div className="max-w-4xl mx-auto space-y-6">
                 <div className="bg-slate-200 rounded-3xl h-64 md:h-80 relative overflow-hidden border-4 border-white shadow-2xl">
                     <div className="absolute inset-0 opacity-30 bg-[url('https://img.freepik.com/free-vector/grey-world-map_1053-431.jpg')] bg-cover bg-center grayscale"></div>
                     <svg className="absolute inset-0 w-full h-full pointer-events-none"><path d="M 100,160 Q 400,50 700,160" fill="none" stroke="#3b82f6" strokeWidth="3" strokeDasharray="10" /></svg>
                     <div className="absolute top-[160px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-red-600" size={32} fill="#ef4444"/><span className="font-bold text-slate-700 text-xs mt-1">Hospital</span></div>
-                    <div className="absolute top-[160px] left-[700px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-orange-500" size={32} fill="#f97316"/><span className="font-bold text-slate-700 text-xs mt-1">PHC</span></div>
+                    <div className="absolute top-[160px] left-[700px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-orange-500" size={32} fill="#f97316"/><span className="font-bold text-slate-700 text-xs mt-1">Wagholi PHC</span></div>
                     <div className="absolute top-0 left-0 transition-all duration-100 ease-linear z-20" style={{ left: `${100 + (trackProgress / 100) * 600}px`, top: `${160 - Math.sin((trackProgress / 100) * Math.PI) * 110}px`, transform: `translate(-50%, -50%) rotate(${90 + (trackProgress < 50 ? -20 : 20)}deg)` }}><Plane size={48} className="text-yellow-500 drop-shadow-xl" fill="gold" /></div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 rounded-3xl overflow-hidden shadow-2xl font-mono">
@@ -354,7 +344,6 @@ const PHCDashboard = () => {
         </div>
       </main>
 
-      {/* DETAILS MODAL */}
       {viewOrder && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
