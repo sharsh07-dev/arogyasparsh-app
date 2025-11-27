@@ -54,5 +54,13 @@ router.put("/:id", async (req, res) => {
       res.status(500).json(err);
     }
 });
-
+// 4. DELETE: Clear ALL requests (For "Clear History" button)
+router.delete("/clear-all", async (req, res) => {
+  try {
+    await Request.deleteMany({}); // Deletes everything
+    res.status(200).json({ message: "All records cleared" });
+  } catch (err) {
+    res.status(500).json(err);
+  }
+});
 module.exports = router;
