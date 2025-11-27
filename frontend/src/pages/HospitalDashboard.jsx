@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
 import { 
   Activity, Users, Package, Navigation, LogOut, 
   MapPin, CheckCircle2, Clock, AlertOctagon, 
@@ -12,7 +11,7 @@ import {
 import ambulanceSiren from '../assets/ambulance.mp3';
 import logoMain from '../assets/logo_final.png';
 
-// ✅ 1. RESTORED PHC COORDINATES
+// ✅ RESTORED PHC COORDINATES
 const PHC_COORDINATES = {
   "Wagholi PHC": { lat: 18.5808, lng: 73.9787 },
   "PHC Chamorshi": { lat: 19.9280, lng: 79.9050 },
@@ -26,8 +25,6 @@ const PHC_COORDINATES = {
 };
 
 const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; 
-const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
-const center = { lat: 19.9260, lng: 79.9033 }; 
 
 // Inventory Data
 const INITIAL_INVENTORY = [
@@ -53,19 +50,18 @@ const HospitalDashboard = () => {
   const [activeTab, setActiveTab] = useState('alerts');
   const [requests, setRequests] = useState([]); 
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
-  const [activeMissions, setActiveMissions] = useState([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [viewProof, setViewProof] = useState(null);
 
-  // Map Loader
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: "" 
+  // ✅ LOAD ACTIVE MISSIONS FROM STORAGE (Fixes "No Flight" on Refresh)
+  const [activeMissions, setActiveMissions] = useState(() => {
+    return JSON.parse(localStorage.getItem('activeMissions')) || [];
   });
 
-  const [dronePos, setDronePos] = useState(HOSPITAL_LOC);
+  // Simulation State
+  const [trackProgress, setTrackProgress] = useState(0);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [droneStats, setDroneStats] = useState({ speed: 0, battery: 100, altitude: 0 });
-  const [flightProgress, setFlightProgress] = useState(0);
 
   const [isAlarmPlaying, setIsAlarmPlaying] = useState(false);
   const audioRef = useRef(new Audio(ambulanceSiren));
@@ -98,26 +94,31 @@ const HospitalDashboard = () => {
     return () => clearInterval(interval);
   }, []); 
 
-  // Simulation Loop (Only runs if there are active missions)
+  // ✅ LIVE TRACKING & DATA PERSISTENCE
   useEffect(() => {
+    // Save missions to storage whenever they change
+    localStorage.setItem('activeMissions', JSON.stringify(activeMissions));
+
     if (activeTab !== 'map' || activeMissions.length === 0) return;
     
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    
     const interval = setInterval(() => {
-      setFlightProgress((prev) => {
-        const newProgress = prev >= 100 ? 0 : prev + 0.2; 
-        // Demo Path Logic
-        const lat = HOSPITAL_LOC.lat + (HOSPITAL_LOC.lat - HOSPITAL_LOC.lat) * (newProgress / 100);
-        const lng = HOSPITAL_LOC.lng + (HOSPITAL_LOC.lng - HOSPITAL_LOC.lng) * (newProgress / 100);
-        setDronePos({ lat, lng });
+      setTrackProgress((prev) => {
+        const newProgress = prev >= 100 ? 0 : prev + 0.3; // Loop flight
+        
+        // Update Drone Stats based on progress
         setDroneStats({
-            speed: Math.floor(40 + Math.random() * 10),
-            battery: Math.max(0, 100 - Math.floor(newProgress / 2)),
-            altitude: newProgress > 0 && newProgress < 95 ? 120 : 0
+            speed: Math.floor(50 + Math.random() * 10),
+            battery: Math.max(0, 100 - Math.floor(newProgress / 1.5)),
+            altitude: newProgress > 5 && newProgress < 95 ? 120 : 0
         });
+
         return newProgress;
       });
-    }, 100);
-    return () => clearInterval(interval);
+    }, 50);
+
+    return () => { clearInterval(interval); clearInterval(timer); };
   }, [activeTab, activeMissions]);
 
   const triggerAlarm = () => {
@@ -139,7 +140,6 @@ const HospitalDashboard = () => {
     navigate('/login');
   };
 
-  // ✅ 2. SHOW LOCATION FUNCTION
   const showCoordinates = (phcName) => {
     const coords = PHC_COORDINATES[phcName] || { lat: 'Unknown', lng: 'Unknown' };
     alert(`📍 Exact Drop Location for ${phcName}:\n\nLatitude: ${coords.lat}\nLongitude: ${coords.lng}\n\n✅ Flight path calibrated.`);
@@ -166,7 +166,11 @@ const HospitalDashboard = () => {
   const handleDispatch = (id, phc) => {
     if(!confirm("Ready for takeoff? Confirm Drone Dispatch.")) return;
     updateStatusInDB(id, 'Dispatched');
-    setActiveMissions([...activeMissions, { id, phc, progress: 0 }]);
+    
+    // ✅ Add to active missions and Save
+    const newMission = { id, phc, progress: 0 };
+    const updatedMissions = [...activeMissions, newMission];
+    setActiveMissions(updatedMissions);
   };
 
   const handleReject = (id, urgency) => {
@@ -190,6 +194,11 @@ const HospitalDashboard = () => {
     setShowAddModal(false);
     setNewItem({ name: '', stock: '', batch: '' });
   };
+
+  // Time Helpers
+  const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const timeString = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  const arrivalTime = new Date(currentTime.getTime() + 15 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
   return (
     <div className={`min-h-screen bg-slate-50 flex font-sans text-slate-800 ${isAlarmPlaying ? 'animate-pulse bg-red-50' : ''} relative`}>
@@ -243,7 +252,7 @@ const HospitalDashboard = () => {
                                 <div>
                                     <h3 className="font-bold text-slate-800">{req.phc}</h3>
                                     <p className="text-sm text-slate-600">{req.qty} items <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
-                                    {/* ✅ 3. RESTORED VIEW LOCATION BUTTON */}
+                                    {/* View Location */}
                                     <button onClick={() => showCoordinates(req.phc)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1">
                                         <Globe size={12} /> View Drop Location
                                     </button>
@@ -259,7 +268,7 @@ const HospitalDashboard = () => {
                                         <button onClick={() => handleApprove(req._id, req.urgency)} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Approve</button>
                                     </>
                                 )}
-                                {req.status === 'Approved' && <button onClick={() => handleDispatch(req._id)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm animate-pulse">Dispatch Drone</button>}
+                                {req.status === 'Approved' && <button onClick={() => handleDispatch(req._id, req.phc)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm animate-pulse">Dispatch Drone</button>}
                                 {req.status === 'Dispatched' && <span className="text-green-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> In-Flight</span>}
                             </div>
                         </div>
@@ -267,11 +276,11 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* ✅ 4. FIXED MAP TAB (Handles Empty State) */}
+            {/* ✅ 4. FIXED MAP TAB (Dark Radar - No Google Maps API needed) */}
             {activeTab === 'map' && (
                 <div className="h-full w-full relative rounded-2xl overflow-hidden shadow-xl border-4 border-white min-h-[500px]">
                     {activeMissions.length === 0 ? (
-                        // ⚠️ EMPTY STATE (No Missions)
+                        // EMPTY STATE
                         <div className="flex flex-col items-center justify-center h-full bg-slate-900 text-slate-400">
                             <div className="relative w-24 h-24 mb-4">
                                 <div className="absolute inset-0 bg-blue-500/20 rounded-full animate-ping"></div>
@@ -284,18 +293,47 @@ const HospitalDashboard = () => {
                             <p className="text-xs mt-2 text-slate-500">Waiting for dispatch command...</p>
                         </div>
                     ) : (
-                        // 🗺️ LIVE MAP (When Mission Exists)
-                        <>
-                             {isLoaded ? (
-                                <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={13} options={{ disableDefaultUI: true }}>
-                                    <Polyline path={[HOSPITAL_LOC, PHC_LOC]} options={{ strokeColor: "#3b82f6", strokeOpacity: 0.8, strokeWeight: 4 }} />
-                                    <Marker position={dronePos} icon={{ path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 6, strokeColor: "#ef4444", fillColor: "#ef4444", fillOpacity: 1, rotation: 45 }} />
-                                    <Marker position={HOSPITAL_LOC} label="🏥" />
-                                    <Marker position={PHC_LOC} label="📍" />
-                                </GoogleMap>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center h-full bg-slate-100 text-slate-500"><MapIcon size={48} className="mb-2 text-slate-300"/><p>Map Visualizer</p></div>
-                            )}
+                        // ✅ LIVE RADAR MAP
+                        <div className="bg-slate-900 w-full h-full relative overflow-hidden">
+                            {/* Grid */}
+                            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div>
+                            
+                            {/* Path */}
+                            <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                                <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#475569" strokeWidth="4" strokeDasharray="8" />
+                                <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#3b82f6" strokeWidth="4" strokeDasharray="1000" strokeDashoffset={1000 - (trackProgress * 10)} className="transition-all duration-300 ease-linear" />
+                            </svg>
+
+                            {/* Hospital Icon */}
+                            <div className="absolute top-1/2 left-[10%] -translate-y-1/2 flex flex-col items-center z-10">
+                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20">
+                                    <Building2 size={24} className="text-slate-900" />
+                                </div>
+                                <span className="text-white text-xs font-bold mt-3 bg-slate-800 px-2 py-1 rounded border border-slate-700">District Hospital</span>
+                            </div>
+
+                            {/* PHC Icon */}
+                            <div className="absolute top-1/2 right-[10%] -translate-y-1/2 flex flex-col items-center z-10">
+                                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/50 animate-pulse border-4 border-slate-900">
+                                    <MapPin size={24} className="text-white" />
+                                </div>
+                                <span className="text-white text-xs font-bold mt-3 bg-blue-900 px-2 py-1 rounded border border-blue-700">Destination</span>
+                            </div>
+
+                            {/* 🚁 DRONE */}
+                            <div 
+                                className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-linear z-20 flex flex-col items-center"
+                                style={{ left: `${10 + (trackProgress * 0.8)}%` }} 
+                            >
+                                <div className="bg-white p-2 rounded-full shadow-2xl relative">
+                                    <Navigation size={32} className="text-red-500 rotate-90" fill="currentColor" />
+                                    <div className="absolute -top-1 -left-1 w-full h-full border-2 border-slate-300 rounded-full animate-spin opacity-50"></div>
+                                </div>
+                                <div className="bg-black/80 text-white text-[10px] px-2 py-1 rounded-md mt-2 backdrop-blur-sm font-mono border border-slate-700">
+                                    {Math.round(trackProgress)}%
+                                </div>
+                            </div>
+
                             {/* Stats Card */}
                             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-2xl w-[90%] max-w-md border border-slate-200">
                                 <div className="flex justify-between items-center mb-3">
@@ -308,7 +346,7 @@ const HospitalDashboard = () => {
                                     <div><p className="text-[10px] text-slate-400 font-bold">Alt</p><p className="text-lg font-bold text-slate-700">{droneStats.altitude}m</p></div>
                                 </div>
                             </div>
-                        </>
+                        </div>
                     )}
                 </div>
             )}
@@ -380,10 +418,11 @@ const HospitalDashboard = () => {
         </div>
       )}
 
-      {/* ADD ITEM MODAL */}
+      {/* ADD ITEM MODAL (Same as before) */}
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white p-0 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100">
+                {/* ... Modal Content ... */}
                 <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
                     <div><h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Package className="text-blue-600" size={20}/> Add New Medicine</h3><p className="text-xs text-slate-500 mt-0.5">Enter stock details below</p></div>
                     <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1 rounded-full transition-colors"><X size={20} /></button>
