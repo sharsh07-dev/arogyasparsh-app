@@ -34,7 +34,7 @@ import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
 // Placeholder for others
-const defaultImg = "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=300&q=80";
+const defaultImg = "../assets/medicines/gluconate.png";
 
 // PHC COORDINATES
 const PHC_COORDINATES = {
@@ -55,8 +55,7 @@ const center = { lat: 19.9260, lng: 79.9033 };
 
 // ✅ 2. UPDATED INVENTORY LIST WITH IMAGES
 const INITIAL_INVENTORY = [
-  { id: 1, name: 'Covishield Vaccine', stock: 450, batch: 'B-992', img: defaultImg },
-  { id: 2, name: 'Snake Anti-Venom', stock: 12, batch: 'AV-221', img: defaultImg },
+
   { id: 6, name: 'Inj. Atropine', stock: 10, batch: 'EM-001', img: imgAtropine },
   { id: 7, name: 'Inj. Adrenaline', stock: 10, batch: 'EM-002', img: imgAdrenaline },
   { id: 8, name: 'Inj. Hydrocortisone', stock: 15, batch: 'EM-003', img: imgHydrocort },
