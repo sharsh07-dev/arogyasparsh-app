@@ -3,10 +3,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Lock, Mail, AlertCircle } from 'lucide-react';
 
 // ✅ IMPORT ASSETS (Fixed: Using logo_final.png for both to prevent errors)
+//fjkbew
 import droneVideo from '../assets/drone.mp4';
 import logoMain from '../assets/logo_final.png';
-import logoLeft from '../assets/logo_final.png'; // Replaced missing 'logo.png' with 'logo_final.png'
-
+import logoLeft from '../assets/left_logo.png'; // Replaced missing 'logo.png' with 'logo_final.png'
+//dda
 const Login = () => {
   const [identifier, setIdentifier] = useState(''); 
   const [password, setPassword] = useState('');
