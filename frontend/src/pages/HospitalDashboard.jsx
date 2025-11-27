@@ -6,7 +6,7 @@ import {
   MapPin, CheckCircle2, Clock, AlertOctagon, 
   Battery, Signal, Plane, Plus, Minus, Search, 
   Map as MapIcon, VolumeX, Siren, X, Check, Menu,
-  Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2, Globe, Timer, Zap
+  Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2, Globe, Timer, Zap, ArrowRight
 } from 'lucide-react';
 
 import ambulanceSiren from '../assets/ambulance.mp3';
@@ -56,14 +56,13 @@ const HospitalDashboard = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [viewProof, setViewProof] = useState(null);
 
-  // Missions State
   const [activeMissions, setActiveMissions] = useState(() => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
   });
 
   // Simulation State
   const [trackProgress, setTrackProgress] = useState(0);
-  const [countdown, setCountdown] = useState(0); // ✅ NEW: For the 30s timer
+  const [countdown, setCountdown] = useState(0); 
   const [missionStatusText, setMissionStatusText] = useState('Standby');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [droneStats, setDroneStats] = useState({ speed: 0, battery: 100, altitude: 0 });
@@ -104,7 +103,7 @@ const HospitalDashboard = () => {
     return () => clearInterval(interval);
   }, []); 
 
-  // ✅ SIMULATION LOOP (30s Delay + Flight)
+  // ✅ REALISTIC SIMULATION LOOP
   useEffect(() => {
     localStorage.setItem('activeMissions', JSON.stringify(activeMissions));
 
@@ -119,8 +118,7 @@ const HospitalDashboard = () => {
       const now = Date.now();
       const elapsed = now - mission.startTime; 
       
-      // PHASE 1: PREPARING (0 - 30 Seconds)
-      // ✅ Show Timer, Hide Drone
+      // PHASE 1: PRE-FLIGHT CHECKS (0 - 30 Seconds)
       if (elapsed < 30000) {
         const timeLeft = Math.ceil((30000 - elapsed) / 1000);
         setCountdown(timeLeft);
@@ -128,26 +126,49 @@ const HospitalDashboard = () => {
         setMissionStatusText(`Pre-Flight Checks`);
         setDroneStats({ speed: 0, battery: 100, altitude: 0 });
       } 
-      // PHASE 2: IN-FLIGHT (30s - 90s)
-      // ✅ Show Drone Moving
+      // PHASE 2: ACTIVE FLIGHT (30s - 90s)
       else if (elapsed < 90000) {
-        setCountdown(0); // Hide timer
-        const flightTime = elapsed - 30000;
-        const percent = (flightTime / 60000) * 100; // 1 min flight time
+        setCountdown(0);
+        const flightTime = elapsed - 30000; // Time spent flying
+        const totalFlightDuration = 60000; // 60 seconds flight
+        const percent = (flightTime / totalFlightDuration) * 100;
         
         setTrackProgress(percent);
-        setMissionStatusText('In-Flight');
+        
+        // --- 🚁 PHYSICS SIMULATION ---
+        let currentSpeed = 0;
+        let currentAlt = 0;
+
+        if (percent < 10) {
+            // TAKEOFF (0-10%): Speed 0->60, Alt 0->120
+            currentSpeed = Math.floor((percent / 10) * 60);
+            currentAlt = Math.floor((percent / 10) * 120);
+            setMissionStatusText('Takeoff / Climbing');
+        } else if (percent >= 10 && percent <= 90) {
+            // CRUISING (10-90%): Speed ~65, Alt 120
+            currentSpeed = Math.floor(65 + (Math.random() * 5 - 2.5)); // Slight flutter
+            currentAlt = 120 + Math.floor(Math.random() * 2); // Slight flutter
+            setMissionStatusText('Cruising to Destination');
+        } else {
+            // LANDING (90-100%): Speed 60->0, Alt 120->0
+            const landingPercent = (percent - 90) * 10; // 0 to 100 scale for landing phase
+            currentSpeed = Math.floor(60 - (landingPercent / 100) * 60);
+            currentAlt = Math.floor(120 - (landingPercent / 100) * 120);
+            setMissionStatusText('Landing Sequence');
+        }
+
+        // Battery Drain Logic
         setDroneStats({
-            speed: Math.floor(50 + Math.random() * 10),
-            battery: Math.max(0, 100 - Math.floor(percent / 1.5)),
-            altitude: 120
+            speed: currentSpeed,
+            battery: Math.max(0, 100 - Math.floor(percent / 1.6)), // Drains to ~40%
+            altitude: currentAlt
         });
       }
       // PHASE 3: DELIVERED
       else {
         setTrackProgress(100);
-        setMissionStatusText('Delivered');
-        setDroneStats({ speed: 0, battery: 40, altitude: 0 });
+        setMissionStatusText('Touchdown Confirmed');
+        setDroneStats({ speed: 0, battery: 38, altitude: 0 });
 
         if (!mission.delivered) {
            updateStatusInDB(mission.id, 'Delivered');
@@ -277,7 +298,7 @@ const HospitalDashboard = () => {
         <header className="bg-white border-b border-slate-200 px-4 md:px-8 py-4 flex justify-between items-center shadow-sm z-10">
           <div className="flex items-center gap-3">
             <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg"><Menu size={24} /></button>
-            <h1 className="text-lg md:text-2xl font-bold text-slate-800">{activeTab === 'alerts' ? 'Emergency Alerts' : (activeTab === 'map' ? 'Global Tracking' : 'Inventory')}</h1>
+            <h1 className="text-lg md:text-2xl font-bold text-slate-800">{activeTab === 'alerts' ? 'Emergency Alerts' : (activeTab === 'map' ? 'Live Drone Tracking' : 'Inventory')}</h1>
           </div>
           <div className="bg-blue-50 px-3 py-1 rounded-full text-xs font-semibold text-blue-700 flex items-center gap-2"><Users size={14} /> {user.name}</div>
         </header>
@@ -295,6 +316,7 @@ const HospitalDashboard = () => {
                                 <div>
                                     <h3 className="font-bold text-slate-800">{req.phc}</h3>
                                     <p className="text-sm text-slate-600">{req.qty} items <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
+                                    {/* View Location */}
                                     <button onClick={() => showCoordinates(req.phc)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1">
                                         <Globe size={12} /> View Drop Location
                                     </button>
@@ -319,7 +341,7 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* ✅ FIXED MAP TAB */}
+            {/* MAP TAB */}
             {activeTab === 'map' && (
                 <div className="h-full w-full relative rounded-2xl overflow-hidden shadow-xl border-4 border-white min-h-[500px]">
                     {activeMissions.length === 0 ? (
@@ -342,21 +364,18 @@ const HospitalDashboard = () => {
                                 <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#3b82f6" strokeWidth="4" strokeDasharray="1000" strokeDashoffset={1000 - (trackProgress * 10)} className="transition-all duration-300 ease-linear" />
                             </svg>
 
-                            {/* Hospital Icon */}
                             <div className="absolute top-1/2 left-[10%] -translate-y-1/2 flex flex-col items-center z-10">
                                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20"><Building2 size={24} className="text-slate-900" /></div>
                                 <span className="text-white text-xs font-bold mt-3 bg-slate-800 px-2 py-1 rounded border border-slate-700">District Hospital</span>
                             </div>
 
-                            {/* PHC Icon */}
                             <div className="absolute top-1/2 right-[10%] -translate-y-1/2 flex flex-col items-center z-10">
                                 <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/50 animate-pulse border-4 border-slate-900"><MapPin size={24} className="text-white" /></div>
                                 <span className="text-white text-xs font-bold mt-3 bg-blue-900 px-2 py-1 rounded border border-blue-700">Destination</span>
                             </div>
 
-                            {/* ✅ CONDITIONAL RENDER: SHOW TIMER OR DRONE */}
+                            {/* ✅ CONDITIONAL: TIMER or DRONE */}
                             {countdown > 0 ? (
-                                // ⏰ TIMER OVERLAY (During first 30s)
                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center">
                                     <div className="bg-black/80 backdrop-blur-md p-6 rounded-2xl border border-yellow-500 text-center shadow-2xl">
                                         <Timer className="w-10 h-10 text-yellow-500 mx-auto mb-2 animate-pulse" />
@@ -369,7 +388,6 @@ const HospitalDashboard = () => {
                                     </div>
                                 </div>
                             ) : (
-                                // 🚁 DRONE ICON (After 30s)
                                 <div 
                                     className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-linear z-20 flex flex-col items-center"
                                     style={{ left: `${10 + (trackProgress * 0.8)}%` }} 
@@ -384,11 +402,12 @@ const HospitalDashboard = () => {
                                 </div>
                             )}
 
-                            {/* Stats Card */}
                             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-2xl w-[90%] max-w-md border border-slate-200">
                                 <div className="flex justify-between items-center mb-3">
                                     <div><h3 className="text-lg font-bold text-slate-800">Drone-04</h3><p className="text-xs text-slate-500">Enroute</p></div>
-                                    <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full animate-pulse">{countdown > 0 ? 'PREPARING' : 'LIVE'}</span>
+                                    <span className={`text-xs font-bold px-2 py-1 rounded-full animate-pulse ${countdown > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
+                                        {countdown > 0 ? 'PREPARING' : 'LIVE'}
+                                    </span>
                                 </div>
                                 <div className="grid grid-cols-3 gap-2 text-center divide-x divide-slate-200">
                                     <div><p className="text-[10px] text-slate-400 font-bold">Speed</p><p className="text-lg font-bold text-blue-600">{droneStats.speed} <span className="text-xs text-slate-500">km/h</span></p></div>
@@ -401,7 +420,7 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* INVENTORY TAB */}
+            {/* INVENTORY TAB (Same as before) */}
             {activeTab === 'inventory' && (
                 <div className="max-w-6xl mx-auto">
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
