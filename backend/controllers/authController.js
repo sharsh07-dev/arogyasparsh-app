@@ -48,22 +48,30 @@ const registerUser = async (req, res) => {
 };
 
 // ✅ 2. LOGIN USER
+// ✅ 2. LOGIN USER (Supports Email OR Official ID)
 const loginUser = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password } = req.body; // 'email' here captures the input field
 
   try {
-    const user = await User.findOne({ email });
+    // Check if input matches Email OR Official ID
+    const user = await User.findOne({ 
+        $or: [
+            { email: email }, 
+            { officialId: email } // Using the same input to check ID
+        ] 
+    });
 
     if (user && (await bcrypt.compare(password, user.password))) {
       res.json({
         _id: user.id,
         name: user.name,
         email: user.email,
+        officialId: user.officialId, // Send ID back to frontend
         role: user.role,
         token: generateToken(user.id),
       });
     } else {
-      res.status(401).json({ message: "Invalid email or password" });
+      res.status(401).json({ message: "Invalid credentials" });
     }
   } catch (error) {
     res.status(500).json({ message: error.message });
