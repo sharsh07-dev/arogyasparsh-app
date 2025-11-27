@@ -6,13 +6,13 @@ import {
   MapPin, CheckCircle2, Clock, AlertOctagon, 
   Battery, Signal, Plane, Plus, Minus, Search, 
   Map as MapIcon, VolumeX, Siren, X, Check, Menu,
-  Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2, Globe, Timer
+  Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2, Globe, Timer, Zap
 } from 'lucide-react';
 
 import ambulanceSiren from '../assets/ambulance.mp3';
 import logoMain from '../assets/logo_final.png';
 
-// ✅ PHC COORDINATES
+// COORDINATES
 const PHC_COORDINATES = {
   "Wagholi PHC": { lat: 18.5808, lng: 73.9787 },
   "PHC Chamorshi": { lat: 19.9280, lng: 79.9050 },
@@ -56,13 +56,14 @@ const HospitalDashboard = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [viewProof, setViewProof] = useState(null);
 
-  // ✅ ACTIVE MISSIONS STATE (Stores Start Time for Logic)
+  // Missions State
   const [activeMissions, setActiveMissions] = useState(() => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
   });
 
-  // Simulation Visual State
+  // Simulation State
   const [trackProgress, setTrackProgress] = useState(0);
+  const [countdown, setCountdown] = useState(0); // ✅ NEW: For the 30s timer
   const [missionStatusText, setMissionStatusText] = useState('Standby');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [droneStats, setDroneStats] = useState({ speed: 0, battery: 100, altitude: 0 });
@@ -103,7 +104,7 @@ const HospitalDashboard = () => {
     return () => clearInterval(interval);
   }, []); 
 
-  // ✅ UPDATED SIMULATION LOOP (10s Delay + 1 Min Flight + Auto Deliver)
+  // ✅ SIMULATION LOOP (30s Delay + Flight)
   useEffect(() => {
     localStorage.setItem('activeMissions', JSON.stringify(activeMissions));
 
@@ -111,25 +112,28 @@ const HospitalDashboard = () => {
     
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     
-    // Update logic every 100ms
     const interval = setInterval(() => {
-      const mission = activeMissions[0]; // Track the first active mission
+      const mission = activeMissions[0];
       if(!mission) return;
 
       const now = Date.now();
-      const elapsed = now - mission.startTime; // Time since dispatch in ms
+      const elapsed = now - mission.startTime; 
       
-      // PHASE 1: PREPARING (0 - 10 Seconds)
-      if (elapsed < 10000) {
+      // PHASE 1: PREPARING (0 - 30 Seconds)
+      // ✅ Show Timer, Hide Drone
+      if (elapsed < 30000) {
+        const timeLeft = Math.ceil((30000 - elapsed) / 1000);
+        setCountdown(timeLeft);
         setTrackProgress(0);
-        setMissionStatusText(`Preparing for Takeoff (${Math.ceil((10000 - elapsed)/1000)}s)`);
+        setMissionStatusText(`Pre-Flight Checks`);
         setDroneStats({ speed: 0, battery: 100, altitude: 0 });
       } 
-      // PHASE 2: IN-FLIGHT (10s - 70s)
-      else if (elapsed < 70000) {
-        // Calculate 0-100% over 60 seconds
-        const flightTime = elapsed - 10000;
-        const percent = (flightTime / 60000) * 100;
+      // PHASE 2: IN-FLIGHT (30s - 90s)
+      // ✅ Show Drone Moving
+      else if (elapsed < 90000) {
+        setCountdown(0); // Hide timer
+        const flightTime = elapsed - 30000;
+        const percent = (flightTime / 60000) * 100; // 1 min flight time
         
         setTrackProgress(percent);
         setMissionStatusText('In-Flight');
@@ -139,22 +143,17 @@ const HospitalDashboard = () => {
             altitude: 120
         });
       }
-      // PHASE 3: DELIVERED (After 70s)
+      // PHASE 3: DELIVERED
       else {
         setTrackProgress(100);
         setMissionStatusText('Delivered');
         setDroneStats({ speed: 0, battery: 40, altitude: 0 });
 
-        // Trigger Auto-Delivery if not already done
         if (!mission.delivered) {
            updateStatusInDB(mission.id, 'Delivered');
-           
-           // Mark locally as delivered to stop repeated calls
            const updatedMissions = activeMissions.map(m => 
                m.id === mission.id ? { ...m, delivered: true } : m
            );
-           // Remove finished mission after a brief pause or keep it? 
-           // Let's remove it from active tracking list after 5 seconds so they see "Delivered"
            setTimeout(() => {
                setActiveMissions(prev => prev.filter(m => m.id !== mission.id));
            }, 5000);
@@ -212,11 +211,8 @@ const HospitalDashboard = () => {
     if(!confirm("Ready for takeoff? Confirm Drone Dispatch.")) return;
     updateStatusInDB(id, 'Dispatched');
     
-    // ✅ Add Start Time for Simulation Logic
     const newMission = { id, phc, startTime: Date.now(), delivered: false };
-    setActiveMissions([newMission]); // Only track one active mission for demo clarity
-    
-    // Auto-switch to Map tab
+    setActiveMissions([newMission]); 
     setActiveTab('map');
   };
 
@@ -299,8 +295,6 @@ const HospitalDashboard = () => {
                                 <div>
                                     <h3 className="font-bold text-slate-800">{req.phc}</h3>
                                     <p className="text-sm text-slate-600">{req.qty} items <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
-                                    
-                                    {/* View Location Button */}
                                     <button onClick={() => showCoordinates(req.phc)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1">
                                         <Globe size={12} /> View Drop Location
                                     </button>
@@ -325,11 +319,10 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* MAP TAB (Dark Radar) */}
+            {/* ✅ FIXED MAP TAB */}
             {activeTab === 'map' && (
                 <div className="h-full w-full relative rounded-2xl overflow-hidden shadow-xl border-4 border-white min-h-[500px]">
                     {activeMissions.length === 0 ? (
-                        // EMPTY STATE
                         <div className="flex flex-col items-center justify-center h-full bg-slate-900 text-slate-400">
                             <div className="relative w-24 h-24 mb-4">
                                 <div className="absolute inset-0 bg-blue-500/20 rounded-full animate-ping"></div>
@@ -342,53 +335,73 @@ const HospitalDashboard = () => {
                             <p className="text-xs mt-2 text-slate-500">Waiting for dispatch command...</p>
                         </div>
                     ) : (
-                        // LIVE RADAR
                         <div className="bg-slate-900 w-full h-full relative overflow-hidden">
                             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div>
-                            
-                            {/* Path */}
                             <svg className="absolute inset-0 w-full h-full pointer-events-none">
                                 <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#475569" strokeWidth="4" strokeDasharray="8" />
                                 <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#3b82f6" strokeWidth="4" strokeDasharray="1000" strokeDashoffset={1000 - (trackProgress * 10)} className="transition-all duration-300 ease-linear" />
                             </svg>
 
-                            {/* Hospital */}
+                            {/* Hospital Icon */}
                             <div className="absolute top-1/2 left-[10%] -translate-y-1/2 flex flex-col items-center z-10">
-                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20">
-                                    <Building2 size={24} className="text-slate-900" />
-                                </div>
+                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20"><Building2 size={24} className="text-slate-900" /></div>
                                 <span className="text-white text-xs font-bold mt-3 bg-slate-800 px-2 py-1 rounded border border-slate-700">District Hospital</span>
                             </div>
 
-                            {/* Destination */}
+                            {/* PHC Icon */}
                             <div className="absolute top-1/2 right-[10%] -translate-y-1/2 flex flex-col items-center z-10">
-                                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/50 animate-pulse border-4 border-slate-900">
-                                    <MapPin size={24} className="text-white" />
-                                </div>
+                                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/50 animate-pulse border-4 border-slate-900"><MapPin size={24} className="text-white" /></div>
                                 <span className="text-white text-xs font-bold mt-3 bg-blue-900 px-2 py-1 rounded border border-blue-700">Destination</span>
                             </div>
 
-                            {/* DRONE */}
-                            <div 
-                                className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-linear z-20 flex flex-col items-center"
-                                style={{ left: `${10 + (trackProgress * 0.8)}%` }} 
-                            >
-                                <div className="bg-white p-2 rounded-full shadow-2xl relative">
-                                    <Navigation size={32} className="text-red-500 rotate-90" fill="currentColor" />
+                            {/* ✅ CONDITIONAL RENDER: SHOW TIMER OR DRONE */}
+                            {countdown > 0 ? (
+                                // ⏰ TIMER OVERLAY (During first 30s)
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center">
+                                    <div className="bg-black/80 backdrop-blur-md p-6 rounded-2xl border border-yellow-500 text-center shadow-2xl">
+                                        <Timer className="w-10 h-10 text-yellow-500 mx-auto mb-2 animate-pulse" />
+                                        <h2 className="text-4xl font-bold text-white font-mono">{countdown}s</h2>
+                                        <p className="text-yellow-400 text-xs font-bold uppercase tracking-widest mt-2">Preparing for Takeoff</p>
+                                        <div className="mt-4 flex gap-2 justify-center">
+                                            <span className="w-2 h-2 bg-green-500 rounded-full animate-ping"></span>
+                                            <span className="text-xs text-slate-400">System Check: OK</span>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
+                            ) : (
+                                // 🚁 DRONE ICON (After 30s)
+                                <div 
+                                    className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-linear z-20 flex flex-col items-center"
+                                    style={{ left: `${10 + (trackProgress * 0.8)}%` }} 
+                                >
+                                    <div className="bg-white p-2 rounded-full shadow-2xl relative">
+                                        <Navigation size={32} className="text-red-500 rotate-90" fill="currentColor" />
+                                        <div className="absolute -top-1 -left-1 w-full h-full border-2 border-slate-300 rounded-full animate-spin opacity-50"></div>
+                                    </div>
+                                    <div className="bg-black/80 text-white text-[10px] px-2 py-1 rounded-md mt-2 backdrop-blur-sm font-mono border border-slate-700">
+                                        {Math.round(trackProgress)}%
+                                    </div>
+                                </div>
+                            )}
 
-                            {/* STATUS OVERLAY (Top Center) */}
-                            <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-md px-6 py-2 rounded-full border border-slate-700 text-white flex items-center gap-3">
-                                <span className={`w-3 h-3 rounded-full animate-pulse ${missionStatusText === 'Delivered' ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
-                                <span className="font-mono font-bold uppercase">{missionStatusText}</span>
+                            {/* Stats Card */}
+                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-2xl w-[90%] max-w-md border border-slate-200">
+                                <div className="flex justify-between items-center mb-3">
+                                    <div><h3 className="text-lg font-bold text-slate-800">Drone-04</h3><p className="text-xs text-slate-500">Enroute</p></div>
+                                    <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full animate-pulse">{countdown > 0 ? 'PREPARING' : 'LIVE'}</span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 text-center divide-x divide-slate-200">
+                                    <div><p className="text-[10px] text-slate-400 font-bold">Speed</p><p className="text-lg font-bold text-blue-600">{droneStats.speed} <span className="text-xs text-slate-500">km/h</span></p></div>
+                                    <div><p className="text-[10px] text-slate-400 font-bold">Battery</p><div className="flex items-center justify-center gap-1 text-lg font-bold text-green-600"><Battery size={16} /> {droneStats.battery}%</div></div>
+                                    <div><p className="text-[10px] text-slate-400 font-bold">Alt</p><p className="text-lg font-bold text-slate-700">{droneStats.altitude}m</p></div>
+                                </div>
                             </div>
                         </div>
                     )}
                 </div>
             )}
 
-            {/* INVENTORY TAB (Same as before) */}
+            {/* INVENTORY TAB */}
             {activeTab === 'inventory' && (
                 <div className="max-w-6xl mx-auto">
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
