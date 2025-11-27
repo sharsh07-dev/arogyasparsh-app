@@ -4,36 +4,65 @@ import {
   Send, LogOut, AlertTriangle, CheckCircle2, 
   MapPin, History, Package, Navigation, 
   XCircle, FileText, Upload, User, Clock, Trash2,
-  Menu, X, RotateCcw, Eye, ShoppingCart, Search, Plus, Minus, ArrowLeft, Plane, Building2, Check // ✅ Added RotateCcw
+  Menu, X, RotateCcw, Eye, ShoppingCart, Search, Plus, Minus, ArrowLeft, Plane, Building2, Check
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
 
-// MEDICINE DATABASE
+// ✅ 1. IMPORT YOUR 19 LOCAL IMAGES
+import imgAtropine from '../assets/medicines/Atropine.jpg';
+import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
+import imgDopamine from '../assets/medicines/Dopamine.png';
+import imgAvil from '../assets/medicines/Avil.webp';
+import imgAdrenaline from '../assets/medicines/Adranaline.webp';
+import imgDexa from '../assets/medicines/Dexa.jpg';
+import imgDiclo from '../assets/medicines/Diclo.jpg';
+import imgDex25 from '../assets/medicines/Dex25.jpg';
+import imgDeriphylline from '../assets/medicines/Deriphylline.webp';
+import imgHamaccyl from '../assets/medicines/Hamaccyl.webp';
+import imgHydrocort from '../assets/medicines/Hydrocort.webp';
+import imgNTG from '../assets/medicines/Inj_Nitroglycerine.webp';
+import imgIVPara from '../assets/medicines/IV_Paracetamol.webp';
+import imgMidazolam from '../assets/medicines/Midazolam.jpg';
+import imgNeostigmine from '../assets/medicines/Neostigmine.webp';
+import imgNorAd from '../assets/medicines/Nor_adrenaline.webp';
+import imgPhenargan from '../assets/medicines/Phenargan.webp';
+import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
+import imgGluconate from '../assets/medicines/gluconate.png';
+
+// ✅ 2. FULL MEDICINE DATABASE (Vaccines + 19 New Items)
 const MEDICINE_DB = [
-  { id: 1, name: 'Covishield Vaccine', type: 'Vial', img: 'https://images.unsplash.com/photo-1633167606204-2782f336462d?auto=format&fit=crop&w=200&q=80' },
-  { id: 2, name: 'Snake Anti-Venom', type: 'Vial', img: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=200&q=80' },
-  { id: 3, name: 'Rabies Vaccine', type: 'Vial', img: 'https://images.unsplash.com/photo-1579165466741-7f35e4755652?auto=format&fit=crop&w=200&q=80' },
-  { id: 4, name: 'O+ Blood Bags', type: 'Bag', img: 'https://images.unsplash.com/photo-1615461066841-6116e61058f4?auto=format&fit=crop&w=200&q=80' },
-  { id: 6, name: 'Inj. Atropine', type: 'Ampoule', img: 'https://plus.unsplash.com/premium_photo-1675808695346-d81679490256?auto=format&fit=crop&w=200&q=80' },
-  { id: 7, name: 'Inj. Adrenaline', type: 'Ampoule', img: 'https://plus.unsplash.com/premium_photo-1673953509975-576678fa6710?auto=format&fit=crop&w=200&q=80' },
-  { id: 8, name: 'Inj. Hydrocortisone', type: 'Vial', img: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&w=200&q=80' },
-  { id: 17, name: 'Inj. Insulin (Actrapid)', type: 'Vial', img: 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?auto=format&fit=crop&w=200&q=80' },
-  { id: 25, name: 'IV Paracetamol 100ml', type: 'Bottle', img: 'https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&w=200&q=80' },
-  { id: 36, name: 'Tab. Depin (Nifedipine)', type: 'Strip', img: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=200&q=80' },
+  // Core Vaccines (Online Images)
+  { id: 1, name: 'Covishield Vaccine', type: 'Vial', img: 'https://images.unsplash.com/photo-1633167606204-2782f336462d?auto=format&fit=crop&w=300&q=80' },
+  { id: 2, name: 'Snake Anti-Venom', type: 'Vial', img: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=300&q=80' },
+  { id: 3, name: 'Rabies Vaccine', type: 'Vial', img: 'https://images.unsplash.com/photo-1579165466741-7f35e4755652?auto=format&fit=crop&w=300&q=80' },
+  { id: 4, name: 'O+ Blood Bags', type: 'Bag', img: 'https://images.unsplash.com/photo-1615461066841-6116e61058f4?auto=format&fit=crop&w=300&q=80' },
+  
+  // Emergency Injections (Your Local Images)
+  { id: 6, name: 'Inj. Atropine', type: 'Ampoule', img: imgAtropine },
+  { id: 7, name: 'Inj. Adrenaline', type: 'Ampoule', img: imgAdrenaline },
+  { id: 8, name: 'Inj. Hydrocortisone', type: 'Vial', img: imgHydrocort },
+  { id: 9, name: 'Inj. Deriphyllin', type: 'Ampoule', img: imgDeriphylline },
+  { id: 10, name: 'Inj. Dexa', type: 'Vial', img: imgDexa },
+  { id: 11, name: 'Inj. KCl (Potassium)', type: 'Ampoule', img: imgKCL },
+  { id: 12, name: 'Inj. Cal. Gluconate', type: 'Vial', img: imgGluconate },
+  { id: 14, name: 'Inj. Midazolam', type: 'Ampoule', img: imgMidazolam },
+  { id: 15, name: 'Inj. Phenergan', type: 'Ampoule', img: imgPhenargan },
+  { id: 16, name: 'Inj. Dopamine', type: 'Ampoule', img: imgDopamine },
+  { id: 17, name: 'Inj. Actrapid (Insulin)', type: 'Vial', img: imgActrapid },
+  { id: 18, name: 'Inj. Nor Adrenaline', type: 'Ampoule', img: imgNorAd },
+  { id: 19, name: 'Inj. NTG', type: 'Ampoule', img: imgNTG },
+  { id: 20, name: 'Inj. Diclo', type: 'Ampoule', img: imgDiclo },
+  { id: 22, name: 'Inj. Neostigmine', type: 'Ampoule', img: imgNeostigmine },
+  { id: 24, name: 'Inj. Avil', type: 'Ampoule', img: imgAvil },
+  { id: 25, name: 'IV Paracetamol 100ml', type: 'Bottle', img: imgIVPara },
+  { id: 26, name: 'IV 25% Dextrose', type: 'Bottle', img: imgDex25 },
+  { id: 27, name: 'IV Haemaccel', type: 'Bottle', img: imgHamaccyl },
 ];
 
 const PHCDashboard = () => {
   const navigate = useNavigate();
-  
-  const getUserFromStorage = () => {
-    try {
-      return JSON.parse(localStorage.getItem('userInfo')) || { name: 'Wagholi PHC' };
-    } catch (e) {
-      return { name: 'Wagholi PHC' };
-    }
-  };
-  const user = getUserFromStorage();
+  const user = JSON.parse(localStorage.getItem('userInfo')) || { name: 'Wagholi PHC' };
   
   const [activeTab, setActiveTab] = useState('shop'); 
   const [showTracker, setShowTracker] = useState(false);
@@ -41,54 +70,31 @@ const PHCDashboard = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [viewOrder, setViewOrder] = useState(null);
-
-  // Cart & Search
+  
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [addedFeedback, setAddedFeedback] = useState({});
-
-  // Flight Board State
   const [trackProgress, setTrackProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Checkout State
   const [proofFiles, setProofFiles] = useState([]);
-  const [checks, setChecks] = useState({
-    isGenuine: false,
-    stockUnavailable: false,
-    patientAffected: false
-  });
   const [urgency, setUrgency] = useState('Standard');
 
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
-  // ✅ NO LOOP - ONLY RUNS ONCE OR ON CLICK
   const fetchRequests = async () => {
     setLoading(true);
     try {
       const res = await fetch(API_URL);
-      
-      // If server errors, stop here. Don't crash.
-      if (!res.ok) {
-        console.warn("Server Error");
-        setLoading(false);
-        return; 
-      }
-      
+      if (!res.ok) { setLoading(false); return; }
       const data = await res.json();
-      
-      // Safety check: Is it an array?
       if (Array.isArray(data)) {
-        const myRequests = data.filter(r => r.phc === user.name);
-        setOrderHistory(myRequests);
+        setOrderHistory(data.filter(r => r.phc === user.name));
       }
-    } catch (err) {
-      console.error("Network Error");
-    }
+    } catch (err) { console.error("Network Error"); }
     setLoading(false);
   };
 
-  // Run ONLY ONCE when page loads
   useEffect(() => {
     fetchRequests();
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -133,7 +139,7 @@ const PHCDashboard = () => {
   };
 
   const handleSubmitOrder = async () => {
-    if (proofFiles.length === 0) return alert("❌ UPLOAD REQUIRED: Please attach proof documents.");
+    if (proofFiles.length === 0) return alert("❌ UPLOAD REQUIRED: Please attach proof.");
 
     setLoading(true);
 
@@ -158,8 +164,8 @@ const PHCDashboard = () => {
         });
 
         if (res.ok) {
-            alert("✅ Order Placed Successfully!");
-            fetchRequests(); // Refresh once after submit
+            alert("✅ Order & Documents Uploaded Successfully!");
+            fetchRequests(); 
             setCart([]);
             setProofFiles([]);
             setActiveTab('history');
@@ -225,7 +231,7 @@ const PHCDashboard = () => {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50">
           
-          {/* 1️⃣ SHOP VIEW */}
+          {/* SHOP VIEW */}
           {!showTracker && activeTab === 'shop' && (
              <div className="max-w-6xl mx-auto">
                 <div className="relative mb-8">
@@ -237,7 +243,9 @@ const PHCDashboard = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {filteredMedicines.map((med) => (
                         <div key={med.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col">
-                            <div className="h-40 bg-white p-4 flex items-center justify-center"><img src={med.img} alt={med.name} className="h-full object-contain" /></div>
+                            <div className="h-40 bg-white p-4 flex items-center justify-center">
+                                <img src={med.img} alt={med.name} className="h-full object-contain" />
+                            </div>
                             <div className="p-4 flex-1 flex flex-col border-t border-slate-50">
                                 <div className="flex-1"><h3 className="font-bold text-slate-800 leading-tight mb-1">{med.name}</h3><span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{med.type}</span></div>
                                 <button 
@@ -253,7 +261,7 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* 2️⃣ CART VIEW */}
+          {/* CART VIEW */}
           {!showTracker && activeTab === 'cart' && (
              <div className="max-w-4xl mx-auto">
                 <button onClick={() => setActiveTab('shop')} className="flex items-center gap-2 text-slate-500 hover:text-blue-600 mb-4 font-medium"><ArrowLeft size={18}/> Back to Store</button>
@@ -279,9 +287,6 @@ const PHCDashboard = () => {
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Urgency Level</label>
                                 <select className="w-full p-2 border rounded-lg bg-slate-50 text-sm" value={urgency} onChange={(e) => setUrgency(e.target.value)}><option>Standard</option><option>High</option><option>Critical</option></select>
                             </div>
-                            
-                            {/* Checkboxes Removed - Simplified to just Upload */}
-                            
                             <div className="mb-6">
                                 <label className="block text-xs font-bold text-slate-700 mb-2">Proof (Max 3) <span className="text-red-500">*</span></label>
                                 <label className="cursor-pointer w-full border-2 border-dashed border-blue-200 rounded-lg p-3 flex flex-col items-center justify-center hover:bg-blue-50 transition-colors">
@@ -290,7 +295,7 @@ const PHCDashboard = () => {
                                 {proofFiles.length > 0 && (
                                     <div className="mt-3 space-y-2">
                                         {proofFiles.map((f, i) => (
-                                            <div key={i} className="flex items-center justify-between bg-green-50 p-2 rounded text-xs text-green-700 border border-green-100">
+                                            <div key={i} className="flex items-center justify-between bg-green-50 p-2 rounded-lg text-xs text-green-700 border border-green-100">
                                                 <span className="truncate w-28 font-medium">{f.name}</span>
                                                 <button onClick={() => removeFile(i)} className="text-red-500 hover:text-red-700"><Trash2 size={14}/></button>
                                             </div>
@@ -298,12 +303,7 @@ const PHCDashboard = () => {
                                     </div>
                                 )}
                             </div>
-
-                            <button 
-                                onClick={handleSubmitOrder} 
-                                disabled={cart.length === 0 || loading} 
-                                className={`w-full py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all ${cart.length > 0 ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-400'}`}
-                            >
+                            <button onClick={handleSubmitOrder} disabled={cart.length === 0} className={`w-full py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all ${cart.length > 0 ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-400'}`}>
                                 {loading ? 'Uploading...' : <><Send size={18} /> Request Drone</>}
                             </button>
                         </div>
@@ -312,15 +312,12 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* 3️⃣ PAST ORDERS TAB (With Manual Refresh) */}
+          {/* HISTORY TAB */}
           {!showTracker && activeTab === 'history' && (
              <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl border overflow-hidden overflow-x-auto">
                 <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
                     <h3 className="font-bold text-slate-700">Order History</h3>
-                    {/* ✅ REFRESH BUTTON */}
-                    <button onClick={fetchRequests} className="flex items-center gap-2 text-sm text-blue-600 hover:bg-blue-50 px-3 py-1 rounded-lg transition-colors">
-                        <RotateCcw size={16} className={loading ? "animate-spin" : ""} /> {loading ? "Refreshing..." : "Refresh List"}
-                    </button>
+                    <button onClick={fetchRequests} className="flex items-center gap-2 text-sm text-blue-600 hover:bg-blue-50 px-3 py-1 rounded-lg transition-colors"><RotateCcw size={16} /> Refresh</button>
                 </div>
                 <table className="w-full text-left min-w-[600px]">
                     <thead className="bg-slate-50 border-b"><tr><th className="p-4">Order ID</th><th className="p-4">Item</th><th className="p-4">Status</th><th className="p-4">Action</th></tr></thead>
@@ -341,17 +338,14 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* 4️⃣ FLIGHT BOARD TRACKER */}
+          {/* FLIGHT BOARD TRACKER */}
           {showTracker && (
              <div className="max-w-4xl mx-auto space-y-6">
-                {/* ... (Same Map and Flight Board Code) ... */}
-                {/* To save space, I'm not re-pasting the whole map block again, assume it's here as per previous step */}
-                {/* You can copy the map block from the previous response if you need it again */}
                 <div className="bg-slate-200 rounded-3xl h-64 md:h-80 relative overflow-hidden border-4 border-white shadow-2xl">
                     <div className="absolute inset-0 opacity-30 bg-[url('https://img.freepik.com/free-vector/grey-world-map_1053-431.jpg')] bg-cover bg-center grayscale"></div>
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none"><path d="M 100,160 Q 400,50 700,160" fill="none" stroke="#3b82f6" strokeWidth="3" strokeDasharray="10" /></svg>
-                    <div className="absolute top-[160px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-red-600" size={32} fill="#ef4444"/><span className="font-bold text-slate-700 text-xs mt-1">Hospital</span></div>
-                    <div className="absolute top-[160px] left-[700px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-orange-500" size={32} fill="#f97316"/><span className="font-bold text-slate-700 text-xs mt-1">Wagholi PHC</span></div>
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none"><path d="M 100,160 Q 400,50 700,160" fill="none" stroke="#3b82f6" strokeWidth="3" strokeDasharray="10" className="drop-shadow-md" /></svg>
+                    <div className="absolute top-[160px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-red-600 drop-shadow-md" size={32} fill="#ef4444"/><span className="font-bold text-slate-700 text-xs mt-1">Hospital</span></div>
+                    <div className="absolute top-[160px] left-[700px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-orange-500 drop-shadow-md" size={32} fill="#f97316"/><span className="font-bold text-slate-700 text-xs mt-1">Wagholi PHC</span></div>
                     <div className="absolute top-0 left-0 transition-all duration-100 ease-linear z-20" style={{ left: `${100 + (trackProgress / 100) * 600}px`, top: `${160 - Math.sin((trackProgress / 100) * Math.PI) * 110}px`, transform: `translate(-50%, -50%) rotate(${90 + (trackProgress < 50 ? -20 : 20)}deg)` }}><Plane size={48} className="text-yellow-500 drop-shadow-xl" fill="gold" /></div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 rounded-3xl overflow-hidden shadow-2xl font-mono">
@@ -376,7 +370,7 @@ const PHCDashboard = () => {
         </div>
       </main>
 
-      {/* DETAILS MODAL (Restored) */}
+      {/* DETAILS MODAL */}
       {viewOrder && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
@@ -389,6 +383,9 @@ const PHCDashboard = () => {
                     <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Items</span><span className="font-medium text-blue-600">{viewOrder.item}</span></div>
                     <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Time</span><span className="font-medium">{new Date(viewOrder.createdAt || Date.now()).toLocaleString()}</span></div>
                     <div><span className="text-slate-500 block mb-1">Reason</span><div className="bg-slate-50 p-3 rounded-lg text-slate-700 border border-slate-200 italic">{viewOrder.description || "Multi-item order."}</div></div>
+                </div>
+                <div className="p-4 bg-slate-50 text-right">
+                    <button onClick={() => setViewOrder(null)} className="px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-700 font-bold text-sm">Close</button>
                 </div>
             </div>
         </div>
