@@ -12,7 +12,7 @@ import {
 import ambulanceSiren from '../assets/ambulance.mp3';
 import logoMain from '../assets/logo_final.png';
 
-// ✅ 1. IMPORT NEW MEDICINE IMAGES
+// ✅ 1. IMPORT YOUR 19 LOCAL IMAGES (Exact Filenames)
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
 import imgDopamine from '../assets/medicines/Dopamine.jpg';
@@ -33,9 +33,6 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// Placeholder for others
-const defaultImg = "../assets/medicines/gluconate.png";
-
 // PHC COORDINATES
 const PHC_COORDINATES = {
   "Wagholi PHC": { lat: 18.5808, lng: 73.9787 },
@@ -53,30 +50,27 @@ const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 };
 const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 19.9260, lng: 79.9033 }; 
 
-// ✅ 2. UPDATED INVENTORY LIST WITH IMAGES
+// ✅ 2. INVENTORY LIST (Only the 19 Medicines you uploaded)
 const INITIAL_INVENTORY = [
-  { id: 1, name: 'Covishield Vaccine', stock: 450, batch: 'B-992', img: defaultImg },
-  { id: 2, name: 'Snake Anti-Venom', stock: 12, batch: 'AV-221', img: defaultImg },
-  { id: 6, name: 'Inj. Atropine', stock: 10, batch: 'EM-001', img: imgAtropine },
-  { id: 7, name: 'Inj. Adrenaline', stock: 10, batch: 'EM-002', img: imgAdrenaline },
-  { id: 8, name: 'Inj. Hydrocortisone', stock: 15, batch: 'EM-003', img: imgHydrocort },
-  { id: 9, name: 'Inj. Deriphylline', stock: 10, batch: 'EM-004', img: imgDeriphylline },
-  { id: 10, name: 'Inj. Dexa', stock: 10, batch: 'EM-005', img: imgDexa },
-  { id: 11, name: 'Inj. KCl (Potassium)', stock: 5, batch: 'EM-006', img: imgKCL },
-  { id: 12, name: 'Inj. Cal. Gluconate', stock: 5, batch: 'EM-007', img: imgGluconate },
-  { id: 13, name: 'Inj. Sodabicarb', stock: 5, batch: 'EM-008', img: defaultImg },
-  { id: 14, name: 'Inj. Midazolam', stock: 3, batch: 'EM-009', img: imgMidazolam },
-  { id: 15, name: 'Inj. Phenargan', stock: 10, batch: 'EM-010', img: imgPhenargan },
-  { id: 16, name: 'Inj. Dopamine', stock: 5, batch: 'EM-011', img: imgDopamine },
-  { id: 17, name: 'Inj. Actrapid (Insulin)', stock: 2, batch: 'EM-012', img: imgActrapid },
-  { id: 18, name: 'Inj. Nor Adrenaline', stock: 6, batch: 'EM-013', img: imgNorAd },
-  { id: 19, name: 'Inj. NTG', stock: 3, batch: 'EM-014', img: imgNTG },
-  { id: 20, name: 'Inj. Diclo', stock: 10, batch: 'EM-015', img: imgDiclo },
-  { id: 22, name: 'Inj. Neostigmine', stock: 5, batch: 'EM-017', img: imgNeostigmine },
-  { id: 24, name: 'Inj. Avil', stock: 5, batch: 'EM-019', img: imgAvil },
-  { id: 25, name: 'IV Paracetamol 100ml', stock: 5, batch: 'IV-101', img: imgIVPara },
-  { id: 26, name: 'IV 25% Dex', stock: 10, batch: 'IV-102', img: imgDex25 },
-  { id: 27, name: 'IV Haemaccel', stock: 6, batch: 'IV-103', img: imgHamaccyl },
+  { id: 6, name: 'Inj. Atropine', stock: 50, batch: 'EM-001', img: imgAtropine },
+  { id: 7, name: 'Inj. Adrenaline', stock: 40, batch: 'EM-002', img: imgAdrenaline },
+  { id: 8, name: 'Inj. Hydrocortisone', stock: 35, batch: 'EM-003', img: imgHydrocort },
+  { id: 9, name: 'Inj. Deriphyllin', stock: 30, batch: 'EM-004', img: imgDeriphylline },
+  { id: 10, name: 'Inj. Dexa', stock: 25, batch: 'EM-005', img: imgDexa },
+  { id: 11, name: 'Inj. KCl (Potassium)', stock: 20, batch: 'EM-006', img: imgKCL },
+  { id: 12, name: 'Inj. Cal. Gluconate', stock: 20, batch: 'EM-007', img: imgGluconate },
+  { id: 14, name: 'Inj. Midazolam', stock: 15, batch: 'EM-009', img: imgMidazolam },
+  { id: 15, name: 'Inj. Phenergan', stock: 10, batch: 'EM-010', img: imgPhenargan },
+  { id: 16, name: 'Inj. Dopamine', stock: 10, batch: 'EM-011', img: imgDopamine },
+  { id: 17, name: 'Inj. Actrapid (Insulin)', stock: 10, batch: 'EM-012', img: imgActrapid },
+  { id: 18, name: 'Inj. Nor Adrenaline', stock: 15, batch: 'EM-013', img: imgNorAd },
+  { id: 19, name: 'Inj. NTG', stock: 10, batch: 'EM-014', img: imgNTG },
+  { id: 20, name: 'Inj. Diclofenac', stock: 50, batch: 'EM-015', img: imgDiclo },
+  { id: 22, name: 'Inj. Neostigmine', stock: 20, batch: 'EM-017', img: imgNeostigmine },
+  { id: 24, name: 'Inj. Avil', stock: 25, batch: 'EM-019', img: imgAvil },
+  { id: 25, name: 'IV Paracetamol 100ml', stock: 100, batch: 'IV-101', img: imgIVPara },
+  { id: 26, name: 'IV 25% Dextrose', stock: 60, batch: 'IV-102', img: imgDex25 },
+  { id: 27, name: 'IV Haemaccel', stock: 30, batch: 'IV-103', img: imgHamaccyl },
 ];
 
 const HospitalDashboard = () => {
@@ -159,7 +153,7 @@ const HospitalDashboard = () => {
       const now = Date.now();
       const elapsed = now - mission.startTime; 
       
-      // PHASE 1: PREPARING
+      // PHASE 1: PREPARING (0 - 30 Seconds)
       if (elapsed < 30000) {
         const timeLeft = Math.ceil((30000 - elapsed) / 1000);
         setCountdown(timeLeft);
@@ -167,7 +161,7 @@ const HospitalDashboard = () => {
         setMissionStatusText(`Pre-Flight Checks`);
         setDroneStats({ speed: 0, battery: 100, altitude: 0 });
       } 
-      // PHASE 2: IN-FLIGHT
+      // PHASE 2: IN-FLIGHT (30s - 90s)
       else if (elapsed < 90000) {
         setCountdown(0);
         const flightTime = elapsed - 30000;
@@ -276,7 +270,7 @@ const HospitalDashboard = () => {
         id: Date.now(), 
         ...newItem, 
         stock: parseInt(newItem.stock),
-        img: defaultImg // Use default for manual adds
+        img: 'https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=500&q=80' // Fallback image
     }]);
     setShowAddModal(false);
     setNewItem({ name: '', stock: '', batch: '' });
@@ -339,6 +333,7 @@ const HospitalDashboard = () => {
                                 <div>
                                     <h3 className="font-bold text-slate-800">{req.phc}</h3>
                                     <p className="text-sm text-slate-600">{req.qty} items <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
+                                    {/* ✅ View Location Button */}
                                     <button onClick={() => showCoordinates(req.phc)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1">
                                         <Globe size={12} /> View Drop Location
                                     </button>
