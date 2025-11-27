@@ -4,12 +4,12 @@ import {
   Send, LogOut, AlertTriangle, CheckCircle2, 
   MapPin, History, Package, Navigation, 
   XCircle, FileText, Upload, User, Clock, Trash2,
-  Menu, X, RotateCcw, Eye, ShoppingCart, Search, Plus, Minus, ArrowLeft, Plane, Building2, Check
+  Menu, X, RotateCcw, Eye, ShoppingCart, Search, Plus, Minus, ArrowLeft, Plane, Building2, Check // ✅ Added RotateCcw
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
 
-// FULL MEDICINE DATABASE
+// MEDICINE DATABASE
 const MEDICINE_DB = [
   { id: 1, name: 'Covishield Vaccine', type: 'Vial', img: 'https://images.unsplash.com/photo-1633167606204-2782f336462d?auto=format&fit=crop&w=200&q=80' },
   { id: 2, name: 'Snake Anti-Venom', type: 'Vial', img: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=200&q=80' },
@@ -25,7 +25,15 @@ const MEDICINE_DB = [
 
 const PHCDashboard = () => {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('userInfo')) || { name: 'Wagholi PHC' };
+  
+  const getUserFromStorage = () => {
+    try {
+      return JSON.parse(localStorage.getItem('userInfo')) || { name: 'Wagholi PHC' };
+    } catch (e) {
+      return { name: 'Wagholi PHC' };
+    }
+  };
+  const user = getUserFromStorage();
   
   const [activeTab, setActiveTab] = useState('shop'); 
   const [showTracker, setShowTracker] = useState(false);
@@ -33,32 +41,54 @@ const PHCDashboard = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [viewOrder, setViewOrder] = useState(null);
-  
+
+  // Cart & Search
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [addedFeedback, setAddedFeedback] = useState({});
+
+  // Flight Board State
   const [trackProgress, setTrackProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Checkout State
   const [proofFiles, setProofFiles] = useState([]);
+  const [checks, setChecks] = useState({
+    isGenuine: false,
+    stockUnavailable: false,
+    patientAffected: false
+  });
   const [urgency, setUrgency] = useState('Standard');
 
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
+  // ✅ NO LOOP - ONLY RUNS ONCE OR ON CLICK
   const fetchRequests = async () => {
     setLoading(true);
     try {
       const res = await fetch(API_URL);
-      if (!res.ok) { setLoading(false); return; }
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setOrderHistory(data.filter(r => r.phc === user.name));
+      
+      // If server errors, stop here. Don't crash.
+      if (!res.ok) {
+        console.warn("Server Error");
+        setLoading(false);
+        return; 
       }
-    } catch (err) { console.error("Network Error"); }
+      
+      const data = await res.json();
+      
+      // Safety check: Is it an array?
+      if (Array.isArray(data)) {
+        const myRequests = data.filter(r => r.phc === user.name);
+        setOrderHistory(myRequests);
+      }
+    } catch (err) {
+      console.error("Network Error");
+    }
     setLoading(false);
   };
 
+  // Run ONLY ONCE when page loads
   useEffect(() => {
     fetchRequests();
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -103,7 +133,6 @@ const PHCDashboard = () => {
   };
 
   const handleSubmitOrder = async () => {
-    // ✅ Removed Checkbox Validation
     if (proofFiles.length === 0) return alert("❌ UPLOAD REQUIRED: Please attach proof documents.");
 
     setLoading(true);
@@ -129,8 +158,8 @@ const PHCDashboard = () => {
         });
 
         if (res.ok) {
-            alert("✅ Order & Documents Uploaded Successfully!");
-            fetchRequests(); 
+            alert("✅ Order Placed Successfully!");
+            fetchRequests(); // Refresh once after submit
             setCart([]);
             setProofFiles([]);
             setActiveTab('history');
@@ -163,7 +192,9 @@ const PHCDashboard = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 relative">
+      
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
+
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
         <div className="p-6 border-b border-slate-800 flex justify-between items-center">
           <div className="mb-4"><img src={logoMain} className="h-10 w-auto bg-white rounded p-1" /></div>
@@ -193,6 +224,8 @@ const PHCDashboard = () => {
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50">
+          
+          {/* 1️⃣ SHOP VIEW */}
           {!showTracker && activeTab === 'shop' && (
              <div className="max-w-6xl mx-auto">
                 <div className="relative mb-8">
@@ -220,6 +253,7 @@ const PHCDashboard = () => {
              </div>
           )}
 
+          {/* 2️⃣ CART VIEW */}
           {!showTracker && activeTab === 'cart' && (
              <div className="max-w-4xl mx-auto">
                 <button onClick={() => setActiveTab('shop')} className="flex items-center gap-2 text-slate-500 hover:text-blue-600 mb-4 font-medium"><ArrowLeft size={18}/> Back to Store</button>
@@ -238,35 +272,25 @@ const PHCDashboard = () => {
                             ))
                         )}
                     </div>
-                    
-                    {/* ✅ UPDATED CHECKOUT CARD */}
                     <div className="md:col-span-1">
-                        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-lg sticky top-4 flex flex-col gap-6">
-                            <h3 className="font-bold text-xl flex items-center gap-2"><CheckCircle2 className="text-green-600" size={22}/> Confirm Order</h3>
-                            
-                            <div className="space-y-2">
-                                <label className="block text-sm font-bold text-slate-700">Urgency Level</label>
-                                <select className="w-full p-3 border rounded-xl bg-slate-50 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500" value={urgency} onChange={(e) => setUrgency(e.target.value)}>
-                                    <option>Standard</option>
-                                    <option>High</option>
-                                    <option>Critical</option>
-                                </select>
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-lg sticky top-4">
+                            <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><CheckCircle2 className="text-green-600" size={20}/> Final Verification</h3>
+                            <div className="space-y-3 mb-6">
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Urgency Level</label>
+                                <select className="w-full p-2 border rounded-lg bg-slate-50 text-sm" value={urgency} onChange={(e) => setUrgency(e.target.value)}><option>Standard</option><option>High</option><option>Critical</option></select>
                             </div>
-
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Proof Documents <span className="text-red-500">*</span></label>
-                                <label className="cursor-pointer w-full border-2 border-dashed border-blue-200 rounded-xl p-6 flex flex-col items-center justify-center hover:bg-blue-50 transition-colors bg-slate-50">
-                                    <Upload size={24} className="text-blue-500 mb-2"/>
-                                    <span className="text-xs text-blue-600 font-bold">Click to Upload</span>
-                                    <span className="text-[10px] text-slate-400 mt-1">Max 3 files (JPG, PNG, PDF)</span>
-                                    <input type="file" multiple className="hidden" onChange={handleFileChange}/>
+                            
+                            {/* Checkboxes Removed - Simplified to just Upload */}
+                            
+                            <div className="mb-6">
+                                <label className="block text-xs font-bold text-slate-700 mb-2">Proof (Max 3) <span className="text-red-500">*</span></label>
+                                <label className="cursor-pointer w-full border-2 border-dashed border-blue-200 rounded-lg p-3 flex flex-col items-center justify-center hover:bg-blue-50 transition-colors">
+                                    <Upload size={16} className="text-blue-500"/><span className="text-[10px] text-blue-600 mt-1">Upload File</span><input type="file" multiple className="hidden" onChange={handleFileChange}/>
                                 </label>
-                                
-                                {/* File List */}
                                 {proofFiles.length > 0 && (
                                     <div className="mt-3 space-y-2">
                                         {proofFiles.map((f, i) => (
-                                            <div key={i} className="flex items-center justify-between bg-green-50 p-2 rounded-lg text-xs text-green-700 border border-green-100">
+                                            <div key={i} className="flex items-center justify-between bg-green-50 p-2 rounded text-xs text-green-700 border border-green-100">
                                                 <span className="truncate w-28 font-medium">{f.name}</span>
                                                 <button onClick={() => removeFile(i)} className="text-red-500 hover:text-red-700"><Trash2 size={14}/></button>
                                             </div>
@@ -278,9 +302,9 @@ const PHCDashboard = () => {
                             <button 
                                 onClick={handleSubmitOrder} 
                                 disabled={cart.length === 0 || loading} 
-                                className={`w-full py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all text-white ${loading ? 'bg-gray-400 cursor-wait' : 'bg-blue-600 hover:bg-blue-700 hover:scale-[1.02] active:scale-95'}`}
+                                className={`w-full py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all ${cart.length > 0 ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-400'}`}
                             >
-                                {loading ? 'Uploading...' : <><Send size={18} /> Send Request</>}
+                                {loading ? 'Uploading...' : <><Send size={18} /> Request Drone</>}
                             </button>
                         </div>
                     </div>
@@ -288,11 +312,15 @@ const PHCDashboard = () => {
              </div>
           )}
 
+          {/* 3️⃣ PAST ORDERS TAB (With Manual Refresh) */}
           {!showTracker && activeTab === 'history' && (
              <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl border overflow-hidden overflow-x-auto">
                 <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
                     <h3 className="font-bold text-slate-700">Order History</h3>
-                    <button onClick={fetchRequests} className="flex items-center gap-2 text-sm text-blue-600 hover:bg-blue-50 px-3 py-1 rounded-lg transition-colors"><RotateCcw size={16} /> Refresh</button>
+                    {/* ✅ REFRESH BUTTON */}
+                    <button onClick={fetchRequests} className="flex items-center gap-2 text-sm text-blue-600 hover:bg-blue-50 px-3 py-1 rounded-lg transition-colors">
+                        <RotateCcw size={16} className={loading ? "animate-spin" : ""} /> {loading ? "Refreshing..." : "Refresh List"}
+                    </button>
                 </div>
                 <table className="w-full text-left min-w-[600px]">
                     <thead className="bg-slate-50 border-b"><tr><th className="p-4">Order ID</th><th className="p-4">Item</th><th className="p-4">Status</th><th className="p-4">Action</th></tr></thead>
@@ -313,8 +341,12 @@ const PHCDashboard = () => {
              </div>
           )}
 
+          {/* 4️⃣ FLIGHT BOARD TRACKER */}
           {showTracker && (
              <div className="max-w-4xl mx-auto space-y-6">
+                {/* ... (Same Map and Flight Board Code) ... */}
+                {/* To save space, I'm not re-pasting the whole map block again, assume it's here as per previous step */}
+                {/* You can copy the map block from the previous response if you need it again */}
                 <div className="bg-slate-200 rounded-3xl h-64 md:h-80 relative overflow-hidden border-4 border-white shadow-2xl">
                     <div className="absolute inset-0 opacity-30 bg-[url('https://img.freepik.com/free-vector/grey-world-map_1053-431.jpg')] bg-cover bg-center grayscale"></div>
                     <svg className="absolute inset-0 w-full h-full pointer-events-none"><path d="M 100,160 Q 400,50 700,160" fill="none" stroke="#3b82f6" strokeWidth="3" strokeDasharray="10" /></svg>
@@ -344,6 +376,7 @@ const PHCDashboard = () => {
         </div>
       </main>
 
+      {/* DETAILS MODAL (Restored) */}
       {viewOrder && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
