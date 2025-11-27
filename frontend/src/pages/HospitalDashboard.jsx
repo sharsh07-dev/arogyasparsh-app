@@ -12,16 +12,16 @@ import {
 import ambulanceSiren from '../assets/ambulance.mp3';
 import logoMain from '../assets/logo_final.png';
 
-// ✅ 1. IMPORT YOUR 19 LOCAL IMAGES (Fixed Filename)
+// ✅ FIXED IMPORTS (Matched to your actual file types)
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
-import imgDopamine from '../assets/medicines/Dopamine.png';
+// ⚠️ FIXED: Changed form .jpg to .png per your message
+import imgDopamine from '../assets/medicines/Dopamine.png'; 
 import imgAvil from '../assets/medicines/Avil.webp';
 import imgAdrenaline from '../assets/medicines/Adranaline.webp';
 import imgDexa from '../assets/medicines/Dexa.jpg';
-import imgDiclo from '../assets/medicines/Diclo.jpg';//updated
-// ⚠️ FIXED IMPORT NAME (Changed from 25%_Dex.jpg to Dex25.jpg)
-import imgDex25 from '../assets/medicines/Dex25.jpg';
+import imgDiclo from '../assets/medicines/Diclo.jpg';
+import imgDex25 from '../assets/medicines/25%_Dex.jpg';
 import imgDeriphylline from '../assets/medicines/Deriphylline.webp';
 import imgHamaccyl from '../assets/medicines/Hamaccyl.webp';
 import imgHydrocort from '../assets/medicines/Hydrocort.webp';
@@ -51,7 +51,7 @@ const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 };
 const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 19.9260, lng: 79.9033 }; 
 
-// ✅ 2. UPDATED INVENTORY LIST
+// INVENTORY LIST
 const INITIAL_INVENTORY = [
   { id: 6, name: 'Inj. Atropine', stock: 10, batch: 'EM-001', img: imgAtropine },
   { id: 7, name: 'Inj. Adrenaline', stock: 10, batch: 'EM-002', img: imgAdrenaline },
@@ -70,7 +70,7 @@ const INITIAL_INVENTORY = [
   { id: 22, name: 'Inj. Neostigmine', stock: 5, batch: 'EM-017', img: imgNeostigmine },
   { id: 24, name: 'Inj. Avil', stock: 5, batch: 'EM-019', img: imgAvil },
   { id: 25, name: 'IV Paracetamol 100ml', stock: 5, batch: 'IV-101', img: imgIVPara },
-  { id: 26, name: 'IV Dextrose 25%', stock: 10, batch: 'IV-102', img: imgDex25 },
+  { id: 26, name: 'IV 25% Dextrose', stock: 10, batch: 'IV-102', img: imgDex25 },
   { id: 27, name: 'IV Haemaccel', stock: 6, batch: 'IV-103', img: imgHamaccyl },
 ];
 
@@ -154,7 +154,6 @@ const HospitalDashboard = () => {
       const now = Date.now();
       const elapsed = now - mission.startTime; 
       
-      // PHASE 1: PREPARING (0 - 30 Seconds)
       if (elapsed < 30000) {
         const timeLeft = Math.ceil((30000 - elapsed) / 1000);
         setCountdown(timeLeft);
@@ -162,7 +161,6 @@ const HospitalDashboard = () => {
         setMissionStatusText(`Pre-Flight Checks`);
         setDroneStats({ speed: 0, battery: 100, altitude: 0 });
       } 
-      // PHASE 2: IN-FLIGHT (30s - 90s)
       else if (elapsed < 90000) {
         setCountdown(0);
         const flightTime = elapsed - 30000;
@@ -170,11 +168,10 @@ const HospitalDashboard = () => {
         setTrackProgress(percent);
         setMissionStatusText('In-Flight');
         
-        // Physics
         let currentSpeed = 60;
         let currentAlt = 120;
-        if (percent < 10) { currentSpeed = percent * 6; currentAlt = percent * 12; } // Takeoff
-        else if (percent > 90) { currentSpeed = 60 - (percent-90)*6; currentAlt = 120 - (percent-90)*12; } // Landing
+        if (percent < 10) { currentSpeed = percent * 6; currentAlt = percent * 12; } 
+        else if (percent > 90) { currentSpeed = 60 - (percent-90)*6; currentAlt = 120 - (percent-90)*12; } 
 
         setDroneStats({
             speed: Math.floor(currentSpeed),
@@ -182,7 +179,6 @@ const HospitalDashboard = () => {
             altitude: Math.floor(currentAlt)
         });
       }
-      // PHASE 3: DELIVERED
       else {
         setTrackProgress(100);
         setMissionStatusText('Delivered');
@@ -198,7 +194,6 @@ const HospitalDashboard = () => {
            }, 5000);
         }
       }
-
     }, 100);
 
     return () => { clearInterval(interval); clearInterval(timer); };
@@ -271,7 +266,7 @@ const HospitalDashboard = () => {
         id: Date.now(), 
         ...newItem, 
         stock: parseInt(newItem.stock),
-        img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=500&q=80" // Fallback image
+        img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" 
     }]);
     setShowAddModal(false);
     setNewItem({ name: '', stock: '', batch: '' });
@@ -334,7 +329,6 @@ const HospitalDashboard = () => {
                                 <div>
                                     <h3 className="font-bold text-slate-800">{req.phc}</h3>
                                     <p className="text-sm text-slate-600">{req.qty} items <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
-                                    {/* View Location */}
                                     <button onClick={() => showCoordinates(req.phc)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1">
                                         <Globe size={12} /> View Drop Location
                                     </button>
