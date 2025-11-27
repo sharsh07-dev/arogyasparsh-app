@@ -12,16 +12,17 @@ import {
 import ambulanceSiren from '../assets/ambulance.mp3';
 import logoMain from '../assets/logo_final.png';
 
-// ✅ FIXED IMPORTS (Matched to your actual file types)
+// ✅ FIXED IMPORTS (Check your file extensions carefully!)
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
-// ⚠️ FIXED: Changed form .jpg to .png per your message
+// ⚠️ CHANGED TO .png (Make sure the file in your folder is Dopamine.png)
 import imgDopamine from '../assets/medicines/Dopamine.png'; 
 import imgAvil from '../assets/medicines/Avil.webp';
 import imgAdrenaline from '../assets/medicines/Adranaline.webp';
 import imgDexa from '../assets/medicines/Dexa.jpg';
 import imgDiclo from '../assets/medicines/Diclo.jpg';
-import imgDex25 from '../assets/medicines/25%_Dex.jpg';
+// ⚠️ RENAMED from 25%_Dex.jpg to Dex25.jpg (Rename file in folder too!)
+import imgDex25 from '../assets/medicines/Dex25.jpg'; 
 import imgDeriphylline from '../assets/medicines/Deriphylline.webp';
 import imgHamaccyl from '../assets/medicines/Hamaccyl.webp';
 import imgHydrocort from '../assets/medicines/Hydrocort.webp';
@@ -139,7 +140,7 @@ const HospitalDashboard = () => {
     return () => clearInterval(interval);
   }, []); 
 
-  // SIMULATION LOOP
+  // Simulation Loop
   useEffect(() => {
     localStorage.setItem('activeMissions', JSON.stringify(activeMissions));
 
@@ -154,6 +155,7 @@ const HospitalDashboard = () => {
       const now = Date.now();
       const elapsed = now - mission.startTime; 
       
+      // PHASE 1: PREPARING (0 - 30 Seconds)
       if (elapsed < 30000) {
         const timeLeft = Math.ceil((30000 - elapsed) / 1000);
         setCountdown(timeLeft);
@@ -161,17 +163,20 @@ const HospitalDashboard = () => {
         setMissionStatusText(`Pre-Flight Checks`);
         setDroneStats({ speed: 0, battery: 100, altitude: 0 });
       } 
+      // PHASE 2: IN-FLIGHT (30s - 90s)
       else if (elapsed < 90000) {
         setCountdown(0);
         const flightTime = elapsed - 30000;
         const percent = (flightTime / 60000) * 100;
+        
         setTrackProgress(percent);
         setMissionStatusText('In-Flight');
         
+        // Physics
         let currentSpeed = 60;
         let currentAlt = 120;
-        if (percent < 10) { currentSpeed = percent * 6; currentAlt = percent * 12; } 
-        else if (percent > 90) { currentSpeed = 60 - (percent-90)*6; currentAlt = 120 - (percent-90)*12; } 
+        if (percent < 10) { currentSpeed = percent * 6; currentAlt = percent * 12; } // Takeoff
+        else if (percent > 90) { currentSpeed = 60 - (percent-90)*6; currentAlt = 120 - (percent-90)*12; } // Landing
 
         setDroneStats({
             speed: Math.floor(currentSpeed),
@@ -179,6 +184,7 @@ const HospitalDashboard = () => {
             altitude: Math.floor(currentAlt)
         });
       }
+      // PHASE 3: DELIVERED
       else {
         setTrackProgress(100);
         setMissionStatusText('Delivered');
@@ -194,6 +200,7 @@ const HospitalDashboard = () => {
            }, 5000);
         }
       }
+
     }, 100);
 
     return () => { clearInterval(interval); clearInterval(timer); };
@@ -329,6 +336,7 @@ const HospitalDashboard = () => {
                                 <div>
                                     <h3 className="font-bold text-slate-800">{req.phc}</h3>
                                     <p className="text-sm text-slate-600">{req.qty} items <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
+                                    {/* View Location */}
                                     <button onClick={() => showCoordinates(req.phc)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1">
                                         <Globe size={12} /> View Drop Location
                                     </button>
