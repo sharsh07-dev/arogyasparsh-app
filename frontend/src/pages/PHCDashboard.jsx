@@ -9,15 +9,16 @@ import {
 
 import logoMain from '../assets/logo_final.png';
 
-// ✅ 1. IMPORT YOUR 19 LOCAL IMAGES
+// ✅ 1. IMPORT THE 19 LOCAL IMAGES (Matching Hospital Dashboard)
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
-import imgDopamine from '../assets/medicines/Dopamine_med.jpg';
+// ⚠️ UPDATED: Using your new file name
+import imgDopamine from '../assets/medicines/Dopamine_med.jpg'; 
 import imgAvil from '../assets/medicines/Avil.webp';
 import imgAdrenaline from '../assets/medicines/Adranaline.webp';
 import imgDexa from '../assets/medicines/Dexa.jpg';
 import imgDiclo from '../assets/medicines/Diclo.jpg';
-import imgDex25 from '../assets/medicines/Dex25.jpg';
+import imgDex25 from '../assets/medicines/25%_Dex.jpg';
 import imgDeriphylline from '../assets/medicines/Deriphylline.webp';
 import imgHamaccyl from '../assets/medicines/Hamaccyl.webp';
 import imgHydrocort from '../assets/medicines/Hydrocort.webp';
@@ -30,20 +31,13 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// ✅ 2. FULL MEDICINE DATABASE (Vaccines + 19 New Items)
+// ✅ 2. FULL MEDICINE DATABASE (Only the 19 Items)
 const MEDICINE_DB = [
-  // Core Vaccines (Online Images)
-  { id: 1, name: 'Covishield Vaccine', type: 'Vial', img: 'https://images.unsplash.com/photo-1633167606204-2782f336462d?auto=format&fit=crop&w=300&q=80' },
-  { id: 2, name: 'Snake Anti-Venom', type: 'Vial', img: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=300&q=80' },
-  { id: 3, name: 'Rabies Vaccine', type: 'Vial', img: 'https://images.unsplash.com/photo-1579165466741-7f35e4755652?auto=format&fit=crop&w=300&q=80' },
-  { id: 4, name: 'O+ Blood Bags', type: 'Bag', img: 'https://images.unsplash.com/photo-1615461066841-6116e61058f4?auto=format&fit=crop&w=300&q=80' },
-  
-  // Emergency Injections (Your Local Images)
   { id: 6, name: 'Inj. Atropine', type: 'Ampoule', img: imgAtropine },
   { id: 7, name: 'Inj. Adrenaline', type: 'Ampoule', img: imgAdrenaline },
   { id: 8, name: 'Inj. Hydrocortisone', type: 'Vial', img: imgHydrocort },
   { id: 9, name: 'Inj. Deriphyllin', type: 'Ampoule', img: imgDeriphylline },
-  { id: 10, name: 'Inj. Dexa', type: 'Vial', img: imgDexa },
+  { id: 10, name: 'Inj. Dexamethasone', type: 'Vial', img: imgDexa },
   { id: 11, name: 'Inj. KCl (Potassium)', type: 'Ampoule', img: imgKCL },
   { id: 12, name: 'Inj. Cal. Gluconate', type: 'Vial', img: imgGluconate },
   { id: 14, name: 'Inj. Midazolam', type: 'Ampoule', img: imgMidazolam },
@@ -62,7 +56,15 @@ const MEDICINE_DB = [
 
 const PHCDashboard = () => {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('userInfo')) || { name: 'Wagholi PHC' };
+  
+  const getUserFromStorage = () => {
+    try {
+      return JSON.parse(localStorage.getItem('userInfo')) || { name: 'Wagholi PHC' };
+    } catch (e) {
+      return { name: 'Wagholi PHC' };
+    }
+  };
+  const user = getUserFromStorage();
   
   const [activeTab, setActiveTab] = useState('shop'); 
   const [showTracker, setShowTracker] = useState(false);
@@ -198,9 +200,7 @@ const PHCDashboard = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 relative">
-      
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
-
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
         <div className="p-6 border-b border-slate-800 flex justify-between items-center">
           <div className="mb-4"><img src={logoMain} className="h-10 w-auto bg-white rounded p-1" /></div>
@@ -231,7 +231,7 @@ const PHCDashboard = () => {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50">
           
-          {/* SHOP VIEW */}
+          {/* 1️⃣ SHOP VIEW */}
           {!showTracker && activeTab === 'shop' && (
              <div className="max-w-6xl mx-auto">
                 <div className="relative mb-8">
@@ -243,9 +243,7 @@ const PHCDashboard = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {filteredMedicines.map((med) => (
                         <div key={med.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col">
-                            <div className="h-40 bg-white p-4 flex items-center justify-center">
-                                <img src={med.img} alt={med.name} className="h-full object-contain" />
-                            </div>
+                            <div className="h-40 bg-white p-4 flex items-center justify-center"><img src={med.img} alt={med.name} className="h-full object-contain" /></div>
                             <div className="p-4 flex-1 flex flex-col border-t border-slate-50">
                                 <div className="flex-1"><h3 className="font-bold text-slate-800 leading-tight mb-1">{med.name}</h3><span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{med.type}</span></div>
                                 <button 
@@ -261,7 +259,7 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* CART VIEW */}
+          {/* 2️⃣ CART VIEW */}
           {!showTracker && activeTab === 'cart' && (
              <div className="max-w-4xl mx-auto">
                 <button onClick={() => setActiveTab('shop')} className="flex items-center gap-2 text-slate-500 hover:text-blue-600 mb-4 font-medium"><ArrowLeft size={18}/> Back to Store</button>
@@ -312,7 +310,7 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* HISTORY TAB */}
+          {/* 3️⃣ HISTORY */}
           {!showTracker && activeTab === 'history' && (
              <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl border overflow-hidden overflow-x-auto">
                 <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
@@ -338,14 +336,14 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* FLIGHT BOARD TRACKER */}
+          {/* 4️⃣ TRACKING */}
           {showTracker && (
              <div className="max-w-4xl mx-auto space-y-6">
                 <div className="bg-slate-200 rounded-3xl h-64 md:h-80 relative overflow-hidden border-4 border-white shadow-2xl">
                     <div className="absolute inset-0 opacity-30 bg-[url('https://img.freepik.com/free-vector/grey-world-map_1053-431.jpg')] bg-cover bg-center grayscale"></div>
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none"><path d="M 100,160 Q 400,50 700,160" fill="none" stroke="#3b82f6" strokeWidth="3" strokeDasharray="10" className="drop-shadow-md" /></svg>
-                    <div className="absolute top-[160px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-red-600 drop-shadow-md" size={32} fill="#ef4444"/><span className="font-bold text-slate-700 text-xs mt-1">Hospital</span></div>
-                    <div className="absolute top-[160px] left-[700px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-orange-500 drop-shadow-md" size={32} fill="#f97316"/><span className="font-bold text-slate-700 text-xs mt-1">Wagholi PHC</span></div>
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none"><path d="M 100,160 Q 400,50 700,160" fill="none" stroke="#3b82f6" strokeWidth="3" strokeDasharray="10" /></svg>
+                    <div className="absolute top-[160px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-red-600" size={32} fill="#ef4444"/><span className="font-bold text-slate-700 text-xs mt-1">Hospital</span></div>
+                    <div className="absolute top-[160px] left-[700px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-orange-500" size={32} fill="#f97316"/><span className="font-bold text-slate-700 text-xs mt-1">PHC</span></div>
                     <div className="absolute top-0 left-0 transition-all duration-100 ease-linear z-20" style={{ left: `${100 + (trackProgress / 100) * 600}px`, top: `${160 - Math.sin((trackProgress / 100) * Math.PI) * 110}px`, transform: `translate(-50%, -50%) rotate(${90 + (trackProgress < 50 ? -20 : 20)}deg)` }}><Plane size={48} className="text-yellow-500 drop-shadow-xl" fill="gold" /></div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 rounded-3xl overflow-hidden shadow-2xl font-mono">
@@ -383,9 +381,6 @@ const PHCDashboard = () => {
                     <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Items</span><span className="font-medium text-blue-600">{viewOrder.item}</span></div>
                     <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Time</span><span className="font-medium">{new Date(viewOrder.createdAt || Date.now()).toLocaleString()}</span></div>
                     <div><span className="text-slate-500 block mb-1">Reason</span><div className="bg-slate-50 p-3 rounded-lg text-slate-700 border border-slate-200 italic">{viewOrder.description || "Multi-item order."}</div></div>
-                </div>
-                <div className="p-4 bg-slate-50 text-right">
-                    <button onClick={() => setViewOrder(null)} className="px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-700 font-bold text-sm">Close</button>
                 </div>
             </div>
         </div>
