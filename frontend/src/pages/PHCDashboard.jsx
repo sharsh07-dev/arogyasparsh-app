@@ -9,10 +9,10 @@ import {
 
 import logoMain from '../assets/logo_final.png';
 
-// ✅ 1. IMPORT YOUR 19 LOCAL IMAGES (Same as Hospital Dashboard)
+// ✅ 1. IMPORT THE 19 LOCAL IMAGES
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
-import imgDopamine from '../assets/medicines/Dopamine_med.jpg'; 
+import imgDopamine from '../assets/medicines/Dopamine.png';
 import imgAvil from '../assets/medicines/Avil.webp';
 import imgAdrenaline from '../assets/medicines/Adranaline.webp';
 import imgDexa from '../assets/medicines/Dexa.jpg';
@@ -30,7 +30,7 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// ✅ 2. MEDICINE DATABASE (Matches Hospital Inventory exactly)
+// ✅ 2. MEDICINE DATABASE (Only the 19 Real Items)
 const MEDICINE_DB = [
   { id: 6, name: 'Inj. Atropine', type: 'Ampoule', img: imgAtropine },
   { id: 7, name: 'Inj. Adrenaline', type: 'Ampoule', img: imgAdrenaline },
@@ -70,11 +70,16 @@ const PHCDashboard = () => {
   const [orderHistory, setOrderHistory] = useState([]); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [viewOrder, setViewOrder] = useState(null);
   
+  // View Details State
+  const [viewOrder, setViewOrder] = useState(null);
+
+  // Cart & Search
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [addedFeedback, setAddedFeedback] = useState({});
+
+  // Flight Board State
   const [trackProgress, setTrackProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -140,16 +145,8 @@ const PHCDashboard = () => {
     setProofFiles(proofFiles.filter((_, i) => i !== index));
   };
 
-  // ✅ SUBMIT WITH LOCATION & FILES
   const handleSubmitOrder = async () => {
     if (proofFiles.length === 0) return alert("❌ UPLOAD REQUIRED: Please attach proof.");
-
-    // ✅ CRITICAL: Check for Landing Zone
-    if (!user.landingCoordinates || !user.landingCoordinates.set) {
-        alert("⚠️ Landing Zone not detected! Redirecting to map...");
-        navigate('/set-location');
-        return;
-    }
 
     setLoading(true);
 
@@ -163,9 +160,9 @@ const PHCDashboard = () => {
     formDataToSend.append("urgency", urgency);
     formDataToSend.append("description", "Multi-item order via App");
     
-    // ✅ SEND COORDINATES
-    formDataToSend.append("lat", user.landingCoordinates.lat);
-    formDataToSend.append("lng", user.landingCoordinates.lng);
+    if (user.landingCoordinates) {
+        formDataToSend.append("coordinates", JSON.stringify(user.landingCoordinates));
+    }
 
     proofFiles.forEach((file) => {
         formDataToSend.append("proofFiles", file); 
@@ -178,7 +175,7 @@ const PHCDashboard = () => {
         });
 
         if (res.ok) {
-            alert("✅ Order Sent Successfully!");
+            alert("✅ Order & Documents Uploaded Successfully!");
             fetchRequests(); 
             setCart([]);
             setProofFiles([]);
@@ -243,23 +240,29 @@ const PHCDashboard = () => {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50">
           
-          {/* SHOP VIEW (Updated Grid with Local Images) */}
+          {/* SHOP VIEW */}
           {!showTracker && activeTab === 'shop' && (
              <div className="max-w-6xl mx-auto">
                 <div className="relative mb-8">
                     <div className="flex items-center bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-blue-500 p-1">
                         <Search className="ml-3 text-slate-400" size={20}/>
-                        <input type="text" className="w-full p-3 outline-none text-slate-700 font-medium" placeholder="Search for medicines..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}/>
+                        <input type="text" className="w-full p-3 outline-none text-slate-700 font-medium" placeholder="Search for medicines (e.g. Paracetamol, Insulin...)" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}/>
                     </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {filteredMedicines.map((med) => (
                         <div key={med.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col">
-                            {/* ✅ FIXED IMAGE CONTAINER */}
-                            <div className="h-48 w-full bg-white flex items-center justify-center overflow-hidden p-4">
-                                <img src={med.img} alt={med.name} className="w-full h-full object-contain" />
+                            
+                            {/* ✅ FIXED SIZE IMAGE CONTAINER */}
+                            <div className="h-48 w-full bg-white flex items-center justify-center overflow-hidden p-4 border-b border-slate-50">
+                                <img 
+                                    src={med.img} 
+                                    alt={med.name} 
+                                    className="w-full h-full object-contain hover:scale-110 transition-transform duration-300" 
+                                />
                             </div>
-                            <div className="p-4 flex-1 flex flex-col border-t border-slate-50">
+                            
+                            <div className="p-4 flex-1 flex flex-col">
                                 <div className="flex-1"><h3 className="font-bold text-slate-800 leading-tight mb-1">{med.name}</h3><span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{med.type}</span></div>
                                 <button 
                                     onClick={() => addToCart(med)}
@@ -316,7 +319,7 @@ const PHCDashboard = () => {
                                     </div>
                                 )}
                             </div>
-                            <button onClick={handleSubmitOrder} disabled={cart.length === 0 || loading} className={`w-full py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all ${cart.length > 0 ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-400'}`}>
+                            <button onClick={handleSubmitOrder} disabled={cart.length === 0} className={`w-full py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all ${cart.length > 0 ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-400'}`}>
                                 {loading ? 'Uploading...' : <><Send size={18} /> Request Drone</>}
                             </button>
                         </div>
@@ -325,7 +328,7 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* HISTORY TAB */}
+          {/* HISTORY VIEW */}
           {!showTracker && activeTab === 'history' && (
              <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl border overflow-hidden overflow-x-auto">
                 <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
@@ -351,17 +354,31 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* FLIGHT BOARD TRACKER */}
+          {/* TRACKER VIEW */}
           {showTracker && (
              <div className="max-w-4xl mx-auto space-y-6">
-                {/* ... Flight Board & Map code remains same as before ... */}
-                {/* Keeping it concise, paste the Radar Map section from previous response here */}
                 <div className="bg-slate-200 rounded-3xl h-64 md:h-80 relative overflow-hidden border-4 border-white shadow-2xl">
                     <div className="absolute inset-0 opacity-30 bg-[url('https://img.freepik.com/free-vector/grey-world-map_1053-431.jpg')] bg-cover bg-center grayscale"></div>
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none"><path d="M 100,160 Q 400,50 700,160" fill="none" stroke="#3b82f6" strokeWidth="3" strokeDasharray="10" /></svg>
-                    <div className="absolute top-[160px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-red-600" size={32} fill="#ef4444"/><span className="font-bold text-slate-700 text-xs mt-1">Hospital</span></div>
-                    <div className="absolute top-[160px] left-[700px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-orange-500" size={32} fill="#f97316"/><span className="font-bold text-slate-700 text-xs mt-1">Wagholi PHC</span></div>
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none"><path d="M 100,160 Q 400,50 700,160" fill="none" stroke="#3b82f6" strokeWidth="3" strokeDasharray="10" className="drop-shadow-md" /></svg>
+                    <div className="absolute top-[160px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-red-600 drop-shadow-md" size={32} fill="#ef4444"/><span className="font-bold text-slate-700 text-xs mt-1">Hospital</span></div>
+                    <div className="absolute top-[160px] left-[700px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-orange-500 drop-shadow-md" size={32} fill="#f97316"/><span className="font-bold text-slate-700 text-xs mt-1">Wagholi PHC</span></div>
                     <div className="absolute top-0 left-0 transition-all duration-100 ease-linear z-20" style={{ left: `${100 + (trackProgress / 100) * 600}px`, top: `${160 - Math.sin((trackProgress / 100) * Math.PI) * 110}px`, transform: `translate(-50%, -50%) rotate(${90 + (trackProgress < 50 ? -20 : 20)}deg)` }}><Plane size={48} className="text-yellow-500 drop-shadow-xl" fill="gold" /></div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 rounded-3xl overflow-hidden shadow-2xl font-mono">
+                    <div className="bg-slate-900 text-white border-r border-slate-700">
+                        <div className="bg-blue-600 py-3 text-center"><h2 className="text-2xl font-bold uppercase tracking-widest">Departure</h2></div>
+                        <div className="p-6 space-y-4">
+                            <div className="flex justify-between border-b border-slate-700 pb-2"><span className="text-slate-400 text-xs uppercase">Time</span><div className="text-right"><p className="text-xs text-slate-400">SCH. {timeString}</p><p className="text-lg font-bold text-green-400">ACT. {timeString}</p></div></div>
+                            <div className="text-center py-2"><h3 className="text-xl font-bold text-blue-300">District Hospital (DH)</h3></div>
+                        </div>
+                    </div>
+                    <div className="bg-slate-900 text-white">
+                        <div className="bg-blue-600 py-3 text-center"><h2 className="text-2xl font-bold uppercase tracking-widest">Arrival</h2></div>
+                        <div className="p-6 space-y-4">
+                            <div className="flex justify-between border-b border-slate-700 pb-2"><span className="text-slate-400 text-xs uppercase">Time</span><div className="text-right"><p className="text-xs text-slate-400">SCH. {arrivalTime}</p><p className="text-lg font-bold text-yellow-400">ETA. {arrivalTime}</p></div></div>
+                            <div className="text-center py-2"><h3 className="text-xl font-bold text-blue-300">Wagholi PHC (WAG)</h3></div>
+                        </div>
+                    </div>
                 </div>
                 <div className="flex justify-center"><button onClick={() => setShowTracker(false)} className="text-slate-500 hover:text-red-500 text-sm flex items-center gap-2 transition-colors"><XCircle size={20} /> Close Flight View</button></div>
              </div>
@@ -369,10 +386,10 @@ const PHCDashboard = () => {
         </div>
       </main>
 
-      {/* DETAILS MODAL */}
+      {/* VIEW DETAILS MODAL */}
       {viewOrder && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
                 <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
                     <h3 className="font-bold flex items-center gap-2"><FileText size={18} /> Order Details</h3>
                     <button onClick={() => setViewOrder(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button>

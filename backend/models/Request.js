@@ -6,14 +6,18 @@ const requestSchema = new mongoose.Schema({
   qty: { type: Number, required: true },
   urgency: { type: String, required: true },
   description: { type: String },
-  // ✅ NEW FIELD FOR FILE LINKS
   proofFiles: [{ type: String }], 
   status: { 
     type: String, 
     enum: ['Pending', 'Approved', 'Dispatched', 'Rejected', 'Delivered'], 
     default: 'Pending' 
   },
-  distance: { type: String, default: '12 km' }
+  distance: { type: String, default: '12 km' },
+  // ✅ NEW: Store the specific coordinates of the requester
+  coordinates: {
+      lat: { type: Number },
+      lng: { type: Number }
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model("Request", requestSchema);
