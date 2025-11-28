@@ -12,17 +12,15 @@ import {
 import ambulanceSiren from '../assets/ambulance.mp3';
 import logoMain from '../assets/logo_final.png';
 
-// ✅ FIXED IMPORTS (Check your file extensions carefully!)
+// ✅ 1. IMPORT YOUR 19 LOCAL IMAGES (Exact Filenames)
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
-// ⚠️ CHANGED TO .png (Make sure the file in your folder is Dopamine.png)
-import imgDopamine from '../assets/medicines/Dopamine_med.jpg'; 
+import imgDopamine from '../assets/medicines/Dopamine.png'; 
 import imgAvil from '../assets/medicines/Avil.webp';
 import imgAdrenaline from '../assets/medicines/Adranaline.webp';
 import imgDexa from '../assets/medicines/Dexa.jpg';
 import imgDiclo from '../assets/medicines/Diclo.jpg';
-// ⚠️ RENAMED from 25%_Dex.jpg to Dex25.jpg (Rename file in folder too!)
-import imgDex25 from '../assets/medicines/Dex25.jpg'; 
+import imgDex25 from '../assets/medicines/Dex25.jpg';
 import imgDeriphylline from '../assets/medicines/Deriphylline.webp';
 import imgHamaccyl from '../assets/medicines/Hamaccyl.webp';
 import imgHydrocort from '../assets/medicines/Hydrocort.webp';
@@ -35,17 +33,10 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// PHC COORDINATES
-const PHC_COORDINATES = {
+// Fallback Coordinates (Only used if live data is missing)
+const PHC_DEFAULTS = {
   "Wagholi PHC": { lat: 18.5808, lng: 73.9787 },
   "PHC Chamorshi": { lat: 19.9280, lng: 79.9050 },
-  "PHC Gadhchiroli": { lat: 20.1849, lng: 79.9948 },
-  "PHC Panera": { lat: 19.9500, lng: 79.8500 },
-  "PHC Belgaon": { lat: 19.9000, lng: 80.0500 },
-  "PHC Dhutergatta": { lat: 19.8800, lng: 79.9200 },
-  "PHC Gatta": { lat: 19.7500, lng: 80.1000 },
-  "PHC Gaurkheda": { lat: 19.9100, lng: 79.8000 },
-  "PHC Murmadi": { lat: 19.9800, lng: 79.9500 }
 };
 
 const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; 
@@ -97,7 +88,6 @@ const HospitalDashboard = () => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
   });
 
-  // Simulation State
   const [trackProgress, setTrackProgress] = useState(0);
   const [countdown, setCountdown] = useState(0); 
   const [missionStatusText, setMissionStatusText] = useState('Standby');
@@ -140,7 +130,6 @@ const HospitalDashboard = () => {
     return () => clearInterval(interval);
   }, []); 
 
-  // Simulation Loop
   useEffect(() => {
     localStorage.setItem('activeMissions', JSON.stringify(activeMissions));
 
@@ -155,28 +144,24 @@ const HospitalDashboard = () => {
       const now = Date.now();
       const elapsed = now - mission.startTime; 
       
-      // PHASE 1: PREPARING (0 - 30 Seconds)
-      if (elapsed < 30000) {
-        const timeLeft = Math.ceil((30000 - elapsed) / 1000);
+      if (elapsed < 10000) {
+        const timeLeft = Math.ceil((10000 - elapsed) / 1000);
         setCountdown(timeLeft);
         setTrackProgress(0);
         setMissionStatusText(`Pre-Flight Checks`);
         setDroneStats({ speed: 0, battery: 100, altitude: 0 });
       } 
-      // PHASE 2: IN-FLIGHT (30s - 90s)
-      else if (elapsed < 90000) {
+      else if (elapsed < 70000) {
         setCountdown(0);
-        const flightTime = elapsed - 30000;
+        const flightTime = elapsed - 10000;
         const percent = (flightTime / 60000) * 100;
-        
         setTrackProgress(percent);
         setMissionStatusText('In-Flight');
         
-        // Physics
         let currentSpeed = 60;
         let currentAlt = 120;
-        if (percent < 10) { currentSpeed = percent * 6; currentAlt = percent * 12; } // Takeoff
-        else if (percent > 90) { currentSpeed = 60 - (percent-90)*6; currentAlt = 120 - (percent-90)*12; } // Landing
+        if (percent < 10) { currentSpeed = percent * 6; currentAlt = percent * 12; } 
+        else if (percent > 90) { currentSpeed = 60 - (percent-90)*6; currentAlt = 120 - (percent-90)*12; } 
 
         setDroneStats({
             speed: Math.floor(currentSpeed),
@@ -184,7 +169,6 @@ const HospitalDashboard = () => {
             altitude: Math.floor(currentAlt)
         });
       }
-      // PHASE 3: DELIVERED
       else {
         setTrackProgress(100);
         setMissionStatusText('Delivered');
@@ -200,7 +184,6 @@ const HospitalDashboard = () => {
            }, 5000);
         }
       }
-
     }, 100);
 
     return () => { clearInterval(interval); clearInterval(timer); };
@@ -225,9 +208,20 @@ const HospitalDashboard = () => {
     navigate('/login');
   };
 
-  const showCoordinates = (phcName) => {
-    const coords = PHC_COORDINATES[phcName] || { lat: 'Unknown', lng: 'Unknown' };
-    alert(`📍 Exact Drop Location for ${phcName}:\n\nLatitude: ${coords.lat}\nLongitude: ${coords.lng}\n\n✅ Flight path calibrated.`);
+  // ✅ UPDATED: PREFER DATABASE COORDINATES
+  const showCoordinates = (req) => {
+    // Priority 1: Check if request object has 'location' from DB
+    if (req.location && req.location.lat) {
+        alert(`📍 Live Set Drop Location for ${req.phc}:\n\nLatitude: ${req.location.lat}\nLongitude: ${req.location.lng}\n\n✅ Data retrieved from PHC submission.`);
+    } 
+    // Priority 2: Fallback to hardcoded list
+    else if (PHC_COORDINATES[req.phc]) {
+        const coords = PHC_COORDINATES[req.phc];
+        alert(`📍 Standard Drop Location for ${req.phc}:\n\nLatitude: ${coords.lat}\nLongitude: ${coords.lng}\n\n⚠️ Using default PHC location.`);
+    }
+    else {
+        alert("⚠️ No coordinates found.");
+    }
   };
 
   const updateStatusInDB = async (id, newStatus) => {
@@ -248,11 +242,11 @@ const HospitalDashboard = () => {
     updateStatusInDB(id, 'Approved');
   };
 
-  const handleDispatch = (id, phc) => {
+  const handleDispatch = (req) => {
     if(!confirm("Ready for takeoff? Confirm Drone Dispatch.")) return;
-    updateStatusInDB(id, 'Dispatched');
+    updateStatusInDB(req._id, 'Dispatched');
     
-    const newMission = { id, phc, startTime: Date.now(), delivered: false };
+    const newMission = { id: req._id, phc: req.phc, startTime: Date.now(), delivered: false };
     setActiveMissions([newMission]); 
     setActiveTab('map');
   };
@@ -273,13 +267,12 @@ const HospitalDashboard = () => {
         id: Date.now(), 
         ...newItem, 
         stock: parseInt(newItem.stock),
-        img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" 
+        img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=500&q=80" 
     }]);
     setShowAddModal(false);
     setNewItem({ name: '', stock: '', batch: '' });
   };
 
-  // Time Helpers
   const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const timeString = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   const arrivalTime = new Date(currentTime.getTime() + 15 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -336,8 +329,8 @@ const HospitalDashboard = () => {
                                 <div>
                                     <h3 className="font-bold text-slate-800">{req.phc}</h3>
                                     <p className="text-sm text-slate-600">{req.qty} items <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
-                                    {/* View Location */}
-                                    <button onClick={() => showCoordinates(req.phc)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                    {/* ✅ FIXED VIEW LOCATION BUTTON */}
+                                    <button onClick={() => showCoordinates(req)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1">
                                         <Globe size={12} /> View Drop Location
                                     </button>
                                 </div>
@@ -352,7 +345,7 @@ const HospitalDashboard = () => {
                                         <button onClick={() => handleApprove(req._id, req.urgency)} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Approve</button>
                                     </>
                                 )}
-                                {req.status === 'Approved' && <button onClick={() => handleDispatch(req._id, req.phc)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm animate-pulse">Dispatch Drone</button>}
+                                {req.status === 'Approved' && <button onClick={() => handleDispatch(req)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm animate-pulse">Dispatch Drone</button>}
                                 {req.status === 'Dispatched' && <span className="text-green-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> In-Flight</span>}
                                 {req.status === 'Delivered' && <span className="text-blue-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> Delivered</span>}
                             </div>
