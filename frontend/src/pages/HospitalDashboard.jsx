@@ -45,7 +45,7 @@ const PHC_COORDINATES = {
   "PHC Gaurkheda": { lat: 19.9100, lng: 79.8000 },
   "PHC Murmadi": { lat: 19.9800, lng: 79.9500 }
 };
-
+//changed
 const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; 
 const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 19.9260, lng: 79.9033 }; 
