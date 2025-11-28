@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 // Import the new functions
-const { registerUser, loginUser, forgotPassword, resetPassword } = require("../controllers/authController");
+const { registerUser, loginUser, forgotPassword, resetPassword, setLandingZone} = require("../controllers/authController");
 
 router.post("/register", registerUser);
 router.post("/login", loginUser);
