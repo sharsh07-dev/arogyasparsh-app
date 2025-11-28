@@ -4,17 +4,17 @@ import {
   Send, LogOut, AlertTriangle, CheckCircle2, 
   MapPin, History, Package, Navigation, 
   XCircle, FileText, Upload, User, Clock, Trash2,
-  Menu, X, RotateCcw, Eye, ShoppingCart, Search, Plus, Minus, ArrowLeft, Plane, Building2, Check
+  Menu, X, RotateCcw, Eye, ShoppingCart, Search, Plus, Minus, ArrowLeft, Plane, Building2, Check, ShieldCheck, Loader2, ShieldAlert
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
 
-// ✅ 1. IMPORT THE 19 LOCAL IMAGES
+// ✅ 1. IMPORT ALL 19 REAL MEDICINE IMAGES
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
-import imgDopamine from '../assets/medicines/Dopamine_med.jpg';
+import imgDopamine from '../assets/medicines/Dopamine.png';
 import imgAvil from '../assets/medicines/Avil.webp';
-import imgAdrenaline from '../assets/medicines/Adranaline.webp';//update done
+import imgAdrenaline from '../assets/medicines/Adranaline.webp';
 import imgDexa from '../assets/medicines/Dexa.jpg';
 import imgDiclo from '../assets/medicines/Diclo.jpg';
 import imgDex25 from '../assets/medicines/Dex25.jpg';
@@ -30,7 +30,7 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// ✅ 2. MEDICINE DATABASE (Only the 19 Real Items)
+// ✅ 2. UPDATED MEDICINE DATABASE (Only Real Images)
 const MEDICINE_DB = [
   { id: 6, name: 'Inj. Atropine', type: 'Ampoule', img: imgAtropine },
   { id: 7, name: 'Inj. Adrenaline', type: 'Ampoule', img: imgAdrenaline },
@@ -55,37 +55,28 @@ const MEDICINE_DB = [
 
 const PHCDashboard = () => {
   const navigate = useNavigate();
-  
-  const getUserFromStorage = () => {
-    try {
-      return JSON.parse(localStorage.getItem('userInfo')) || { name: 'Wagholi PHC' };
-    } catch (e) {
-      return { name: 'Wagholi PHC' };
-    }
-  };
-  const user = getUserFromStorage();
+  const user = JSON.parse(localStorage.getItem('userInfo')) || { name: 'Wagholi PHC' };
   
   const [activeTab, setActiveTab] = useState('shop'); 
   const [showTracker, setShowTracker] = useState(false);
   const [orderHistory, setOrderHistory] = useState([]); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  
-  // View Details State
   const [viewOrder, setViewOrder] = useState(null);
-
-  // Cart & Search
+  
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [addedFeedback, setAddedFeedback] = useState({});
-
-  // Flight Board State
   const [trackProgress, setTrackProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Checkout State
   const [proofFiles, setProofFiles] = useState([]);
   const [urgency, setUrgency] = useState('Standard');
+  
+  // 🤖 AI FRAUD DETECTION STATE
+  const [verifying, setVerifying] = useState(false);
+  const [fraudStatus, setFraudStatus] = useState('idle'); // 'idle', 'scanning', 'safe', 'fraud'
 
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
@@ -135,18 +126,48 @@ const PHCDashboard = () => {
     }));
   };
 
+  // ✅ SMART DOCUMENT SCANNER
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     if (proofFiles.length + files.length > 3) return alert("Max 3 files allowed");
-    setProofFiles([...proofFiles, ...files]);
+
+    setVerifying(true);
+    setFraudStatus('scanning');
+
+    // 🕵️‍♂️ Simulate AI Analysis (2 Seconds)
+    setTimeout(() => {
+        let isSafe = true;
+
+        // Check 1: File Size (Fake empty files)
+        const invalidSize = files.some(f => f.size < 100); 
+        // Check 2: File Type
+        const invalidType = files.some(f => !['image/jpeg', 'image/png', 'application/pdf'].includes(f.type));
+
+        if (invalidSize || invalidType) {
+            isSafe = false;
+        }
+
+        if (isSafe) {
+            setProofFiles([...proofFiles, ...files]);
+            setFraudStatus('safe');
+        } else {
+            setFraudStatus('fraud');
+            alert("⚠️ FRAUD ALERT: System detected invalid or corrupt document. Please upload a valid medical report.");
+        }
+        setVerifying(false);
+    }, 2000);
   };
 
   const removeFile = (index) => {
-    setProofFiles(proofFiles.filter((_, i) => i !== index));
+    const newFiles = proofFiles.filter((_, i) => i !== index);
+    setProofFiles(newFiles);
+    if (newFiles.length === 0) setFraudStatus('idle');
   };
 
   const handleSubmitOrder = async () => {
     if (proofFiles.length === 0) return alert("❌ UPLOAD REQUIRED: Please attach proof.");
+    if (fraudStatus === 'fraud') return alert("❌ BLOCKED: Cannot submit with flagged documents.");
+    if (fraudStatus === 'scanning') return alert("⏳ Please wait for security scan to complete.");
 
     setLoading(true);
 
@@ -175,10 +196,11 @@ const PHCDashboard = () => {
         });
 
         if (res.ok) {
-            alert("✅ Order & Documents Uploaded Successfully!");
+            alert("✅ Order Verified & Placed Successfully!");
             fetchRequests(); 
             setCart([]);
             setProofFiles([]);
+            setFraudStatus('idle');
             setActiveTab('history');
         } else {
             alert("Server busy. Try again.");
@@ -209,7 +231,9 @@ const PHCDashboard = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 relative">
+      
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
+
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
         <div className="p-6 border-b border-slate-800 flex justify-between items-center">
           <div className="mb-4"><img src={logoMain} className="h-10 w-auto bg-white rounded p-1" /></div>
@@ -240,7 +264,7 @@ const PHCDashboard = () => {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50">
           
-          {/* SHOP VIEW */}
+          {/* 1️⃣ SHOP VIEW */}
           {!showTracker && activeTab === 'shop' && (
              <div className="max-w-6xl mx-auto">
                 <div className="relative mb-8">
@@ -252,8 +276,6 @@ const PHCDashboard = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {filteredMedicines.map((med) => (
                         <div key={med.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col">
-                            
-                            {/* ✅ FIXED SIZE IMAGE CONTAINER */}
                             <div className="h-48 w-full bg-white flex items-center justify-center overflow-hidden p-4 border-b border-slate-50">
                                 <img 
                                     src={med.img} 
@@ -261,7 +283,6 @@ const PHCDashboard = () => {
                                     className="w-full h-full object-contain hover:scale-110 transition-transform duration-300" 
                                 />
                             </div>
-                            
                             <div className="p-4 flex-1 flex flex-col">
                                 <div className="flex-1"><h3 className="font-bold text-slate-800 leading-tight mb-1">{med.name}</h3><span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{med.type}</span></div>
                                 <button 
@@ -277,7 +298,7 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* CART VIEW */}
+          {/* 2️⃣ CART VIEW */}
           {!showTracker && activeTab === 'cart' && (
              <div className="max-w-4xl mx-auto">
                 <button onClick={() => setActiveTab('shop')} className="flex items-center gap-2 text-slate-500 hover:text-blue-600 mb-4 font-medium"><ArrowLeft size={18}/> Back to Store</button>
@@ -298,29 +319,62 @@ const PHCDashboard = () => {
                     </div>
                     <div className="md:col-span-1">
                         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-lg sticky top-4">
-                            <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><CheckCircle2 className="text-green-600" size={20}/> Final Verification</h3>
+                            <div className="flex items-center gap-2 mb-4 border-b pb-4">
+                                <ShieldCheck className={fraudStatus === 'safe' ? "text-green-600" : "text-slate-400"} size={24} />
+                                <h3 className="font-bold text-lg text-slate-800">Order Verification</h3>
+                            </div>
+
                             <div className="space-y-3 mb-6">
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Urgency Level</label>
                                 <select className="w-full p-2 border rounded-lg bg-slate-50 text-sm" value={urgency} onChange={(e) => setUrgency(e.target.value)}><option>Standard</option><option>High</option><option>Critical</option></select>
                             </div>
+
+                            {/* 📂 AI DOCUMENT SCANNER */}
                             <div className="mb-6">
-                                <label className="block text-xs font-bold text-slate-700 mb-2">Proof (Max 3) <span className="text-red-500">*</span></label>
-                                <label className="cursor-pointer w-full border-2 border-dashed border-blue-200 rounded-lg p-3 flex flex-col items-center justify-center hover:bg-blue-50 transition-colors">
-                                    <Upload size={16} className="text-blue-500"/><span className="text-[10px] text-blue-600 mt-1">Upload File</span><input type="file" multiple className="hidden" onChange={handleFileChange}/>
+                                <label className="block text-xs font-bold text-slate-700 mb-2">
+                                    Official Proof (Required) <span className="text-red-500">*</span>
                                 </label>
-                                {proofFiles.length > 0 && (
+                                
+                                {fraudStatus === 'scanning' ? (
+                                    <div className="w-full border-2 border-blue-200 bg-blue-50 rounded-xl p-6 flex flex-col items-center justify-center text-blue-600 animate-pulse">
+                                        <Loader2 size={24} className="animate-spin mb-2" />
+                                        <span className="text-xs font-bold">AI Scanning Document...</span>
+                                    </div>
+                                ) : (
+                                    <label className={`cursor-pointer w-full border-2 border-dashed rounded-lg p-3 flex flex-col items-center justify-center transition-colors ${fraudStatus === 'safe' ? 'border-green-400 bg-green-50' : 'border-blue-200 hover:bg-blue-50'}`}>
+                                        {fraudStatus === 'safe' ? <CheckCircle2 size={20} className="text-green-600 mb-1"/> : <Upload size={16} className="text-blue-500"/>}
+                                        <span className={`text-[10px] mt-1 font-bold ${fraudStatus === 'safe' ? 'text-green-700' : 'text-blue-600'}`}>
+                                            {fraudStatus === 'safe' ? "Verified & Attached" : "Upload for AI Scan"}
+                                        </span>
+                                        <input type="file" multiple className="hidden" onChange={handleFileChange}/>
+                                    </label>
+                                )}
+
+                                {proofFiles.length > 0 && fraudStatus === 'safe' && (
                                     <div className="mt-3 space-y-2">
                                         {proofFiles.map((f, i) => (
-                                            <div key={i} className="flex items-center justify-between bg-green-50 p-2 rounded-lg text-xs text-green-700 border border-green-100">
-                                                <span className="truncate w-28 font-medium">{f.name}</span>
+                                            <div key={i} className="flex items-center justify-between bg-green-100 p-2 rounded-lg text-xs text-green-800 border border-green-200">
+                                                <div className="flex items-center gap-2 overflow-hidden">
+                                                    <ShieldCheck size={12} className="text-green-600 shrink-0"/>
+                                                    <span className="truncate w-24 font-medium">{f.name}</span>
+                                                </div>
                                                 <button onClick={() => removeFile(i)} className="text-red-500 hover:text-red-700"><Trash2 size={14}/></button>
                                             </div>
                                         ))}
                                     </div>
                                 )}
                             </div>
-                            <button onClick={handleSubmitOrder} disabled={cart.length === 0} className={`w-full py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all ${cart.length > 0 ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-400'}`}>
-                                {loading ? 'Uploading...' : <><Send size={18} /> Request Drone</>}
+
+                            <button 
+                                onClick={handleSubmitOrder} 
+                                disabled={cart.length === 0 || loading || fraudStatus !== 'safe'} 
+                                className={`w-full py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all ${
+                                    cart.length > 0 && fraudStatus === 'safe' 
+                                    ? 'bg-green-600 text-white hover:bg-green-700 hover:scale-[1.02]' 
+                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                }`}
+                            >
+                                {loading ? 'Processing...' : <><Send size={18} /> Request Drone</>}
                             </button>
                         </div>
                     </div>
@@ -328,7 +382,7 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* HISTORY VIEW */}
+          {/* 3️⃣ HISTORY & TRACKING */}
           {!showTracker && activeTab === 'history' && (
              <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl border overflow-hidden overflow-x-auto">
                 <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
@@ -354,14 +408,14 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* TRACKER VIEW */}
+          {/* 4️⃣ TRACKING */}
           {showTracker && (
              <div className="max-w-4xl mx-auto space-y-6">
                 <div className="bg-slate-200 rounded-3xl h-64 md:h-80 relative overflow-hidden border-4 border-white shadow-2xl">
                     <div className="absolute inset-0 opacity-30 bg-[url('https://img.freepik.com/free-vector/grey-world-map_1053-431.jpg')] bg-cover bg-center grayscale"></div>
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none"><path d="M 100,160 Q 400,50 700,160" fill="none" stroke="#3b82f6" strokeWidth="3" strokeDasharray="10" className="drop-shadow-md" /></svg>
-                    <div className="absolute top-[160px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-red-600 drop-shadow-md" size={32} fill="#ef4444"/><span className="font-bold text-slate-700 text-xs mt-1">Hospital</span></div>
-                    <div className="absolute top-[160px] left-[700px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-orange-500 drop-shadow-md" size={32} fill="#f97316"/><span className="font-bold text-slate-700 text-xs mt-1">Wagholi PHC</span></div>
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none"><path d="M 100,160 Q 400,50 700,160" fill="none" stroke="#3b82f6" strokeWidth="3" strokeDasharray="10" /></svg>
+                    <div className="absolute top-[160px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-red-600" size={32} fill="#ef4444"/><span className="font-bold text-slate-700 text-xs mt-1">Hospital</span></div>
+                    <div className="absolute top-[160px] left-[700px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-orange-500" size={32} fill="#f97316"/><span className="font-bold text-slate-700 text-xs mt-1">Wagholi PHC</span></div>
                     <div className="absolute top-0 left-0 transition-all duration-100 ease-linear z-20" style={{ left: `${100 + (trackProgress / 100) * 600}px`, top: `${160 - Math.sin((trackProgress / 100) * Math.PI) * 110}px`, transform: `translate(-50%, -50%) rotate(${90 + (trackProgress < 50 ? -20 : 20)}deg)` }}><Plane size={48} className="text-yellow-500 drop-shadow-xl" fill="gold" /></div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 rounded-3xl overflow-hidden shadow-2xl font-mono">
@@ -386,10 +440,10 @@ const PHCDashboard = () => {
         </div>
       </main>
 
-      {/* VIEW DETAILS MODAL */}
+      {/* DETAILS MODAL */}
       {viewOrder && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
                 <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
                     <h3 className="font-bold flex items-center gap-2"><FileText size={18} /> Order Details</h3>
                     <button onClick={() => setViewOrder(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button>
