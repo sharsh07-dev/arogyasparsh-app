@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, Mail, AlertCircle } from 'lucide-react';
 
-// ✅ ASSETS (Using logo_final.png for both to prevent errors)
+// ✅ FIXED IMPORTS (Distinct images)
 import droneVideo from '../assets/drone.mp4';
-import logoMain from '../assets/logo_final.png';
-import logoLeft from '../assets/logo_final.png'; 
+import logoText from '../assets/logo_final.png'; // The main text logo
+import logoIcon from '../assets/logo_left.png';  // ⚠️ The file you just renamed
 
 const Login = () => {
   const [identifier, setIdentifier] = useState(''); 
@@ -24,7 +24,6 @@ const Login = () => {
     const cleanPassword = password.trim();
 
     try {
-      // Live Backend URL
       const response = await fetch('https://arogyasparsh-backend.onrender.com/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -35,23 +34,17 @@ const Login = () => {
 
       if (response.ok) {
         localStorage.setItem('userInfo', JSON.stringify(data));
-        
         setTimeout(() => {
-            // ✅ NEW REDIRECTION LOGIC
             if (data.role === 'phc') {
-                // Check if they have already set their landing coordinates
+                // Check if landing coordinates are set
                 if (data.landingCoordinates && data.landingCoordinates.set) {
                     navigate('/phc-dashboard');
                 } else {
-                    navigate('/set-location'); // 🚀 Redirect to Map if not set
+                    navigate('/set-location'); 
                 }
             }
-            else if (data.role === 'sub-district') {
-                navigate('/hospital-dashboard');
-            }
-            else {
-                navigate('/admin-dashboard');
-            }
+            else if (data.role === 'sub-district') navigate('/hospital-dashboard');
+            else navigate('/admin-dashboard');
         }, 800);
       } else {
         setError(data.message || 'Login failed');
@@ -69,19 +62,17 @@ const Login = () => {
       {/* LEFT SIDE: The Form */}
       <div className="w-full lg:w-5/12 flex flex-col justify-center px-8 lg:px-16 relative z-10 bg-white shadow-2xl">
         
-        {/* Header */}
+        {/* Header with CORRECT LOGOS */}
         <div className="mb-12">
-            <div className="flex items-center gap-4 mb-2">
-                <img src={logoLeft} alt="Logo" className="h-16 w-auto object-contain" />
-                <img src={logoMain} alt="ArogyaSparsh" className="h-12 w-auto object-contain" />
+            <div className="flex items-center gap-3 mb-4">
+                {/* 1. The Icon Logo */}
+                <img src={logoIcon} alt="Icon" className="h-16 w-auto object-contain" />
+                
+                {/* 2. The Text Logo */}
+                <img src={logoText} alt="ArogyaSparsh" className="h-12 w-auto object-contain" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight mt-2">ArogyaSparsh</h1>
-            <p className="text-slate-500 text-sm pl-1">Integrated Emergency Medical Drone Network</p>
-        </div>
-
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-slate-900 mb-2">Welcome Back</h2>
-          <p className="text-slate-500">Please enter your credentials.</p>
+            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Welcome Back</h1>
+            <p className="text-slate-500 text-sm mt-1">Please enter your credentials to access the portal.</p>
         </div>
 
         {error && (
