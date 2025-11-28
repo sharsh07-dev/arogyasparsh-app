@@ -218,15 +218,16 @@ const HospitalDashboard = () => {
   };
 
   // ✅ SHOW LOCATION FUNCTION (Fixed)
- const showCoordinates = (req) => {
-    // 1. Check if live coordinates exist in the request object
+ // ✅ SHOW LOCATION LOGIC
+  const showCoordinates = (req) => {
+    // 1. Check Database (Live Data)
     if (req.location && req.location.lat && req.location.lng) {
-        alert(`📍 LIVE DROP LOCATION (Set by PHC):\n\nPHC Name: ${req.phc}\nLatitude: ${req.location.lat}\nLongitude: ${req.location.lng}\n\n✅ Data retrieved from live submission.`);
+        alert(`📍 LIVE DROP LOCATION (Set by PHC):\n\nPHC: ${req.phc}\nLatitude: ${req.location.lat}\nLongitude: ${req.location.lng}\n\n✅ Data retrieved from live submission.`);
     } 
-    // 2. Fallback ONLY if live data is missing
+    // 2. Fallback to Hardcoded List
     else if (PHC_COORDINATES[req.phc]) {
         const coords = PHC_COORDINATES[req.phc];
-        alert(`⚠️ LIVE LOCATION MISSING.\nUsing Default Location for ${req.phc}:\n\nLatitude: ${coords.lat}\nLongitude: ${coords.lng}`);
+        alert(`⚠️ LIVE DATA MISSING.\nUsing Standard Location for ${req.phc}:\n\nLatitude: ${coords.lat}\nLongitude: ${coords.lng}`);
     }
     else {
         alert("❌ No location data found for this request.");

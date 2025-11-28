@@ -141,7 +141,15 @@ const PHCDashboard = () => {
   };
 
   const handleSubmitOrder = async () => {
+    if (!checks.isGenuine || !checks.stockUnavailable || !checks.patientAffected) return alert("⚠️ Please confirm all 3 verification protocols.");
     if (proofFiles.length === 0) return alert("❌ UPLOAD REQUIRED: Please attach proof.");
+
+    // ✅ CRITICAL CHECK: Do we have coordinates?
+    if (!user.landingCoordinates || !user.landingCoordinates.set) {
+        alert("⚠️ Landing Zone not detected! Redirecting to map...");
+        navigate('/set-location'); // Force them to set it
+        return;
+    }
 
     setLoading(true);
 
@@ -155,6 +163,10 @@ const PHCDashboard = () => {
     formDataToSend.append("urgency", urgency);
     formDataToSend.append("description", "Multi-item order via App");
     
+    // ✅ SEND COORDINATES
+    formDataToSend.append("lat", user.landingCoordinates.lat);
+    formDataToSend.append("lng", user.landingCoordinates.lng);
+
     proofFiles.forEach((file) => {
         formDataToSend.append("proofFiles", file); 
     });
@@ -166,10 +178,11 @@ const PHCDashboard = () => {
         });
 
         if (res.ok) {
-            alert("✅ Order & Documents Uploaded Successfully!");
+            alert("✅ Order Sent with GPS Coordinates!");
             fetchRequests(); 
             setCart([]);
             setProofFiles([]);
+            setChecks({ isGenuine: false, stockUnavailable: false, patientAffected: false });
             setActiveTab('history');
         } else {
             alert("Server busy. Try again.");

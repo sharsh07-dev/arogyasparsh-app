@@ -7,10 +7,14 @@ const { storage } = require("../config/cloudinary");
 const upload = multer({ storage });
 
 // ✅ UPDATED: Use .array() to accept multiple files
+// ✅ POST: Create Request with Location & Files
 router.post("/", upload.array('proofFiles'), async (req, res) => {
   try {
-    // Get all file links
     const fileLinks = req.files ? req.files.map(file => file.path) : [];
+
+    // 🛠 FIX: Parse Lat/Lng from String to Number
+    const lat = req.body.lat ? parseFloat(req.body.lat) : null;
+    const lng = req.body.lng ? parseFloat(req.body.lng) : null;
 
     const newRequest = new Request({
       phc: req.body.phc,
@@ -18,7 +22,14 @@ router.post("/", upload.array('proofFiles'), async (req, res) => {
       qty: req.body.qty,
       urgency: req.body.urgency,
       description: req.body.description,
-      proofFiles: fileLinks, // ✅ Save the list of links
+      proofFiles: fileLinks,
+      
+      // ✅ SAVE LOCATION
+      location: {
+          lat: lat,
+          lng: lng
+      },
+      
       status: 'Pending'
     });
 
