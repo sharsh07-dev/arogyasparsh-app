@@ -33,24 +33,17 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// ✅ 2. FIXED CONSTANT NAME (PHC_COORDINATES)
-const PHC_COORDINATES = {
+// Fallback Coordinates (Only used if database location is missing)
+const PHC_DEFAULTS = {
   "Wagholi PHC": { lat: 18.5808, lng: 73.9787 },
   "PHC Chamorshi": { lat: 19.9280, lng: 79.9050 },
-  "PHC Gadhchiroli": { lat: 20.1849, lng: 79.9948 },
-  "PHC Panera": { lat: 19.9500, lng: 79.8500 },
-  "PHC Belgaon": { lat: 19.9000, lng: 80.0500 },
-  "PHC Dhutergatta": { lat: 19.8800, lng: 79.9200 },
-  "PHC Gatta": { lat: 19.7500, lng: 80.1000 },
-  "PHC Gaurkheda": { lat: 19.9100, lng: 79.8000 },
-  "PHC Murmadi": { lat: 19.9800, lng: 79.9500 }
 };
-//changed
+
 const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; 
 const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 19.9260, lng: 79.9033 }; 
 
-// INVENTORY LIST
+// ✅ 2. CORRECT INVENTORY LIST (19 Items)
 const INITIAL_INVENTORY = [
   { id: 6, name: 'Inj. Atropine', stock: 50, batch: 'EM-001', img: imgAtropine },
   { id: 7, name: 'Inj. Adrenaline', stock: 40, batch: 'EM-002', img: imgAdrenaline },
@@ -138,7 +131,7 @@ const HospitalDashboard = () => {
     return () => clearInterval(interval);
   }, []); 
 
-  // SIMULATION LOOP
+  // ✅ 3. UPDATED SIMULATION LOOP (10s Delay + 1 Min Flight + Auto Deliver)
   useEffect(() => {
     localStorage.setItem('activeMissions', JSON.stringify(activeMissions));
 
@@ -153,20 +146,24 @@ const HospitalDashboard = () => {
       const now = Date.now();
       const elapsed = now - mission.startTime; 
       
-      if (elapsed < 30000) {
-        const timeLeft = Math.ceil((30000 - elapsed) / 1000);
+      // PHASE 1: PREPARING (0 - 10 Seconds)
+      if (elapsed < 10000) {
+        const timeLeft = Math.ceil((10000 - elapsed) / 1000);
         setCountdown(timeLeft);
         setTrackProgress(0);
         setMissionStatusText(`Pre-Flight Checks`);
         setDroneStats({ speed: 0, battery: 100, altitude: 0 });
       } 
-      else if (elapsed < 90000) {
+      // PHASE 2: IN-FLIGHT (10s - 70s = 1 Minute Flight)
+      else if (elapsed < 70000) {
         setCountdown(0);
-        const flightTime = elapsed - 30000;
+        const flightTime = elapsed - 10000;
         const percent = (flightTime / 60000) * 100;
+        
         setTrackProgress(percent);
         setMissionStatusText('In-Flight');
         
+        // Physics
         let currentSpeed = 60;
         let currentAlt = 120;
         if (percent < 10) { currentSpeed = percent * 6; currentAlt = percent * 12; } 
@@ -178,6 +175,7 @@ const HospitalDashboard = () => {
             altitude: Math.floor(currentAlt)
         });
       }
+      // PHASE 3: DELIVERED
       else {
         setTrackProgress(100);
         setMissionStatusText('Delivered');
@@ -188,6 +186,7 @@ const HospitalDashboard = () => {
            const updatedMissions = activeMissions.map(m => 
                m.id === mission.id ? { ...m, delivered: true } : m
            );
+           // Remove mission after 5s
            setTimeout(() => {
                setActiveMissions(prev => prev.filter(m => m.id !== mission.id));
            }, 5000);
@@ -217,20 +216,17 @@ const HospitalDashboard = () => {
     navigate('/login');
   };
 
-  // ✅ SHOW LOCATION FUNCTION (Fixed)
- // ✅ SHOW LOCATION LOGIC
+  // ✅ 4. CORRECT COORDINATE LOOKUP (Prioritizes Database)
   const showCoordinates = (req) => {
-    // 1. Check Database (Live Data)
-    if (req.location && req.location.lat && req.location.lng) {
-        alert(`📍 LIVE DROP LOCATION (Set by PHC):\n\nPHC: ${req.phc}\nLatitude: ${req.location.lat}\nLongitude: ${req.location.lng}\n\n✅ Data retrieved from live submission.`);
+    if (req.location && req.location.lat) {
+        alert(`📍 LIVE DROP LOCATION (Set by PHC):\n\nLatitude: ${req.location.lat}\nLongitude: ${req.location.lng}\n\n✅ Verified Data.`);
     } 
-    // 2. Fallback to Hardcoded List
-    else if (PHC_COORDINATES[req.phc]) {
-        const coords = PHC_COORDINATES[req.phc];
-        alert(`⚠️ LIVE DATA MISSING.\nUsing Standard Location for ${req.phc}:\n\nLatitude: ${coords.lat}\nLongitude: ${coords.lng}`);
+    else if (PHC_DEFAULTS[req.phc]) {
+        const coords = PHC_DEFAULTS[req.phc];
+        alert(`⚠️ LIVE DATA MISSING.\nUsing Default Location for ${req.phc}:\n\nLatitude: ${coords.lat}\nLongitude: ${coords.lng}`);
     }
     else {
-        alert("❌ No location data found for this request.");
+        alert("❌ No location data found.");
     }
   };
 
@@ -339,7 +335,8 @@ const HospitalDashboard = () => {
                                 <div>
                                     <h3 className="font-bold text-slate-800">{req.phc}</h3>
                                     <p className="text-sm text-slate-600">{req.qty} items <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
-                                    {/* ✅ FIXED BUTTON: NOW USES 'req' OBJECT */}
+                                    
+                                    {/* ✅ CORRECTED BUTTON */}
                                     <button onClick={() => showCoordinates(req)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1">
                                         <Globe size={12} /> View Drop Location
                                     </button>
@@ -364,7 +361,7 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* ... MAP, INVENTORY, MODALS (Keep same as previous) ... */}
+            {/* MAP TAB */}
             {activeTab === 'map' && (
                 <div className="h-full w-full relative rounded-2xl overflow-hidden shadow-xl border-4 border-white min-h-[500px]">
                     {activeMissions.length === 0 ? (
