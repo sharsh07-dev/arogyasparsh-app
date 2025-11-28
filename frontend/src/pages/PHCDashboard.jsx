@@ -14,7 +14,7 @@ import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
 import imgDopamine from '../assets/medicines/Dopamine_med.jpg';
 import imgAvil from '../assets/medicines/Avil.webp';
-import imgAdrenaline from '../assets/medicines/Adranaline.webp';
+import imgAdrenaline from '../assets/medicines/Adranaline.webp';//update done
 import imgDexa from '../assets/medicines/Dexa.jpg';
 import imgDiclo from '../assets/medicines/Diclo.jpg';
 import imgDex25 from '../assets/medicines/Dex25.jpg';
