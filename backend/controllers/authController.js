@@ -130,6 +130,28 @@ const resetPassword = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+// ... existing imports
+
+// ✅ 5. SET LANDING COORDINATES
+const setLandingZone = async (req, res) => {
+  const { userId, lat, lng } = req.body;
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.landingCoordinates = { lat, lng, set: true };
+    await user.save();
+
+    res.json({ 
+        message: "Landing Zone Confirmed!", 
+        landingCoordinates: user.landingCoordinates 
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Don't forget to export it!
+module.exports = { registerUser, loginUser, forgotPassword, resetPassword, setLandingZone };
 
 // ✅ EXPORT ALL 4 FUNCTIONS
-module.exports = { registerUser, loginUser, forgotPassword, resetPassword };
