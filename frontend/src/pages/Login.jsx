@@ -5,7 +5,7 @@ import { Lock, Mail, AlertCircle } from 'lucide-react';
 // ✅ FIXED IMPORTS (Distinct images)
 import droneVideo from '../assets/drone.mp4';
 import logoText from '../assets/logo_final.png'; // The main text logo
-import logoIcon from '../assets/logo_left.png';  // ⚠️ The file you just renamed
+import logoIcon from '../assets/left_logo.png';  // ⚠️ The file you just renamed
 
 const Login = () => {
   const [identifier, setIdentifier] = useState(''); 
