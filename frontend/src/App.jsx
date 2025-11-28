@@ -7,6 +7,9 @@ import AdminDashboard from './pages/AdminDashboard';
 import ForgotPassword from './pages/ForgotPassword';
 // Change this line:
 // <Route path="/phc-dashboard" element={<PHCDashboard />} />  (The old placeholder)
+import SetLocation from './pages/SetLocation';
+
+// ... inside Routes
 
 
 
@@ -23,6 +26,7 @@ function App() {
         <Route path="/hospital-dashboard" element={<HospitalDashboard />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
 <Route path="/forgot-password" element={<ForgotPassword />} />
+<Route path="/set-location" element={<SetLocation />} />
         {/* Default redirect to login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

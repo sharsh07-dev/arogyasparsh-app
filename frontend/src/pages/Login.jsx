@@ -2,13 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, Mail, AlertCircle } from 'lucide-react';
 
-// ✅ RESTORED YOUR ORIGINAL IMPORTS
+// ✅ ASSETS (Using logo_final.png for both to prevent errors)
 import droneVideo from '../assets/drone.mp4';
 import logoMain from '../assets/logo_final.png';
-import logoLeft from '../assets/left_logo.png'; 
+import logoLeft from '../assets/logo_final.png'; 
 
 const Login = () => {
-  // 'identifier' accepts either Email or Official ID
   const [identifier, setIdentifier] = useState(''); 
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('phc');
@@ -21,7 +20,6 @@ const Login = () => {
     setError('');
     setIsLoading(true);
 
-    // Clean input
     const cleanIdentifier = identifier.trim();
     const cleanPassword = password.trim();
 
@@ -37,10 +35,23 @@ const Login = () => {
 
       if (response.ok) {
         localStorage.setItem('userInfo', JSON.stringify(data));
+        
         setTimeout(() => {
-            if (data.role === 'phc') navigate('/phc-dashboard');
-            else if (data.role === 'sub-district') navigate('/hospital-dashboard');
-            else navigate('/admin-dashboard');
+            // ✅ NEW REDIRECTION LOGIC
+            if (data.role === 'phc') {
+                // Check if they have already set their landing coordinates
+                if (data.landingCoordinates && data.landingCoordinates.set) {
+                    navigate('/phc-dashboard');
+                } else {
+                    navigate('/set-location'); // 🚀 Redirect to Map if not set
+                }
+            }
+            else if (data.role === 'sub-district') {
+                navigate('/hospital-dashboard');
+            }
+            else {
+                navigate('/admin-dashboard');
+            }
         }, 800);
       } else {
         setError(data.message || 'Login failed');
@@ -58,14 +69,11 @@ const Login = () => {
       {/* LEFT SIDE: The Form */}
       <div className="w-full lg:w-5/12 flex flex-col justify-center px-8 lg:px-16 relative z-10 bg-white shadow-2xl">
         
-        {/* Header with DUAL LOGOS */}
+        {/* Header */}
         <div className="mb-12">
             <div className="flex items-center gap-4 mb-2">
-                {/* Left Logo */}
-                <img src={logoLeft} alt="Left Logo" className="h-16 w-auto object-contain" />
-                
-                {/* Main Logo */}
-                <img src={logoMain} alt="ArogyaSparsh Logo" className="h-12 w-auto object-contain" />
+                <img src={logoLeft} alt="Logo" className="h-16 w-auto object-contain" />
+                <img src={logoMain} alt="ArogyaSparsh" className="h-12 w-auto object-contain" />
             </div>
             <h1 className="text-2xl font-bold text-slate-800 tracking-tight mt-2">ArogyaSparsh</h1>
             <p className="text-slate-500 text-sm pl-1">Integrated Emergency Medical Drone Network</p>
