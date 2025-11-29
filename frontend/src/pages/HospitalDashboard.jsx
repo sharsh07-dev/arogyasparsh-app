@@ -12,15 +12,15 @@ import {
 import ambulanceSiren from '../assets/ambulance.mp3';
 import logoMain from '../assets/logo_final.png';
 
-// IMAGES
+// ✅ 1. IMPORT YOUR 19 LOCAL IMAGES
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
-import imgDopamine from '../assets/medicines/Dopamine_med.jpg'; 
+import imgDopamine from '../assets/medicines/Dopamine_med.jpg'; // Updated to your filename
 import imgAvil from '../assets/medicines/Avil.webp';
 import imgAdrenaline from '../assets/medicines/Adranaline.webp';
 import imgDexa from '../assets/medicines/Dexa.jpg';
 import imgDiclo from '../assets/medicines/Diclo.jpg';
-import imgDex25 from '../assets/medicines/Dex25.jpg';
+import imgDex25 from '../assets/medicines/25%_Dex.jpg';
 import imgDeriphylline from '../assets/medicines/Deriphylline.webp';
 import imgHamaccyl from '../assets/medicines/Hamaccyl.webp';
 import imgHydrocort from '../assets/medicines/Hydrocort.webp';
@@ -87,6 +87,7 @@ const HospitalDashboard = () => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
   });
 
+  // AI Engine State
   const [aiLogs, setAiLogs] = useState([]);
   const [processingQueue, setProcessingQueue] = useState([]);
 
@@ -110,7 +111,7 @@ const HospitalDashboard = () => {
 
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
-  // ✅ 1. AI SCORING (9-Point Matrix)
+  // ✅ AI SCORING
   const calculatePriorityScore = (req) => {
     let score = 0.0;
     let dist = 10; 
@@ -121,7 +122,6 @@ const HospitalDashboard = () => {
     const isLong = dist > 15;
     const isMedium = dist >= 5 && dist <= 15;
 
-    // Priority Calculation
     if (req.urgency === 'Critical') {
         if (isLong) score = 0.99;
         else if (isMedium) score = 0.95;
@@ -132,7 +132,7 @@ const HospitalDashboard = () => {
         else if (isMedium) score = 0.80;
         else score = 0.75;
     } 
-    else { // Standard
+    else { 
         if (isLong) score = 0.60;
         else if (isMedium) score = 0.55;
         else score = 0.50;
@@ -140,50 +140,58 @@ const HospitalDashboard = () => {
     return score.toFixed(2); 
   };
 
-  // ✅ 2. AUTO-PILOT LOOP (Aggressive Dispatch)
+  // ✅ 2. INTELLIGENT AUTO-PILOT LOOP
   useEffect(() => {
     const aiLoop = setInterval(() => {
         requests.forEach(req => {
-            // Only process 'Pending' requests that haven't been handled yet
+            // Process 'Pending' requests not yet in queue
             if (req.status === 'Pending' && !processingQueue.includes(req._id)) {
                 
                 const score = calculatePriorityScore(req);
                 const logTime = new Date().toLocaleTimeString();
                 
-                // Mark as processed immediately to avoid duplicates
+                // Mark as processed to avoid duplicates
                 setProcessingQueue(prev => [...prev, req._id]);
 
-                // LOG ACTION
-                const newLog = {
-                    time: logTime,
-                    msg: `ID: ${req._id.slice(-4)} | Score: ${score} | 🚀 AUTO-DISPATCHING`,
-                    color: "text-green-400"
-                };
-                setAiLogs(prev => [newLog, ...prev].slice(0, 5)); 
-
-                // 🚀 TRIGGER DISPATCH (For ALL Scores > 0)
-                handleAutoDispatch(req);
+                // 🧠 INTELLIGENT DECISION
+                if (req.urgency === 'Critical') {
+                    // 🚀 CRITICAL = IMMEDIATE DISPATCH
+                    const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL EMERGENCY | 🚀 IMMEDIATE LAUNCH`;
+                    setAiLogs(prev => [{ time: logTime, msg: logMsg, color: "text-red-500 font-bold" }, ...prev].slice(0, 5));
+                    handleAutoDispatch(req, 0); // 0ms delay
+                } 
+                else {
+                    // ⏳ STANDARD/HIGH = 15s SAFETY DELAY
+                    const logMsg = `ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ HOLDING 15s (Safety Check)`;
+                    setAiLogs(prev => [{ time: logTime, msg: logMsg, color: "text-yellow-400" }, ...prev].slice(0, 5));
+                    
+                    // Wait 15s, then dispatch
+                    setTimeout(() => {
+                         setAiLogs(prev => [{ time: new Date().toLocaleTimeString(), msg: `ID: ${req._id.slice(-4)} | ✅ RELEASED FOR FLIGHT`, color: "text-green-400" }, ...prev].slice(0, 5));
+                         handleAutoDispatch(req, 0); 
+                    }, 15000);
+                }
             }
         });
-    }, 3000); // Check every 3 seconds
+    }, 3000); 
 
     return () => clearInterval(aiLoop);
-  }, [requests]); // Re-run when requests update
+  }, [requests]);
 
-  // ✅ 3. AUTO-DISPATCH HANDLER
-  const handleAutoDispatch = (req) => {
+  // ✅ 3. AUTO-DISPATCH EXECUTOR
+  const handleAutoDispatch = (req, delay = 2000) => {
     if (activeMissions.find(m => m.id === req._id)) return;
 
     // 1. Approve
     updateStatusInDB(req._id, 'Approved');
     
-    // 2. Dispatch (Small delay for UI effect)
+    // 2. Dispatch
     setTimeout(() => {
         updateStatusInDB(req._id, 'Dispatched');
         const newMission = { id: req._id, phc: req.phc, startTime: Date.now(), delivered: false };
         setActiveMissions(prev => [...prev, newMission]);
-        // Don't force switch tab, let user watch the list update
-    }, 2000);
+        setActiveTab('map'); // Switch to map view
+    }, delay + 2000);
   };
 
   const fetchRequests = async () => {
@@ -255,7 +263,7 @@ const HospitalDashboard = () => {
   const showCoordinates = (phcName) => { const coords = PHC_COORDINATES[phcName] || { lat: 'Unknown', lng: 'Unknown' }; alert(`📍 Location:\nLat: ${coords.lat}\nLng: ${coords.lng}`); };
   const updateStatusInDB = async (id, newStatus) => { try { await fetch(`${API_URL}/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }), }); fetchRequests(); } catch (err) {} };
   
-  // Manual overrides kept just in case
+  // Manual overrides
   const handleApprove = (id, urgency) => { if (urgency === 'Critical') stopAlarm(); updateStatusInDB(id, 'Approved'); };
   const handleDispatch = (id, phc) => { if(!confirm("Confirm Manual Dispatch?")) return; updateStatusInDB(id, 'Dispatched'); const newMission = { id, phc, startTime: Date.now(), delivered: false }; setActiveMissions([newMission]); setActiveTab('map'); };
   const handleReject = (id, urgency) => { if(!confirm("Reject this request?")) return; if (urgency === 'Critical') stopAlarm(); updateStatusInDB(id, 'Rejected'); };
@@ -317,7 +325,7 @@ const HospitalDashboard = () => {
                         const score = calculatePriorityScore(req);
                         
                         return (
-                        <div key={req._id} className={`bg-white rounded-xl shadow-sm border p-4 flex flex-col md:flex-row justify-between gap-4 ${req.status === 'Rejected' ? 'opacity-50' : ''} ${req.status === 'Pending' ? 'border-green-500 ring-2 ring-green-100' : ''}`}>
+                        <div key={req._id} className={`bg-white rounded-xl shadow-sm border p-4 flex flex-col md:flex-row justify-between gap-4 ${req.status === 'Rejected' ? 'opacity-50' : ''} ${score >= 0.8 && req.status === 'Pending' ? 'border-green-500 ring-2 ring-green-100' : ''}`}>
                             <div className="flex items-start gap-4">
                                 <div className={`p-3 rounded-full ${req.urgency === 'Critical' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-600'}`}><AlertOctagon size={24} /></div>
                                 <div>
@@ -335,10 +343,15 @@ const HospitalDashboard = () => {
                             <div className="flex items-center gap-2">
                                 <button onClick={() => setViewProof(req)} className="px-3 py-2 border rounded-lg text-slate-600 text-sm flex gap-2"><FileText size={16} /> Proof</button>
                                 {req.status === 'Pending' && (
-                                    // ✅ AUTOMATICALLY DISPATCHING VISUAL
-                                    <div className="flex items-center gap-2 text-green-600 font-bold text-sm animate-pulse bg-green-50 px-3 py-2 rounded border border-green-200">
-                                        <Brain size={16} /> AI PROCESSING...
-                                    </div>
+                                    score >= 0.8 ? (
+                                        <div className="flex items-center gap-2 text-green-600 font-bold text-sm animate-pulse bg-green-50 px-3 py-2 rounded border border-green-200">
+                                            <Brain size={16} /> AI PROCESSING...
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2 text-yellow-600 font-bold text-sm bg-yellow-50 px-3 py-2 rounded border border-yellow-200">
+                                            <Clock size={16} /> WAITLISTED (15s)
+                                        </div>
+                                    )
                                 )}
                                 {req.status === 'Dispatched' && <span className="text-green-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> In-Flight</span>}
                                 {req.status === 'Delivered' && <span className="text-blue-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> Delivered</span>}
