@@ -81,14 +81,14 @@ const HospitalDashboard = () => {
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [viewProof, setViewProof] = useState(null);
-  const [viewItemList, setViewItemList] = useState(null);
+  const [viewItemList, setViewItemList] = useState(null); // Packing List
   const [predictions, setPredictions] = useState([]); // AI Data
 
   const [activeMissions, setActiveMissions] = useState(() => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
   });
 
-  // PERSISTENT AI LOGS
+  // Persistent AI Logs
   const [aiLogs, setAiLogs] = useState(() => {
     try { return JSON.parse(localStorage.getItem('aiSystemLogs')) || []; } catch { return []; }
   });
@@ -119,7 +119,7 @@ const HospitalDashboard = () => {
   const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: "" });
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
-  // ✅ FETCH AI PREDICTIONS
+  // FETCH AI PREDICTIONS
   const fetchPredictions = async () => {
     try {
         const res = await fetch("https://arogyasparsh-backend.onrender.com/api/analytics/predict"); 
@@ -128,8 +128,7 @@ const HospitalDashboard = () => {
             setPredictions(data);
         }
     } catch (err) {
-        console.log("AI Service Offline (Using cached model)");
-        // Fallback Data
+        console.log("AI Service Offline");
         setPredictions([
             { name: "Inj. Atropine", predictedQty: 42, trend: "📈 Rising" },
             { name: "IV Paracetamol", predictedQty: 15, trend: "📉 Stable" },
@@ -179,16 +178,36 @@ const HospitalDashboard = () => {
                 setProcessingQueue(prev => [...prev, req._id]);
 
                 if (req.urgency === 'Critical') {
-                    const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL - IMMEDIATE LAUNCH`;
+                    // 4s Approval -> 15s Dispatch
+                    const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL - INITIATING SEQUENCE`;
                     addLog(logMsg, "text-red-500 font-bold");
-                    startApprovalProcess(req); 
+                    
+                    setTimeout(() => {
+                        updateStatusInDB(req._id, 'Approved');
+                        addLog(`ID: ${req._id.slice(-4)} | ✅ APPROVED BY SYSTEM`, "text-green-400");
+
+                        setTimeout(() => {
+                             handleAutoDispatch(req); 
+                        }, 15000); 
+                    }, 4000);
                 } 
                 else {
+                    // 15s Buffer -> 4s Approval -> 12s Dispatch
                     addLog(`ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ QUEUED (15s Buffer)`, "text-yellow-400");
+                    
                     setTimeout(() => {
                          addLog(`ID: ${req._id.slice(-4)} | ✅ SAFETY CHECK PASSED`, "text-green-400");
-                         startApprovalProcess(req); 
-                    }, 15000);
+                         
+                         setTimeout(() => {
+                              updateStatusInDB(req._id, 'Approved');
+                              addLog(`ID: ${req._id.slice(-4)} | 📝 Request Approved`, "text-green-300");
+                              
+                              setTimeout(() => {
+                                  handleAutoDispatch(req);
+                              }, 12000); 
+                         }, 4000); 
+
+                    }, 15000); 
                 }
             }
         });
@@ -197,14 +216,7 @@ const HospitalDashboard = () => {
     return () => clearInterval(aiLoop);
   }, [requests, processingQueue]);
 
-  const startApprovalProcess = (req) => {
-      setTimeout(() => {
-          updateStatusInDB(req._id, 'Approved');
-          addLog(`ID: ${req._id.slice(-4)} | 📝 Request Approved by System`, "text-green-300");
-          setTimeout(() => { handleAutoDispatch(req); }, 12000);
-      }, 4000);
-  };
-
+  // DISPATCH HANDLER
   const handleAutoDispatch = (req) => {
     if (activeMissions.find(m => m.id === req._id)) return;
 
@@ -236,6 +248,7 @@ const HospitalDashboard = () => {
       if (!res.ok) return;
       const data = await res.json();
       if (Array.isArray(data)) {
+        // Sort Newest First
         const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setRequests(sortedData);
       }
@@ -255,6 +268,7 @@ const HospitalDashboard = () => {
     localStorage.setItem('activeMissions', JSON.stringify(activeMissions));
     if (activeTab !== 'map' || activeMissions.length === 0) return;
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    
     const interval = setInterval(() => {
       const mission = activeMissions[0];
       if(!mission) return;
@@ -294,6 +308,10 @@ const HospitalDashboard = () => {
 
         if (!mission.delivered) {
            addLog(`✅ DELIVERY SUCCESSFUL at ${mission.phc}`, "text-blue-400 font-bold border-l-2 border-blue-500 pl-2");
+           
+           // FORCE UI UPDATE
+           setRequests(prev => prev.map(r => r._id === mission.id ? { ...r, status: 'Delivered' } : r));
+
            updateStatusInDB(mission.id, 'Delivered');
            const updatedMissions = activeMissions.map(m => m.id === mission.id ? { ...m, delivered: true } : m);
            setTimeout(() => { setActiveMissions(prev => prev.filter(m => m.id !== mission.id)); }, 5000);
@@ -305,6 +323,7 @@ const HospitalDashboard = () => {
 
   const handleLogout = () => { localStorage.removeItem('userInfo'); navigate('/login'); };
   
+  // EXACT LOCATION
   const showCoordinates = (req) => {
       if (req.coordinates && req.coordinates.lat) {
           alert(`📍 GPS Drop Location [${req.phc}]:\n\nLatitude: ${req.coordinates.lat}\nLongitude: ${req.coordinates.lng}\n\n✅ Received from PHC App.`);
@@ -315,6 +334,7 @@ const HospitalDashboard = () => {
   };
 
   const updateStatusInDB = async (id, newStatus) => { try { await fetch(`${API_URL}/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }), }); fetchRequests(); } catch (err) {} };
+  
   const handleApprove = (id, urgency) => { updateStatusInDB(id, 'Approved'); };
   const handleDispatch = (req) => { if(!confirm("Confirm Manual Dispatch?")) return; handleAutoDispatch(req, 0); };
   const handleReject = (id, urgency) => { if(!confirm("Reject this request?")) return; updateStatusInDB(id, 'Rejected'); };
@@ -349,11 +369,10 @@ const HospitalDashboard = () => {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 relative">
             
-            {/* AI COMMAND CENTER (ALERTS) */}
             {activeTab === 'alerts' && (
                 <div className="grid gap-6 max-w-6xl mx-auto">
                     
-                    {/* ✅ AI FORECAST WIDGET (Restored) */}
+                    {/* AI FORECAST */}
                     {predictions.length > 0 && (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
                             {predictions.slice(0, 3).map((pred, i) => (
@@ -371,7 +390,7 @@ const HospitalDashboard = () => {
                         </div>
                     )}
 
-                    {/* AI LOGS */}
+                    {/* SYSTEM LOGS */}
                     <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-xs h-36 overflow-y-auto border border-slate-700 shadow-inner relative">
                         <div className="flex items-center gap-2 mb-2 border-b border-slate-700 pb-1 sticky top-0 bg-slate-900 w-full">
                             <Terminal size={14}/> SYSTEM LOGS [AUTO-PILOT ENABLED]:
@@ -399,7 +418,7 @@ const HospitalDashboard = () => {
                                         </span>
                                     </h3>
                                     
-                                    {/* ✅ CLICKABLE ITEM LIST */}
+                                    {/* CLICKABLE ITEMS */}
                                     <button 
                                         onClick={() => setViewItemList(req)} 
                                         className="text-sm text-slate-600 hover:text-blue-600 hover:underline text-left mt-1 font-medium flex items-center gap-1"
@@ -412,7 +431,6 @@ const HospitalDashboard = () => {
                                         {new Date(req.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} 
                                         , {new Date(req.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                                     </div>
-                                    {/* ✅ EXACT LOCATION */}
                                     <button onClick={() => showCoordinates(req)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1"><Globe size={12} /> Loc ({req.coordinates ? 'GPS' : 'Static'})</button>
                                 </div>
                             </div>
@@ -442,12 +460,12 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* MAP & INVENTORY (Kept same) */}
+            {/* MAP & INVENTORY (Same) */}
             {activeTab === 'map' && (
                 <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] flex items-center justify-center text-white relative overflow-hidden">
                      {activeMissions.length > 0 ? (
                         <div className="w-full h-full relative">
-                             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div>
+                            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div>
                              <svg className="absolute inset-0 w-full h-full pointer-events-none">
                                 <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#475569" strokeWidth="4" strokeDasharray="8" />
                                 <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#3b82f6" strokeWidth="4" strokeDasharray="1000" strokeDashoffset={1000 - (trackProgress * 10)} className="transition-all duration-300 ease-linear" />
@@ -519,7 +537,7 @@ const HospitalDashboard = () => {
         </div>
       </main>
 
-      {/* ITEM LIST MODAL (Restored) */}
+      {/* MODALS */}
       {viewItemList && (
           <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
               <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
@@ -544,38 +562,8 @@ const HospitalDashboard = () => {
           </div>
       )}
 
-      {/* VIEW PROOF MODAL */}
-      {viewProof && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
-                <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
-                    <h3 className="font-bold flex items-center gap-2"><FileText size={18} /> Proof Document</h3>
-                    <button onClick={() => setViewProof(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button>
-                </div>
-                <div className="p-8 flex flex-col items-center justify-center space-y-4 bg-slate-50">
-                    {viewProof.proofFiles && viewProof.proofFiles.length > 0 ? (
-                        <div className="w-full space-y-4">
-                            {viewProof.proofFiles.map((fileUrl, idx) => (
-                                <div key={idx} className="border-2 border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                                    <img src={fileUrl} alt="Proof" className="w-full h-48 object-contain bg-black/5" />
-                                    <a href={fileUrl} target="_blank" className="block bg-blue-50 text-blue-600 text-center text-xs py-2 hover:bg-blue-100 font-bold border-t border-slate-200">Open Full Size ↗</a>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="w-full h-64 bg-white border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-slate-400">
-                            <FileText size={48} className="mb-2 text-blue-200" />
-                            <p className="text-sm font-bold text-slate-500">No Document Attached</p>
-                        </div>
-                    )}
-                </div>
-                <div className="p-4 bg-white text-right border-t border-slate-200">
-                    <button onClick={() => setViewProof(null)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold text-sm">Close</button>
-                </div>
-            </div>
-        </div>
-      )}
-
+      {viewProof && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-4 rounded shadow-lg w-96"><img src={viewProof.proofFiles[0]} className="w-full"/><button onClick={()=>setViewProof(null)} className="mt-2 w-full bg-gray-200 p-2 rounded">Close</button></div></div>}
+      
       {/* ADD ITEM MODAL */}
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
