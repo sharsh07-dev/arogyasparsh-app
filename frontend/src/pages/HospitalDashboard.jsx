@@ -12,7 +12,7 @@ import {
 import ambulanceSiren from '../assets/ambulance.mp3';
 import logoMain from '../assets/logo_final.png';
 
-// ✅ 1. IMPORT YOUR 19 LOCAL IMAGES
+// IMAGES
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
 import imgDopamine from '../assets/medicines/Dopamine_med.jpg'; 
@@ -33,7 +33,7 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// PHC COORDINATES
+// FALLBACK COORDINATES (Only used if PHC hasn't set custom location)
 const PHC_COORDINATES = {
   "Wagholi PHC": { lat: 18.5808, lng: 73.9787 },
   "PHC Chamorshi": { lat: 19.9280, lng: 79.9050 },
@@ -50,7 +50,7 @@ const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 };
 const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 19.9260, lng: 79.9033 }; 
 
-// ✅ 2. INVENTORY LIST
+// INVENTORY
 const INITIAL_INVENTORY = [
   { id: 6, name: 'Inj. Atropine', stock: 50, batch: 'EM-001', img: imgAtropine },
   { id: 7, name: 'Inj. Adrenaline', stock: 40, batch: 'EM-002', img: imgAdrenaline },
@@ -87,8 +87,13 @@ const HospitalDashboard = () => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
   });
 
-  // 🤖 AI & LOGS
-  const [aiLogs, setAiLogs] = useState([]);
+  // ✅ PERSISTENT AI LOGS
+  const [aiLogs, setAiLogs] = useState(() => {
+    try {
+        return JSON.parse(localStorage.getItem('aiSystemLogs')) || [];
+    } catch { return []; }
+  });
+
   const [processingQueue, setProcessingQueue] = useState([]);
 
   // Simulation State
@@ -104,10 +109,19 @@ const HospitalDashboard = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '' });
 
-  const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: "" });
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: "" 
+  });
+
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
-  // ✅ 1. AI SCORING ALGORITHM (9-Point Logic)
+  // ✅ SAVE LOGS TO STORAGE
+  useEffect(() => {
+    localStorage.setItem('aiSystemLogs', JSON.stringify(aiLogs));
+  }, [aiLogs]);
+
+  // AI SCORING ALGORITHM
   const calculatePriorityScore = (req) => {
     let score = 0.0;
     let dist = 10; 
@@ -124,52 +138,52 @@ const HospitalDashboard = () => {
         else score = 0.90;
     } 
     else if (req.urgency === 'High') {
-        if (isLong) score = 0.79;
-        else if (isMedium) score = 0.75;
-        else score = 0.70;
+        if (isLong) score = 0.85;
+        else if (isMedium) score = 0.80;
+        else score = 0.75;
     } 
     else { 
-        if (isLong) score = 0.49;
-        else if (isMedium) score = 0.45;
-        else score = 0.40;
+        if (isLong) score = 0.60;
+        else if (isMedium) score = 0.55;
+        else score = 0.50;
     }
     return score.toFixed(2); 
   };
 
-  // ✅ 2. INTELLIGENT AUTO-PILOT (With 15s Delay Logic)
+  // AUTO-PILOT LOOP
   useEffect(() => {
     const aiLoop = setInterval(() => {
         requests.forEach(req => {
-            // Only process 'Pending' requests not yet in queue
             if (req.status === 'Pending' && !processingQueue.includes(req._id)) {
-                
                 const score = calculatePriorityScore(req);
                 const logTime = new Date().toLocaleTimeString();
-                
-                // Mark as processed immediately to avoid duplicates
+                let action = "";
+                let logColor = "text-slate-400";
+
                 setProcessingQueue(prev => [...prev, req._id]);
 
-                // 🚀 CRITICAL: IMMEDIATE
-                if (req.urgency === 'Critical' || score >= 0.8) {
-                    const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL EMERGENCY | 🚀 IMMEDIATE LAUNCH`;
-                    setAiLogs(prev => [{ time: logTime, msg: logMsg, color: "text-red-500 font-bold" }, ...prev].slice(0, 5));
+                if (req.urgency === 'Critical') {
+                    action = "🚀 CRITICAL - IMMEDIATE LAUNCH";
+                    logColor = "text-red-500 font-bold";
+                    const logMsg = `ID: ${req._id.slice(-4)} | ${action}`;
+                    setAiLogs(prev => [ { time: logTime, msg: logMsg, color: logColor }, ...prev].slice(0, 50));
                     handleAutoDispatch(req, 0); 
                 } 
-                // ⏳ STANDARD/HIGH: 15s DELAY
                 else {
-                    const logMsg = `ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ HOLDING 15s (Safety Check)`;
-                    setAiLogs(prev => [{ time: logTime, msg: logMsg, color: "text-yellow-400" }, ...prev].slice(0, 5));
+                    action = "⏳ HOLDING 15s (Safety Check)";
+                    logColor = "text-yellow-400";
+                    const logMsg = `ID: ${req._id.slice(-4)} | Score: ${score} | ${action}`;
+                    setAiLogs(prev => [ { time: logTime, msg: logMsg, color: logColor }, ...prev].slice(0, 50));
                     
-                    // The Delay Function
                     setTimeout(() => {
                          setAiLogs(prev => [{ 
                              time: new Date().toLocaleTimeString(), 
                              msg: `ID: ${req._id.slice(-4)} | ✅ SAFETY CHECK PASSED | DISPATCHING`, 
                              color: "text-green-400" 
-                         }, ...prev].slice(0, 5));
+                         }, ...prev].slice(0, 50));
                          
                          handleAutoDispatch(req, 0); 
-                    }, 15000); // 15 Seconds
+                    }, 15000);
                 }
             }
         });
@@ -178,7 +192,6 @@ const HospitalDashboard = () => {
     return () => clearInterval(aiLoop);
   }, [requests]);
 
-  // ✅ 3. AUTO-DISPATCH EXECUTOR
   const handleAutoDispatch = (req, delay = 2000) => {
     if (activeMissions.find(m => m.id === req._id)) return;
 
@@ -192,20 +205,13 @@ const HospitalDashboard = () => {
     }, delay + 2000);
   };
 
-  // Fetch & Sort Logic
   const fetchRequests = async () => {
     try {
       const res = await fetch(API_URL);
       if (!res.ok) return;
       const data = await res.json();
       if (Array.isArray(data)) {
-        // ✅ SORT: Priority First, Then Time
-        const sortedData = data.sort((a, b) => {
-            const scoreA = calculatePriorityScore(a);
-            const scoreB = calculatePriorityScore(b);
-            if (scoreB !== scoreA) return scoreB - scoreA;
-            return new Date(b.createdAt) - new Date(a.createdAt);
-        });
+        const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setRequests(sortedData);
 
         const criticalPending = data.find(r => r.urgency === 'Critical' && r.status === 'Pending');
@@ -253,7 +259,15 @@ const HospitalDashboard = () => {
         setTrackProgress(100);
         setMissionStatusText('Delivered');
         setDroneStats({ speed: 0, battery: 40, altitude: 0 });
+        
         if (!mission.delivered) {
+           // ✅ LOG SUCCESSFUL DELIVERY
+           setAiLogs(prev => [{ 
+               time: new Date().toLocaleTimeString(), 
+               msg: `✅ DELIVERY SUCCESS: Drone-04 landed at ${mission.phc}`, 
+               color: "text-blue-400 font-bold border-l-2 border-blue-500 pl-2" 
+           }, ...prev].slice(0, 50));
+
            updateStatusInDB(mission.id, 'Delivered');
            const updatedMissions = activeMissions.map(m => m.id === mission.id ? { ...m, delivered: true } : m);
            setTimeout(() => { setActiveMissions(prev => prev.filter(m => m.id !== mission.id)); }, 5000);
@@ -267,13 +281,13 @@ const HospitalDashboard = () => {
   const stopAlarm = () => { setIsAlarmPlaying(false); audioRef.current.pause(); audioRef.current.currentTime = 0; };
   const handleLogout = () => { stopAlarm(); localStorage.removeItem('userInfo'); navigate('/login'); };
   
-  // ✅ UPDATED: VIEW LOCATION FUNCTION (Reads from Request)
+  // ✅ UPDATED: EXACT GPS LOCATION
   const showCoordinates = (req) => {
       if (req.coordinates && req.coordinates.lat) {
-          alert(`📍 Drop Location [${req.phc}]:\n\nLatitude: ${req.coordinates.lat}\nLongitude: ${req.coordinates.lng}\n\n✅ AI Path Optimized.`);
+          alert(`📍 GPS Drop Location [${req.phc}]:\n\nLatitude: ${req.coordinates.lat}\nLongitude: ${req.coordinates.lng}\n\n✅ Exact coordinates received from PHC.`);
       } else {
           const coords = PHC_COORDINATES[req.phc] || { lat: 'Unknown', lng: 'Unknown' };
-          alert(`📍 Drop Location [${req.phc}]:\n\nLatitude: ${coords.lat}\nLongitude: ${coords.lng}\n\n⚠️ Using Default Path.`);
+          alert(`📍 Static Location [${req.phc}]:\n\nLatitude: ${coords.lat}\nLongitude: ${coords.lng}\n\n⚠️ Using default PHC map data.`);
       }
   };
 
@@ -322,7 +336,7 @@ const HospitalDashboard = () => {
             {activeTab === 'alerts' && (
                 <div className="grid gap-6 max-w-6xl mx-auto">
                     
-                    {/* AI LOGS */}
+                    {/* ✅ SYSTEM LOGS (Persists on Refresh) */}
                     <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-xs h-36 overflow-y-auto border border-slate-700 shadow-inner relative">
                         <div className="flex items-center gap-2 mb-2 border-b border-slate-700 pb-1 sticky top-0 bg-slate-900 w-full">
                             <Terminal size={14}/> SYSTEM LOGS [AUTO-PILOT ENABLED]:
@@ -339,23 +353,25 @@ const HospitalDashboard = () => {
                         const score = calculatePriorityScore(req);
                         
                         return (
-                        <div key={req._id} className={`bg-white rounded-xl shadow-sm border p-4 flex flex-col md:flex-row justify-between gap-4 ${req.status === 'Rejected' ? 'opacity-50' : ''} ${score >= 0.8 && req.status === 'Pending' ? 'border-green-500 ring-2 ring-green-100' : ''}`}>
+                        <div key={req._id} className={`bg-white rounded-xl shadow-sm border p-4 flex flex-col md:flex-row justify-between gap-4 ${req.status === 'Rejected' ? 'opacity-50' : ''} ${req.status === 'Pending' ? 'border-green-500 ring-2 ring-green-100' : ''}`}>
                             <div className="flex items-start gap-4">
                                 <div className={`p-3 rounded-full ${req.urgency === 'Critical' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-600'}`}><AlertOctagon size={24} /></div>
                                 <div>
                                     <h3 className="font-bold text-slate-800 flex items-center gap-2">
                                         {req.phc}
-                                        <span className={`text-[10px] px-2 py-0.5 rounded border ${score > 0.8 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                                            Priority Score: {score}
+                                        <span className={`text-[10px] px-2 py-0.5 rounded border ${score >= 0.8 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                                            Score: {score}
                                         </span>
                                     </h3>
                                     <p className="text-sm text-slate-600">{req.qty} items <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
-                                    {/* ✅ DATE & TIME */}
+                                    
                                     <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
                                         <Clock size={12}/> 
                                         {new Date(req.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} 
                                         , {new Date(req.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                                     </div>
+                                    
+                                    {/* ✅ View Location (Using real GPS) */}
                                     <button onClick={() => showCoordinates(req)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1"><Globe size={12} /> Loc</button>
                                 </div>
                             </div>
@@ -381,24 +397,30 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* MAP & INVENTORY (Kept same) */}
+            {/* MAP & INVENTORY (Same as before) */}
             {activeTab === 'map' && (
                 <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] flex items-center justify-center text-white relative overflow-hidden">
-                     {/* ... (Map Code) ... */}
                      {activeMissions.length > 0 ? (
                         <div className="w-full h-full relative">
-                            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div>
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center">
-                                {countdown > 0 ? (
-                                    <div className="text-center animate-pulse"><h1 className="text-4xl font-bold text-yellow-400">{countdown}s</h1><p className="text-xs text-slate-400 uppercase">Preparing for Takeoff</p></div>
-                                ) : (
-                                   <Plane size={64} className="text-yellow-400 animate-bounce" />
-                                )}
-                            </div>
-                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-6 py-3 rounded-xl border border-slate-700 text-center">
-                                <h3 className="text-lg font-bold">{countdown > 0 ? 'STANDBY' : 'ENROUTE'}</h3>
-                                <div className="flex gap-4 mt-2 text-xs text-slate-400"><span>SPD: {droneStats.speed} km/h</span><span>ALT: {droneStats.altitude}m</span><span className="text-green-400">BAT: {droneStats.battery}%</span></div>
-                            </div>
+                             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div>
+                             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center">
+                                 {countdown > 0 ? (
+                                     <div className="text-center animate-pulse">
+                                         <h1 className="text-4xl font-bold text-yellow-400">{countdown}s</h1>
+                                         <p className="text-xs text-slate-400 uppercase">Preparing for Takeoff</p>
+                                     </div>
+                                 ) : (
+                                    <Plane size={64} className="text-yellow-400 animate-bounce" />
+                                 )}
+                             </div>
+                             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-6 py-3 rounded-xl border border-slate-700 text-center">
+                                 <h3 className="text-lg font-bold">{countdown > 0 ? 'STANDBY' : 'ENROUTE'}</h3>
+                                 <div className="flex gap-4 mt-2 text-xs text-slate-400">
+                                     <span>SPD: {droneStats.speed} km/h</span>
+                                     <span>ALT: {droneStats.altitude}m</span>
+                                     <span className="text-green-400">BAT: {droneStats.battery}%</span>
+                                 </div>
+                             </div>
                         </div>
                      ) : (
                         <div className="text-center text-slate-500"><MapIcon size={48} className="mx-auto mb-2"/><p>No Active Flights</p></div>
