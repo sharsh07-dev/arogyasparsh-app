@@ -88,7 +88,7 @@ const PHCDashboard = () => {
   const [fraudStatus, setFraudStatus] = useState('idle');
 
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
-
+<AiCopilot contextData={{ orderHistory, cart }} />
   // ✅ REVERSE CHRONOLOGICAL SORTING (Newest First)
   const fetchRequests = async () => {
     setLoading(true);
@@ -432,6 +432,6 @@ const PHCDashboard = () => {
     </div>
   );
 };
-<AiCopilot contextData={{ orderHistory, cart }} />
+
 
 export default PHCDashboard;
