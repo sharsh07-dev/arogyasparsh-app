@@ -5,14 +5,13 @@ import {
   Activity, Users, Package, Navigation, LogOut, 
   MapPin, CheckCircle2, Clock, AlertOctagon, 
   Battery, Signal, Plane, Plus, Minus, Search, 
-  Map as MapIcon, VolumeX, Siren, X, Check, Menu,
+  Map as MapIcon, X, Check, Menu,
   Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2, Globe, Timer, Zap, Brain, Cpu, Terminal
 } from 'lucide-react';
 
-import ambulanceSiren from '../assets/ambulance.mp3';
 import logoMain from '../assets/logo_final.png';
 
-// IMAGES
+// ✅ 1. IMPORT YOUR 19 LOCAL IMAGES
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
 import imgDopamine from '../assets/medicines/Dopamine_med.jpg'; 
@@ -33,7 +32,7 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// FALLBACK COORDINATES (Used ONLY if PHC user didn't set a location)
+// FALLBACK COORDINATES (Used only if PHC hasn't set custom location)
 const PHC_COORDINATES = {
   "Wagholi PHC": { lat: 18.5808, lng: 73.9787 },
   "PHC Chamorshi": { lat: 19.9280, lng: 79.9050 },
@@ -50,7 +49,7 @@ const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 };
 const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 19.9260, lng: 79.9033 }; 
 
-// INVENTORY
+// ✅ 2. INVENTORY LIST
 const INITIAL_INVENTORY = [
   { id: 6, name: 'Inj. Atropine', stock: 50, batch: 'EM-001', img: imgAtropine },
   { id: 7, name: 'Inj. Adrenaline', stock: 40, batch: 'EM-002', img: imgAdrenaline },
@@ -87,7 +86,7 @@ const HospitalDashboard = () => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
   });
 
-  // Persistent AI Logs
+  // ✅ PERSISTENT LOGS (No Disappear on Refresh)
   const [aiLogs, setAiLogs] = useState(() => {
     try { return JSON.parse(localStorage.getItem('aiSystemLogs')) || []; } catch { return []; }
   });
@@ -98,7 +97,7 @@ const HospitalDashboard = () => {
 
   const addLog = (msg, color) => {
     setAiLogs(prev => {
-        if (prev.length > 0 && prev[0].msg === msg) return prev; 
+        if (prev.length > 0 && prev[0].msg === msg) return prev; // Prevent Duplicate Logs
         return [{ time: new Date().toLocaleTimeString(), msg, color }, ...prev].slice(0, 50);
     });
   };
@@ -147,7 +146,7 @@ const HospitalDashboard = () => {
     return score.toFixed(2); 
   };
 
-  // AUTO-PILOT LOOP
+  // ✅ 2. AUTO-PILOT LOOP (Strict Timing + Safety Buffer)
   useEffect(() => {
     const aiLoop = setInterval(() => {
         requests.forEach(req => {
@@ -159,39 +158,52 @@ const HospitalDashboard = () => {
                 setProcessingQueue(prev => [...prev, req._id]);
 
                 if (req.urgency === 'Critical') {
-                    addLog(`ID: ${req._id.slice(-4)} | CRITICAL - IMMEDIATE LAUNCH`, "text-red-500 font-bold");
-                    startApprovalProcess(req); 
+                    // 🚀 CRITICAL: 4s Approval -> 15s Dispatch
+                    const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL - INITIATING SEQUENCE`;
+                    addLog(logMsg, "text-red-500 font-bold");
+                    
+                    setTimeout(() => {
+                        updateStatusInDB(req._id, 'Approved');
+                        addLog(`ID: ${req._id.slice(-4)} | ✅ APPROVED BY SYSTEM`, "text-green-400");
+
+                        setTimeout(() => {
+                             handleAutoDispatch(req); 
+                        }, 15000); // 15s Dispatch
+                    }, 4000); // 4s Approve
                 } 
                 else {
+                    // ⏳ STANDARD: 15s Buffer -> 4s Approval -> 12s Dispatch
                     addLog(`ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ QUEUED (15s Buffer)`, "text-yellow-400");
+                    
                     setTimeout(() => {
                          addLog(`ID: ${req._id.slice(-4)} | ✅ SAFETY CHECK PASSED`, "text-green-400");
-                         startApprovalProcess(req); 
-                    }, 15000);
+                         
+                         setTimeout(() => {
+                              updateStatusInDB(req._id, 'Approved');
+                              addLog(`ID: ${req._id.slice(-4)} | 📝 Request Approved`, "text-green-300");
+                              
+                              setTimeout(() => {
+                                  handleAutoDispatch(req);
+                              }, 12000); // 12s Dispatch
+                         }, 4000); 
+
+                    }, 15000); // 15s Wait
                 }
             }
         });
     }, 3000); 
+
     return () => clearInterval(aiLoop);
   }, [requests, processingQueue]);
 
-  // APPROVAL & DISPATCH SEQUENCE
-  const startApprovalProcess = (req) => {
-      setTimeout(() => {
-          updateStatusInDB(req._id, 'Approved');
-          addLog(`ID: ${req._id.slice(-4)} | 📝 Request Approved by System`, "text-green-300");
-          setTimeout(() => { handleAutoDispatch(req); }, 12000);
-      }, 4000);
-  };
-
-  // ✅ UNIFIED DISPATCH LOGIC (Auto & Manual use this)
+  // ✅ 3. DISPATCH HANDLER (Grabs Exact Coordinates)
   const handleAutoDispatch = (req) => {
     if (activeMissions.find(m => m.id === req._id)) return;
 
     updateStatusInDB(req._id, 'Dispatched');
     addLog(`🚁 Drone Dispatched by Pilot Manohar Singh`, "text-blue-400 font-bold");
 
-    // ✅ GET EXACT DESTINATION
+    // Use Exact GPS from Request
     const destination = (req.coordinates && req.coordinates.lat) 
         ? req.coordinates 
         : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
@@ -199,14 +211,13 @@ const HospitalDashboard = () => {
     const newMission = { 
         id: req._id, 
         phc: req.phc, 
-        destination: destination, // ✅ SAVED TO MISSION
+        destination: destination, 
         startTime: Date.now(), 
         delivered: false 
     };
 
     setActiveMissions(prev => [...prev, newMission]);
-    
-    // NO AUTO REDIRECT TO MAP (User must click manually)
+    // NO REDIRECT TO MAP - User must click "Live Tracking" manually.
 
     setTimeout(() => {
         addLog(`📦 Package Out for Delivery - Enroute to ${req.phc}`, "text-white");
@@ -219,6 +230,7 @@ const HospitalDashboard = () => {
       if (!res.ok) return;
       const data = await res.json();
       if (Array.isArray(data)) {
+        // ✅ SORT: Newest First
         const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setRequests(sortedData);
       }
@@ -233,7 +245,7 @@ const HospitalDashboard = () => {
     return () => clearInterval(interval);
   }, []); 
 
-  // SIMULATION LOOP
+  // ✅ 4. SIMULATION LOOP (10 Minute Flight)
   useEffect(() => {
     localStorage.setItem('activeMissions', JSON.stringify(activeMissions));
     if (activeTab !== 'map' || activeMissions.length === 0) return;
@@ -244,7 +256,8 @@ const HospitalDashboard = () => {
       if(!mission) return;
       const now = Date.now();
       const elapsed = now - mission.startTime; 
-      const FLIGHT_DURATION = 600000; 
+      
+      const FLIGHT_DURATION = 600000; // 10 Minutes
 
       if (elapsed < 10000) {
         const timeLeft = Math.ceil((10000 - elapsed) / 1000);
@@ -264,7 +277,11 @@ const HospitalDashboard = () => {
         if (percent < 5) { currentSpeed = percent * 12; currentAlt = percent * 24; } 
         else if (percent > 95) { currentSpeed = 60 - (percent-95)*12; currentAlt = 120 - (percent-95)*24; } 
 
-        setDroneStats({ speed: Math.floor(currentSpeed), battery: Math.max(0, 100 - Math.floor(percent / 1.5)), altitude: Math.floor(currentAlt) });
+        setDroneStats({
+            speed: Math.floor(currentSpeed),
+            battery: Math.max(0, 100 - Math.floor(percent / 1.5)),
+            altitude: Math.floor(currentAlt)
+        });
       }
       else {
         setTrackProgress(100);
@@ -284,7 +301,7 @@ const HospitalDashboard = () => {
 
   const handleLogout = () => { localStorage.removeItem('userInfo'); navigate('/login'); };
   
-  // ✅ VIEW LOCATION (Use exact coords from request)
+  // ✅ SHOW LOCATION (Reads req.coordinates first)
   const showCoordinates = (req) => {
       if (req.coordinates && req.coordinates.lat) {
           alert(`📍 GPS Drop Location [${req.phc}]:\n\nLatitude: ${req.coordinates.lat}\nLongitude: ${req.coordinates.lng}\n\n✅ Received from PHC App.`);
@@ -295,28 +312,11 @@ const HospitalDashboard = () => {
   };
 
   const updateStatusInDB = async (id, newStatus) => { try { await fetch(`${API_URL}/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }), }); fetchRequests(); } catch (err) {} };
-  
-  // Manual Button Handlers
   const handleApprove = (id, urgency) => { updateStatusInDB(id, 'Approved'); };
-  
-  // ✅ MANUAL DISPATCH NOW USES SAME LOGIC AS AUTO (Gets Coordinates)
-  const handleDispatch = (req) => { 
-      if(!confirm("Confirm Manual Dispatch?")) return; 
-      handleAutoDispatch(req, 0); // Call main dispatch function with 0 delay
-  };
-  
+  const handleDispatch = (req) => { if(!confirm("Confirm Manual Dispatch?")) return; handleAutoDispatch(req, 0); };
   const handleReject = (id, urgency) => { if(!confirm("Reject this request?")) return; updateStatusInDB(id, 'Rejected'); };
   const updateStock = (id, change) => { setInventory(inventory.map(item => item.id === id ? { ...item, stock: Math.max(0, item.stock + change) } : item)); };
   const addNewItem = () => { if(!newItem.name) return alert("Fill details"); setInventory([...inventory, { id: Date.now(), ...newItem, stock: parseInt(newItem.stock), img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" }]); setShowAddModal(false); };
-
-  // ✅ GET MAP DESTINATION (Dynamic from Mission)
-  const getMissionDestination = () => {
-      if (activeMissions.length > 0 && activeMissions[0].destination) {
-          return activeMissions[0].destination;
-      }
-      return { lat: 19.9000, lng: 79.8500 }; 
-  };
-  const dest = getMissionDestination();
 
   return (
     <div className={`min-h-screen bg-slate-50 flex font-sans text-slate-800 relative`}>
@@ -346,9 +346,11 @@ const HospitalDashboard = () => {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 relative">
             
+            {/* AI COMMAND CENTER */}
             {activeTab === 'alerts' && (
                 <div className="grid gap-6 max-w-6xl mx-auto">
                     
+                    {/* SYSTEM LOGS */}
                     <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-xs h-36 overflow-y-auto border border-slate-700 shadow-inner relative">
                         <div className="flex items-center gap-2 mb-2 border-b border-slate-700 pb-1 sticky top-0 bg-slate-900 w-full">
                             <Terminal size={14}/> SYSTEM LOGS [AUTO-PILOT ENABLED]:
@@ -381,6 +383,7 @@ const HospitalDashboard = () => {
                                         {new Date(req.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} 
                                         , {new Date(req.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                                     </div>
+                                    {/* ✅ View Location */}
                                     <button onClick={() => showCoordinates(req)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1"><Globe size={12} /> Loc</button>
                                 </div>
                             </div>
@@ -401,7 +404,6 @@ const HospitalDashboard = () => {
                                 {req.status === 'Dispatched' && <span className="text-green-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> In-Flight</span>}
                                 {req.status === 'Delivered' && <span className="text-blue-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> Delivered</span>}
                                 
-                                {/* Manual Override Buttons */}
                                 {req.status === 'Pending' && score < 0.8 && (
                                     <>
                                         <button onClick={() => handleReject(req._id, req.urgency)} className="px-3 py-2 border text-red-600 text-sm rounded-lg">Reject</button>
@@ -409,7 +411,6 @@ const HospitalDashboard = () => {
                                     </>
                                 )}
                                 {req.status === 'Approved' && (
-                                    // ✅ FIXED: Manual Dispatch now calls main function
                                     <button onClick={() => handleDispatch(req)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm animate-pulse">Dispatch</button>
                                 )}
                             </div>
@@ -418,12 +419,13 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
+            {/* MAP & INVENTORY (Kept Same) */}
             {activeTab === 'map' && (
                 <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] flex items-center justify-center text-white relative overflow-hidden">
                      {activeMissions.length > 0 ? (
                         <div className="w-full h-full relative">
-                            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div>
-                            <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div>
+                             <svg className="absolute inset-0 w-full h-full pointer-events-none">
                                 <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#475569" strokeWidth="4" strokeDasharray="8" />
                                 <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#3b82f6" strokeWidth="4" strokeDasharray="1000" strokeDashoffset={1000 - (trackProgress * 10)} className="transition-all duration-300 ease-linear" />
                             </svg>
@@ -433,7 +435,6 @@ const HospitalDashboard = () => {
                                 <span className="text-white text-xs font-bold mt-3 bg-slate-800 px-2 py-1 rounded border border-slate-700">District Hospital</span>
                             </div>
 
-                            {/* ✅ DYNAMIC DESTINATION */}
                             <div className="absolute top-1/2 right-[10%] -translate-y-1/2 flex flex-col items-center z-10">
                                 <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/50 animate-pulse border-4 border-slate-900"><MapPin size={24} className="text-white" /></div>
                                 <span className="text-white text-xs font-bold mt-3 bg-blue-900 px-2 py-1 rounded border border-blue-700">Destination</span>
