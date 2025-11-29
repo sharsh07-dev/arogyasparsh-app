@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
+import AiCopilot from '../components/AiCopilot.jsx';
 
 // ✅ 1. IMPORT ALL 19 REAL MEDICINE IMAGES
 import imgAtropine from '../assets/medicines/Atropine.jpg';
@@ -431,5 +432,6 @@ const PHCDashboard = () => {
     </div>
   );
 };
+<AiCopilot contextData={{ orderHistory, cart }} />
 
 export default PHCDashboard;
