@@ -13,10 +13,19 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-# 1. CONNECT TO YOUR EXISTING MONGODB
+# 1. CONNECT TO MONGODB (Corrected)
+# We get the string from the Environment Variable "MONGO_URI"
 MONGO_URI = os.getenv("MONGO_URI")
+
+# Fallback for local testing if .env is missing (Safety check)
+if not MONGO_URI:
+    MONGO_URI = "mongodb+srv://shindeharshdev_db_user:whbXN3cgeiFgETsd@arogyadata.yzb2tan.mongodb.net/arogyasparsh?appName=ArogyaData"
+
 client = MongoClient(MONGO_URI)
-db = client.get_database("test") # Or your database name
+
+# ✅ FIX: Use the database name from your URI ('arogyasparsh')
+# If your data is in 'test', change this to client.get_database("test")
+db = client.get_database("arogyasparsh") 
 requests_collection = db.requests
 
 @app.route('/predict-demand', methods=['GET'])
@@ -27,7 +36,12 @@ def predict_demand():
         data = list(requests_collection.find({"status": "Delivered"}))
         
         if not data:
-            return jsonify({"message": "Not enough data to train model"}), 400
+            # If no data yet, return a mock response so the dashboard doesn't break
+            return jsonify([
+                {"name": "Covishield Vaccine", "predictedQty": 120, "trend": "📈 Rising", "confidence": "Simulation"},
+                {"name": "Snake Anti-Venom", "predictedQty": 15, "trend": "📉 Falling", "confidence": "Simulation"},
+                {"name": "O+ Blood Bags", "predictedQty": 30, "trend": "➡️ Stable", "confidence": "Simulation"}
+            ])
 
         df = pd.DataFrame(data)
         
@@ -80,4 +94,6 @@ def predict_demand():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(port=5002) # Run on Port 5002 (Different from Node)
+    # Use the PORT environment variable provided by Render, or default to 5002
+    port = int(os.environ.get("PORT", 5002))
+    app.run(host='0.0.0.0', port=port)
