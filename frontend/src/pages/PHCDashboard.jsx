@@ -4,11 +4,12 @@ import {
   Send, LogOut, AlertTriangle, CheckCircle2, 
   MapPin, History, Package, Navigation, 
   XCircle, FileText, Upload, User, Clock, Trash2,
-  Menu, X, RotateCcw, Eye, ShoppingCart, Search, Plus, Minus, ArrowLeft, Plane, Building2, Check, ShieldCheck, Loader2
+  Menu, X, RotateCcw, Eye, ShoppingCart, Search, Plus, Minus, ArrowLeft, Plane, Building2, Check, ShieldCheck, Loader2, ShieldAlert
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
-import AiCopilot from '../components/AiCopilot.jsx';
+// ✅ IMPORT AI COPILOT
+import AiCopilot from '../components/AiCopilot';
 
 // ✅ 1. IMPORT ALL 19 REAL MEDICINE IMAGES
 import imgAtropine from '../assets/medicines/Atropine.jpg';
@@ -31,7 +32,7 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// ✅ 2. MEDICINE DATABASE
+// ✅ 2. UPDATED MEDICINE DATABASE
 const MEDICINE_DB = [
   { id: 6, name: 'Inj. Atropine', type: 'Ampoule', img: imgAtropine },
   { id: 7, name: 'Inj. Adrenaline', type: 'Ampoule', img: imgAdrenaline },
@@ -56,15 +57,7 @@ const MEDICINE_DB = [
 
 const PHCDashboard = () => {
   const navigate = useNavigate();
-  
-  const getUserFromStorage = () => {
-    try {
-      return JSON.parse(localStorage.getItem('userInfo')) || { name: 'Wagholi PHC' };
-    } catch (e) {
-      return { name: 'Wagholi PHC' };
-    }
-  };
-  const user = getUserFromStorage();
+  const user = JSON.parse(localStorage.getItem('userInfo')) || { name: 'Wagholi PHC' };
   
   const [activeTab, setActiveTab] = useState('shop'); 
   const [showTracker, setShowTracker] = useState(false);
@@ -83,13 +76,12 @@ const PHCDashboard = () => {
   const [proofFiles, setProofFiles] = useState([]);
   const [urgency, setUrgency] = useState('Standard');
   
-  // AI Fraud Detection State
+  // 🤖 AI FRAUD DETECTION STATE
   const [verifying, setVerifying] = useState(false);
-  const [fraudStatus, setFraudStatus] = useState('idle');
+  const [fraudStatus, setFraudStatus] = useState('idle'); // 'idle', 'scanning', 'safe', 'fraud'
 
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
-<AiCopilot contextData={{ orderHistory, cart }} />
-  // ✅ REVERSE CHRONOLOGICAL SORTING (Newest First)
+
   const fetchRequests = async () => {
     setLoading(true);
     try {
@@ -97,11 +89,10 @@ const PHCDashboard = () => {
       if (!res.ok) { setLoading(false); return; }
       const data = await res.json();
       if (Array.isArray(data)) {
+        // Filter for this PHC and Sort Newest First
         const myRequests = data
             .filter(r => r.phc === user.name)
-            // Sort by creation date (Newest at index 0)
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-            
         setOrderHistory(myRequests);
       }
     } catch (err) { console.error("Network Error"); }
@@ -141,6 +132,7 @@ const PHCDashboard = () => {
     }));
   };
 
+  // ✅ SMART DOCUMENT SCANNER
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     if (proofFiles.length + files.length > 3) return alert("Max 3 files allowed");
@@ -148,19 +140,24 @@ const PHCDashboard = () => {
     setVerifying(true);
     setFraudStatus('scanning');
 
+    // 🕵️‍♂️ Simulate AI Analysis (2 Seconds)
     setTimeout(() => {
         let isSafe = true;
+        // Check 1: File Size (Fake empty files)
         const invalidSize = files.some(f => f.size < 100); 
+        // Check 2: File Type
         const invalidType = files.some(f => !['image/jpeg', 'image/png', 'application/pdf'].includes(f.type));
 
-        if (invalidSize || invalidType) isSafe = false;
+        if (invalidSize || invalidType) {
+            isSafe = false;
+        }
 
         if (isSafe) {
             setProofFiles([...proofFiles, ...files]);
             setFraudStatus('safe');
         } else {
             setFraudStatus('fraud');
-            alert("⚠️ FRAUD ALERT: Invalid file detected.");
+            alert("⚠️ FRAUD ALERT: System detected invalid or corrupt document. Please upload a valid medical report.");
         }
         setVerifying(false);
     }, 2000);
@@ -172,10 +169,10 @@ const PHCDashboard = () => {
     if (newFiles.length === 0) setFraudStatus('idle');
   };
 
-  // ✅ SUBMIT WITH EXACT LOCATION & TIME
   const handleSubmitOrder = async () => {
     if (proofFiles.length === 0) return alert("❌ UPLOAD REQUIRED: Please attach proof.");
-    if (fraudStatus !== 'safe') return alert("❌ Please verify documents first.");
+    if (fraudStatus === 'fraud') return alert("❌ BLOCKED: Cannot submit with flagged documents.");
+    if (fraudStatus === 'scanning') return alert("⏳ Please wait for security scan to complete.");
 
     setLoading(true);
 
@@ -189,7 +186,7 @@ const PHCDashboard = () => {
     formDataToSend.append("urgency", urgency);
     formDataToSend.append("description", "Multi-item order via App");
     
-    // ✅ Attach Exact Landing Coordinates from User Profile
+    // ✅ Send GPS Coordinates
     if (user.landingCoordinates) {
         formDataToSend.append("coordinates", JSON.stringify(user.landingCoordinates));
     }
@@ -206,11 +203,11 @@ const PHCDashboard = () => {
 
         if (res.ok) {
             alert("✅ Order Verified & Placed Successfully!");
-            fetchRequests(); // Will now fetch sorted list
+            fetchRequests(); 
             setCart([]);
             setProofFiles([]);
             setFraudStatus('idle');
-            setActiveTab('history'); // Go to history to see new item at top
+            setActiveTab('history');
         } else {
             alert("Server busy. Try again.");
         }
@@ -242,6 +239,9 @@ const PHCDashboard = () => {
       
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
 
+      {/* ✅ AI COPILOT (Pass 'requests' mapped to 'orderHistory') */}
+      <AiCopilot contextData={{ requests: orderHistory, cart }} />
+
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
         <div className="p-6 border-b border-slate-800 flex justify-between items-center">
           <div className="mb-4"><img src={logoMain} className="h-10 w-auto bg-white rounded p-1" /></div>
@@ -272,7 +272,7 @@ const PHCDashboard = () => {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50">
           
-          {/* SHOP VIEW */}
+          {/* 1️⃣ SHOP VIEW */}
           {!showTracker && activeTab === 'shop' && (
              <div className="max-w-6xl mx-auto">
                 <div className="relative mb-8">
@@ -285,11 +285,18 @@ const PHCDashboard = () => {
                     {filteredMedicines.map((med) => (
                         <div key={med.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col">
                             <div className="h-48 w-full bg-white flex items-center justify-center overflow-hidden p-4 border-b border-slate-50">
-                                <img src={med.img} alt={med.name} className="w-full h-full object-contain hover:scale-110 transition-transform duration-300" />
+                                <img 
+                                    src={med.img} 
+                                    alt={med.name} 
+                                    className="w-full h-full object-contain hover:scale-110 transition-transform duration-300" 
+                                />
                             </div>
-                            <div className="p-4 flex-1 flex flex-col border-t border-slate-50">
+                            <div className="p-4 flex-1 flex flex-col">
                                 <div className="flex-1"><h3 className="font-bold text-slate-800 leading-tight mb-1">{med.name}</h3><span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{med.type}</span></div>
-                                <button onClick={() => addToCart(med)} className={`mt-4 w-full py-2 rounded-lg font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all transform active:scale-95 ${addedFeedback[med.id] ? 'bg-green-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
+                                <button 
+                                    onClick={() => addToCart(med)}
+                                    className={`mt-4 w-full py-2 rounded-lg font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all transform active:scale-95 ${addedFeedback[med.id] ? 'bg-green-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+                                >
                                     {addedFeedback[med.id] ? <><Check size={16} /> Added!</> : <><Plus size={16} /> Add to Cart</>}
                                 </button>
                             </div>
@@ -299,7 +306,7 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* CART VIEW */}
+          {/* 2️⃣ CART VIEW */}
           {!showTracker && activeTab === 'cart' && (
              <div className="max-w-4xl mx-auto">
                 <button onClick={() => setActiveTab('shop')} className="flex items-center gap-2 text-slate-500 hover:text-blue-600 mb-4 font-medium"><ArrowLeft size={18}/> Back to Store</button>
@@ -319,29 +326,64 @@ const PHCDashboard = () => {
                         )}
                     </div>
                     <div className="md:col-span-1">
-                        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-lg sticky top-4 flex flex-col gap-6">
-                            <div className="flex items-center gap-2 border-b pb-4"><ShieldCheck className={fraudStatus === 'safe' ? "text-green-600" : "text-slate-400"} size={24} /><h3 className="font-bold text-lg text-slate-800">Order Verification</h3></div>
-                            <div className="space-y-2"><label className="block text-sm font-bold text-slate-700">Urgency Level</label><select className="w-full p-3 border rounded-xl bg-slate-50 text-sm" value={urgency} onChange={(e) => setUrgency(e.target.value)}><option>Standard</option><option>High</option><option>Critical</option></select></div>
-                            <div className="mb-2">
-                                <label className="block text-xs font-bold text-slate-700 mb-2">Official Proof <span className="text-red-500">*</span></label>
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-lg sticky top-4">
+                            <div className="flex items-center gap-2 mb-4 border-b pb-4">
+                                <ShieldCheck className={fraudStatus === 'safe' ? "text-green-600" : "text-slate-400"} size={24} />
+                                <h3 className="font-bold text-lg text-slate-800">Order Verification</h3>
+                            </div>
+
+                            <div className="space-y-3 mb-6">
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Urgency Level</label>
+                                <select className="w-full p-2 border rounded-lg bg-slate-50 text-sm" value={urgency} onChange={(e) => setUrgency(e.target.value)}><option>Standard</option><option>High</option><option>Critical</option></select>
+                            </div>
+
+                            {/* 📂 AI DOCUMENT SCANNER */}
+                            <div className="mb-6">
+                                <label className="block text-xs font-bold text-slate-700 mb-2">
+                                    Official Proof (Required) <span className="text-red-500">*</span>
+                                </label>
+                                
                                 {fraudStatus === 'scanning' ? (
-                                    <div className="w-full border-2 border-blue-200 bg-blue-50 rounded-xl p-6 flex flex-col items-center justify-center text-blue-600 animate-pulse"><Loader2 size={24} className="animate-spin mb-2" /><span className="text-xs font-bold">Scanning...</span></div>
+                                    <div className="w-full border-2 border-blue-200 bg-blue-50 rounded-xl p-6 flex flex-col items-center justify-center text-blue-600 animate-pulse">
+                                        <Loader2 size={24} className="animate-spin mb-2" />
+                                        <span className="text-xs font-bold">AI Scanning Document...</span>
+                                    </div>
                                 ) : (
                                     <label className={`cursor-pointer w-full border-2 border-dashed rounded-lg p-3 flex flex-col items-center justify-center transition-colors ${fraudStatus === 'safe' ? 'border-green-400 bg-green-50' : 'border-blue-200 hover:bg-blue-50'}`}>
                                         {fraudStatus === 'safe' ? <CheckCircle2 size={20} className="text-green-600 mb-1"/> : <Upload size={16} className="text-blue-500"/>}
-                                        <span className={`text-[10px] mt-1 font-bold ${fraudStatus === 'safe' ? 'text-green-700' : 'text-blue-600'}`}>{fraudStatus === 'safe' ? "Verified & Attached" : "Upload for AI Scan"}</span>
+                                        <span className={`text-[10px] mt-1 font-bold ${fraudStatus === 'safe' ? 'text-green-700' : 'text-blue-600'}`}>
+                                            {fraudStatus === 'safe' ? "Verified & Attached" : "Upload for AI Scan"}
+                                        </span>
                                         <input type="file" multiple className="hidden" onChange={handleFileChange}/>
                                     </label>
                                 )}
+
                                 {proofFiles.length > 0 && fraudStatus === 'safe' && (
                                     <div className="mt-3 space-y-2">
                                         {proofFiles.map((f, i) => (
-                                            <div key={i} className="flex items-center justify-between bg-green-50 p-2 rounded-lg text-xs text-green-700 border border-green-100"><span className="truncate w-28 font-medium">{f.name}</span><button onClick={() => removeFile(i)} className="text-red-500 hover:text-red-700"><Trash2 size={14}/></button></div>
+                                            <div key={i} className="flex items-center justify-between bg-green-100 p-2 rounded-lg text-xs text-green-800 border border-green-200">
+                                                <div className="flex items-center gap-2 overflow-hidden">
+                                                    <ShieldCheck size={12} className="text-green-600 shrink-0"/>
+                                                    <span className="truncate w-24 font-medium">{f.name}</span>
+                                                </div>
+                                                <button onClick={() => removeFile(i)} className="text-red-500 hover:text-red-700"><Trash2 size={14}/></button>
+                                            </div>
                                         ))}
                                     </div>
                                 )}
                             </div>
-                            <button onClick={handleSubmitOrder} disabled={cart.length === 0 || loading || fraudStatus !== 'safe'} className={`w-full py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all ${cart.length > 0 && fraudStatus === 'safe' ? 'bg-green-600 text-white hover:bg-green-700 hover:scale-[1.02]' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>{loading ? 'Processing...' : <><Send size={18} /> Request Drone</>}</button>
+
+                            <button 
+                                onClick={handleSubmitOrder} 
+                                disabled={cart.length === 0 || loading || fraudStatus !== 'safe'} 
+                                className={`w-full py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all ${
+                                    cart.length > 0 && fraudStatus === 'safe' 
+                                    ? 'bg-green-600 text-white hover:bg-green-700 hover:scale-[1.02]' 
+                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                }`}
+                            >
+                                {loading ? 'Processing...' : <><Send size={18} /> Request Drone</>}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -356,14 +398,10 @@ const PHCDashboard = () => {
                     <button onClick={fetchRequests} className="flex items-center gap-2 text-sm text-blue-600 hover:bg-blue-50 px-3 py-1 rounded-lg transition-colors"><RotateCcw size={16} /> Refresh</button>
                 </div>
                 <table className="w-full text-left min-w-[600px]">
-                    <thead className="bg-slate-50 border-b"><tr><th className="p-4">Date & Time</th><th className="p-4">Order ID</th><th className="p-4">Item</th><th className="p-4">Status</th><th className="p-4">Action</th></tr></thead>
+                    <thead className="bg-slate-50 border-b"><tr><th className="p-4">Order ID</th><th className="p-4">Item</th><th className="p-4">Status</th><th className="p-4">Action</th></tr></thead>
                     <tbody>
                         {orderHistory.map((order) => (
                             <tr key={order._id || order.id} className="hover:bg-slate-50 transition-colors">
-                                {/* ✅ DATE COLUMN */}
-                                <td className="p-4 text-sm text-slate-500">
-                                    {new Date(order.createdAt).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                </td>
                                 <td className="p-4 font-mono text-sm">{(order._id || order.id).slice(-6).toUpperCase()}</td>
                                 <td className="p-4 font-bold">{order.item}</td>
                                 <td className="p-4"><span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-bold">{order.status}</span></td>
@@ -388,7 +426,6 @@ const PHCDashboard = () => {
                     <div className="absolute top-[160px] left-[700px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-orange-500" size={32} fill="#f97316"/><span className="font-bold text-slate-700 text-xs mt-1">Wagholi PHC</span></div>
                     <div className="absolute top-0 left-0 transition-all duration-100 ease-linear z-20" style={{ left: `${100 + (trackProgress / 100) * 600}px`, top: `${160 - Math.sin((trackProgress / 100) * Math.PI) * 110}px`, transform: `translate(-50%, -50%) rotate(${90 + (trackProgress < 50 ? -20 : 20)}deg)` }}><Plane size={48} className="text-yellow-500 drop-shadow-xl" fill="gold" /></div>
                 </div>
-                {/* Flight Board */}
                 <div className="grid grid-cols-1 md:grid-cols-2 rounded-3xl overflow-hidden shadow-2xl font-mono">
                     <div className="bg-slate-900 text-white border-r border-slate-700">
                         <div className="bg-blue-600 py-3 text-center"><h2 className="text-2xl font-bold uppercase tracking-widest">Departure</h2></div>
@@ -432,6 +469,5 @@ const PHCDashboard = () => {
     </div>
   );
 };
-
 
 export default PHCDashboard;
