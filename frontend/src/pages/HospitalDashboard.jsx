@@ -10,13 +10,11 @@ import {
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
-// ✅ IMPORT AI COPILOT
-import AiCopilot from '../components/AiCopilot';
 
 // IMAGES
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
-import imgDopamine from '../assets/medicines/Dopamine_med.jpg'; 
+import imgDopamine from '../assets/medicines/Dopamine.png'; 
 import imgAvil from '../assets/medicines/Avil.webp';
 import imgAdrenaline from '../assets/medicines/Adranaline.webp';
 import imgDexa from '../assets/medicines/Dexa.jpg';
@@ -34,9 +32,8 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// FALLBACK COORDINATES
+// ✅ 1. CORRECTED PHC COORDINATES (8 PHCs ONLY)
 const PHC_COORDINATES = {
-  "Wagholi PHC": { lat: 18.5808, lng: 73.9787 },
   "PHC Chamorshi": { lat: 19.9280, lng: 79.9050 },
   "PHC Gadhchiroli": { lat: 20.1849, lng: 79.9948 },
   "PHC Panera": { lat: 19.9500, lng: 79.8500 },
@@ -48,6 +45,8 @@ const PHC_COORDINATES = {
 };
 
 const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; 
+const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
+const center = { lat: 19.9260, lng: 79.9033 }; 
 
 // INVENTORY
 const INITIAL_INVENTORY = [
@@ -81,7 +80,8 @@ const HospitalDashboard = () => {
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [viewProof, setViewProof] = useState(null);
-  const [viewItemList, setViewItemList] = useState(null);
+  const [viewItemList, setViewItemList] = useState(null); // ✅ Feature: Packing List
+  
   const [predictions, setPredictions] = useState([]); 
   const [filteredPredictions, setFilteredPredictions] = useState([]); 
   const [selectedPhc, setSelectedPhc] = useState("All"); 
@@ -112,14 +112,13 @@ const HospitalDashboard = () => {
   const [missionStatusText, setMissionStatusText] = useState('Standby');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [droneStats, setDroneStats] = useState({ speed: 0, battery: 100, altitude: 0 });
-
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '' });
 
   const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: "" });
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
-  // FETCH AI PREDICTIONS
+  // ✅ FETCH AI PREDICTIONS (Corrected Mock Data - No Wagholi)
   const fetchPredictions = async () => {
     try {
         const res = await fetch("https://arogyasparsh-backend.onrender.com/api/analytics/predict"); 
@@ -130,6 +129,7 @@ const HospitalDashboard = () => {
         } else { throw new Error("No Data"); }
     } catch (err) {
         console.log("AI Service Offline (Using Mock Data)");
+        // Corrected Mock Data
         const mockData = [
             { phc: "PHC Chamorshi", name: "Inj. Atropine", predictedQty: 42, trend: "📈 Rising" },
             { phc: "PHC Belgaon", name: "IV Paracetamol", predictedQty: 15, trend: "📉 Stable" },
@@ -142,7 +142,7 @@ const HospitalDashboard = () => {
   };
   useEffect(() => { fetchPredictions(); }, []);
 
-  // FILTER LOGIC
+  // ✅ FILTER LOGIC (Correct 8 PHCs)
   useEffect(() => {
       if (selectedPhc === "All") {
           setFilteredPredictions(predictions.slice(0, 3));
@@ -152,7 +152,6 @@ const HospitalDashboard = () => {
       }
   }, [selectedPhc, predictions]);
 
-  // AI SCORING
   const calculatePriorityScore = (req) => {
     let score = 0.0;
     let dist = 10; 
@@ -185,7 +184,8 @@ const HospitalDashboard = () => {
                     const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL - IMMEDIATE LAUNCH`;
                     addLog(logMsg, "text-red-500 font-bold");
                     startApprovalProcess(req); 
-                } else {
+                } 
+                else {
                     addLog(`ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ QUEUED (15s Buffer)`, "text-yellow-400");
                     setTimeout(() => {
                          addLog(`ID: ${req._id.slice(-4)} | ✅ SAFETY CHECK PASSED`, "text-green-400");
@@ -217,11 +217,8 @@ const HospitalDashboard = () => {
         : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
 
     const newMission = { 
-        id: req._id, 
-        phc: req.phc, 
-        destination: destination, 
-        startTime: Date.now(), 
-        delivered: false 
+        id: req._id, phc: req.phc, destination: destination, 
+        startTime: Date.now(), delivered: false 
     };
 
     setActiveMissions(prev => [...prev, newMission]);
@@ -259,7 +256,6 @@ const HospitalDashboard = () => {
       if(!mission) return;
       const now = Date.now();
       const elapsed = now - mission.startTime; 
-      
       const FLIGHT_DURATION = 600000; 
 
       if (elapsed < 10000) {
@@ -267,8 +263,7 @@ const HospitalDashboard = () => {
         setTrackProgress(0);
         setMissionStatusText(`Pre-Flight Checks`);
         setDroneStats({ speed: 0, battery: 100, altitude: 0 });
-      } 
-      else if (elapsed < (FLIGHT_DURATION + 10000)) {
+      } else if (elapsed < (FLIGHT_DURATION + 10000)) {
         setCountdown(0);
         const percent = ((elapsed - 10000) / FLIGHT_DURATION) * 100;
         setTrackProgress(percent);
@@ -314,10 +309,6 @@ const HospitalDashboard = () => {
     <div className={`min-h-screen bg-slate-50 flex font-sans text-slate-800 relative`}>
       
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
-      
-      {/* ✅ CORRECTED: Passes 'requests' instead of 'orderHistory' */}
-      <AiCopilot contextData={{ inventory, requests }} />
-
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
         <div className="p-6 border-b border-slate-800 flex justify-between items-center">
           <div className="mb-4"><img src={logoMain} className="h-10 w-auto object-contain bg-white rounded-lg p-1" /></div>
@@ -391,9 +382,11 @@ const HospitalDashboard = () => {
                                 <div>
                                     <h3 className="font-bold text-slate-800 flex items-center gap-2">{req.phc}<span className={`text-[10px] px-2 py-0.5 rounded border ${score >= 0.8 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>Score: {score}</span></h3>
                                     
+                                    {/* ✅ CLICKABLE ITEM LIST */}
                                     <button onClick={() => setViewItemList(req)} className="text-sm text-slate-600 hover:text-blue-600 hover:underline text-left mt-1 font-medium flex items-center gap-1"><ClipboardList size={14}/> {req.qty} items (Click to View List)</button>
 
                                     <div className="flex items-center gap-2 mt-1 text-xs text-slate-500"><Clock size={12}/> {new Date(req.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+                                    {/* ✅ VIEW LOCATION BUTTON */}
                                     <button onClick={() => showCoordinates(req)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1"><Globe size={12} /> Loc ({req.coordinates ? 'GPS' : 'Static'})</button>
                                 </div>
                             </div>
@@ -416,7 +409,9 @@ const HospitalDashboard = () => {
         </div>
       </main>
 
+      {/* ITEM LIST MODAL (✅ RESTORED) */}
       {viewItemList && (<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"><div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"><div className="bg-blue-600 p-4 flex justify-between items-center text-white"><h3 className="font-bold flex items-center gap-2"><ClipboardList size={18} /> Packing List</h3><button onClick={() => setViewItemList(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button></div><div className="p-6 max-h-96 overflow-y-auto bg-slate-50"><div className="space-y-3">{viewItemList.item.split(', ').map((itm, idx) => (<div key={idx} className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm"><span className="font-bold text-slate-800">{itm}</span><span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-bold">Pack This</span></div>))}</div></div><div className="p-4 bg-white text-right border-t border-slate-200"><button onClick={() => setViewItemList(null)} className="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-bold text-sm shadow-md">Done Packing</button></div></div></div>)}
+      
       {viewProof && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-4 rounded shadow-lg w-96"><img src={viewProof.proofFiles[0]} className="w-full"/><button onClick={()=>setViewProof(null)} className="mt-2 w-full bg-gray-200 p-2 rounded">Close</button></div></div>}
       {showAddModal && (<div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-0 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100"><div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center"><div><h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Package className="text-blue-600" size={20}/> Add New Medicine</h3><p className="text-xs text-slate-500 mt-0.5">Enter stock details below</p></div><button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1 rounded-full transition-colors"><X size={20} /></button></div><div className="p-6 space-y-5"><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Medicine Name</label><div className="relative"><Pill className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium placeholder:text-slate-400" placeholder="e.g., Paracetamol 500mg" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} /></div></div><div className="grid grid-cols-2 gap-5"><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Batch ID</label><div className="relative"><QrCode className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium" placeholder="B-1023" value={newItem.batch} onChange={e => setNewItem({...newItem, batch: e.target.value})} /></div></div><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Initial Stock</label><div className="relative"><Layers className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium" type="number" placeholder="0" value={newItem.stock} onChange={e => setNewItem({...newItem, stock: e.target.value})} /></div></div></div></div><div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3"><button onClick={() => setShowAddModal(false)} className="px-5 py-2.5 text-slate-600 font-medium hover:bg-white hover:text-slate-800 border border-transparent hover:border-slate-200 rounded-xl transition-all">Cancel</button><button onClick={addNewItem} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all transform active:scale-95"><Save size={18} /> Save Item</button></div></div></div>)}
     </div>
