@@ -13,11 +13,22 @@ const requestSchema = new mongoose.Schema({
     default: 'Pending' 
   },
   distance: { type: String, default: '12 km' },
-  // ✅ NEW: Store the specific coordinates of the requester
   coordinates: {
       lat: { type: Number },
       lng: { type: Number }
-  }
+  },
+  // ✅ NEW: CHAT HISTORY
+  chat: [{
+      sender: { type: String }, // "PHC" or "Hospital"
+      message: { type: String },
+      timestamp: { type: Date, default: Date.now }
+  }],
+  // ✅ NEW: INCIDENT REPORTS
+  incidents: [{
+      type: { type: String }, // "Damage", "Delay", "Wrong Item"
+      details: { type: String },
+      timestamp: { type: Date, default: Date.now }
+  }]
 }, { timestamps: true });
 
 module.exports = mongoose.model("Request", requestSchema);
