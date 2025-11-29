@@ -48,7 +48,6 @@ const PHC_COORDINATES = {
 };
 
 const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; 
-const center = { lat: 19.9260, lng: 79.9033 }; 
 
 // INVENTORY
 const INITIAL_INVENTORY = [
@@ -108,8 +107,6 @@ const HospitalDashboard = () => {
   };
 
   const [processingQueue, setProcessingQueue] = useState([]);
-
-  // Simulation State
   const [trackProgress, setTrackProgress] = useState(0);
   const [countdown, setCountdown] = useState(0); 
   const [missionStatusText, setMissionStatusText] = useState('Standby');
@@ -220,8 +217,11 @@ const HospitalDashboard = () => {
         : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
 
     const newMission = { 
-        id: req._id, phc: req.phc, destination: destination, 
-        startTime: Date.now(), delivered: false 
+        id: req._id, 
+        phc: req.phc, 
+        destination: destination, 
+        startTime: Date.now(), 
+        delivered: false 
     };
 
     setActiveMissions(prev => [...prev, newMission]);
@@ -259,6 +259,7 @@ const HospitalDashboard = () => {
       if(!mission) return;
       const now = Date.now();
       const elapsed = now - mission.startTime; 
+      
       const FLIGHT_DURATION = 600000; 
 
       if (elapsed < 10000) {
@@ -266,7 +267,8 @@ const HospitalDashboard = () => {
         setTrackProgress(0);
         setMissionStatusText(`Pre-Flight Checks`);
         setDroneStats({ speed: 0, battery: 100, altitude: 0 });
-      } else if (elapsed < (FLIGHT_DURATION + 10000)) {
+      } 
+      else if (elapsed < (FLIGHT_DURATION + 10000)) {
         setCountdown(0);
         const percent = ((elapsed - 10000) / FLIGHT_DURATION) * 100;
         setTrackProgress(percent);
@@ -313,7 +315,7 @@ const HospitalDashboard = () => {
       
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
       
-      {/* ✅ FIXED: Passed correct props 'inventory' and 'requests' */}
+      {/* ✅ CORRECTED: Passes 'requests' instead of 'orderHistory' */}
       <AiCopilot contextData={{ inventory, requests }} />
 
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
@@ -351,7 +353,15 @@ const HospitalDashboard = () => {
                                  <div className="flex items-center gap-2">
                                      <Filter size={14} className="text-slate-400"/>
                                      <select className="bg-white border border-slate-300 text-xs p-2 rounded-lg outline-none font-medium text-slate-600" onChange={(e) => setSelectedPhc(e.target.value)}>
-                                        <option value="All">All PHCs</option><option value="Wagholi PHC">Wagholi PHC</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option>
+                                        <option value="All">All PHCs</option>
+                                        <option value="PHC Chamorshi">PHC Chamorshi</option>
+                                        <option value="PHC Gadhchiroli">PHC Gadhchiroli</option>
+                                        <option value="PHC Panera">PHC Panera</option>
+                                        <option value="PHC Belgaon">PHC Belgaon</option>
+                                        <option value="PHC Dhutergatta">PHC Dhutergatta</option>
+                                        <option value="PHC Gatta">PHC Gatta</option>
+                                        <option value="PHC Gaurkheda">PHC Gaurkheda</option>
+                                        <option value="PHC Murmadi">PHC Murmadi</option>
                                      </select>
                                  </div>
                              </div>
@@ -380,7 +390,9 @@ const HospitalDashboard = () => {
                                 <div className={`p-3 rounded-full ${req.urgency === 'Critical' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-600'}`}><AlertOctagon size={24} /></div>
                                 <div>
                                     <h3 className="font-bold text-slate-800 flex items-center gap-2">{req.phc}<span className={`text-[10px] px-2 py-0.5 rounded border ${score >= 0.8 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>Score: {score}</span></h3>
+                                    
                                     <button onClick={() => setViewItemList(req)} className="text-sm text-slate-600 hover:text-blue-600 hover:underline text-left mt-1 font-medium flex items-center gap-1"><ClipboardList size={14}/> {req.qty} items (Click to View List)</button>
+
                                     <div className="flex items-center gap-2 mt-1 text-xs text-slate-500"><Clock size={12}/> {new Date(req.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
                                     <button onClick={() => showCoordinates(req)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1"><Globe size={12} /> Loc ({req.coordinates ? 'GPS' : 'Static'})</button>
                                 </div>
