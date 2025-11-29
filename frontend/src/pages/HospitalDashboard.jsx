@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
-
 // ✅ IMPORT AI COPILOT
 import AiCopilot from '../components/AiCopilot';
 
@@ -110,6 +109,8 @@ const HospitalDashboard = () => {
   };
 
   const [processingQueue, setProcessingQueue] = useState([]);
+
+  // Simulation State
   const [trackProgress, setTrackProgress] = useState(0);
   const [countdown, setCountdown] = useState(0); 
   const [missionStatusText, setMissionStatusText] = useState('Standby');
@@ -187,27 +188,38 @@ const HospitalDashboard = () => {
                 if (req.urgency === 'Critical') {
                     const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL - IMMEDIATE LAUNCH`;
                     addLog(logMsg, "text-red-500 font-bold");
-                    startApprovalProcess(req); 
-                } else {
+                    
+                    setTimeout(() => {
+                        updateStatusInDB(req._id, 'Approved');
+                        addLog(`ID: ${req._id.slice(-4)} | ✅ APPROVED BY SYSTEM`, "text-green-400");
+
+                        setTimeout(() => {
+                             handleAutoDispatch(req); 
+                        }, 15000); 
+                    }, 4000); 
+                } 
+                else {
                     addLog(`ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ QUEUED (15s Buffer)`, "text-yellow-400");
+                    
                     setTimeout(() => {
                          addLog(`ID: ${req._id.slice(-4)} | ✅ SAFETY CHECK PASSED`, "text-green-400");
-                         startApprovalProcess(req); 
-                    }, 15000);
+                         
+                         setTimeout(() => {
+                              updateStatusInDB(req._id, 'Approved');
+                              addLog(`ID: ${req._id.slice(-4)} | 📝 Request Approved`, "text-green-300");
+                              
+                              setTimeout(() => {
+                                  handleAutoDispatch(req);
+                              }, 12000); 
+                         }, 4000); 
+
+                    }, 15000); 
                 }
             }
         });
     }, 3000); 
     return () => clearInterval(aiLoop);
   }, [requests, processingQueue]);
-
-  const startApprovalProcess = (req) => {
-      setTimeout(() => {
-          updateStatusInDB(req._id, 'Approved');
-          addLog(`ID: ${req._id.slice(-4)} | 📝 Request Approved by System`, "text-green-300");
-          setTimeout(() => { handleAutoDispatch(req); }, 12000);
-      }, 4000);
-  };
 
   const handleAutoDispatch = (req) => {
     if (activeMissions.find(m => m.id === req._id)) return;
@@ -220,8 +232,11 @@ const HospitalDashboard = () => {
         : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
 
     const newMission = { 
-        id: req._id, phc: req.phc, destination: destination, 
-        startTime: Date.now(), delivered: false 
+        id: req._id, 
+        phc: req.phc, 
+        destination: destination, 
+        startTime: Date.now(), 
+        delivered: false 
     };
 
     setActiveMissions(prev => [...prev, newMission]);
@@ -259,6 +274,7 @@ const HospitalDashboard = () => {
       if(!mission) return;
       const now = Date.now();
       const elapsed = now - mission.startTime; 
+      
       const FLIGHT_DURATION = 600000; 
 
       if (elapsed < 10000) {
@@ -266,19 +282,29 @@ const HospitalDashboard = () => {
         setTrackProgress(0);
         setMissionStatusText(`Pre-Flight Checks`);
         setDroneStats({ speed: 0, battery: 100, altitude: 0 });
-      } else if (elapsed < (FLIGHT_DURATION + 10000)) {
+      } 
+      else if (elapsed < (FLIGHT_DURATION + 10000)) {
         setCountdown(0);
-        const percent = ((elapsed - 10000) / FLIGHT_DURATION) * 100;
+        const flightTime = elapsed - 10000;
+        const percent = (flightTime / FLIGHT_DURATION) * 100;
         setTrackProgress(percent);
         setMissionStatusText('In-Flight');
+        
         let currentSpeed = 60; let currentAlt = 120;
         if (percent < 5) { currentSpeed = percent * 12; currentAlt = percent * 24; } 
         else if (percent > 95) { currentSpeed = 60 - (percent-95)*12; currentAlt = 120 - (percent-95)*24; } 
-        setDroneStats({ speed: Math.floor(currentSpeed), battery: Math.max(0, 100 - Math.floor(percent / 1.5)), altitude: Math.floor(currentAlt) });
-      } else {
+
+        setDroneStats({
+            speed: Math.floor(currentSpeed),
+            battery: Math.max(0, 100 - Math.floor(percent / 1.5)),
+            altitude: Math.floor(currentAlt)
+        });
+      }
+      else {
         setTrackProgress(100);
         setMissionStatusText('Delivered');
         setDroneStats({ speed: 0, battery: 30, altitude: 0 });
+
         if (!mission.delivered) {
            addLog(`✅ DELIVERY SUCCESSFUL at ${mission.phc}`, "text-blue-400 font-bold border-l-2 border-blue-500 pl-2");
            setRequests(prev => prev.map(r => r._id === mission.id ? { ...r, status: 'Delivered' } : r));
@@ -313,7 +339,7 @@ const HospitalDashboard = () => {
       
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
       
-      {/* ✅ CORRECT AI COPILOT USAGE */}
+      {/* ✅ AI COPILOT (FIXED) */}
       <AiCopilot contextData={{ inventory, requests }} />
 
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
