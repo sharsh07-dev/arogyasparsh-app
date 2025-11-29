@@ -33,7 +33,7 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// COORDINATES
+// FALLBACK COORDINATES (Only used if PHC hasn't set custom location)
 const PHC_COORDINATES = {
   "Wagholi PHC": { lat: 18.5808, lng: 73.9787 },
   "PHC Chamorshi": { lat: 19.9280, lng: 79.9050 },
@@ -87,11 +87,26 @@ const HospitalDashboard = () => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
   });
 
+  // ✅ PERSISTENT AI LOGS
   const [aiLogs, setAiLogs] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('aiSystemLogs')) || []; } catch { return []; }
+    try {
+        return JSON.parse(localStorage.getItem('aiSystemLogs')) || [];
+    } catch { return []; }
   });
   
-  useEffect(() => { localStorage.setItem('aiSystemLogs', JSON.stringify(aiLogs)); }, [aiLogs]);
+  // ✅ SAVE LOGS ON CHANGE
+  useEffect(() => {
+    localStorage.setItem('aiSystemLogs', JSON.stringify(aiLogs));
+  }, [aiLogs]);
+
+  // Helper to prevent duplicate logs
+  const addLog = (msg, color) => {
+    setAiLogs(prev => {
+        // Prevent exact duplicate as the last message
+        if (prev.length > 0 && prev[0].msg === msg) return prev;
+        return [{ time: new Date().toLocaleTimeString(), msg, color }, ...prev].slice(0, 50);
+    });
+  };
 
   const [processingQueue, setProcessingQueue] = useState([]);
 
@@ -140,72 +155,77 @@ const HospitalDashboard = () => {
     return score.toFixed(2); 
   };
 
-  // ✅ 2. INTELLIGENT AUTO-PILOT LOOP (Strict Timing)
+  // ✅ 2. AUTO-PILOT LOOP (Logic Update)
   useEffect(() => {
     const aiLoop = setInterval(() => {
         requests.forEach(req => {
-            // Only process Pending requests that aren't in the queue
             if (req.status === 'Pending' && !processingQueue.includes(req._id)) {
                 
                 const score = calculatePriorityScore(req);
                 setProcessingQueue(prev => [...prev, req._id]);
 
-                // 🚀 CRITICAL (No 15s wait)
                 if (req.urgency === 'Critical') {
-                    addLog(`ID: ${req._id.slice(-4)} | CRITICAL - IMMEDIATE LAUNCH`, "text-red-500 font-bold");
-                    startApprovalProcess(req); // Start sequence immediately
-                } 
-                // ⏳ STANDARD/HIGH (15s Safety Wait)
-                else {
-                    addLog(`ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ HOLDING 15s (Safety Check)`, "text-yellow-400");
+                    // 🚀 CRITICAL FLOW
+                    addLog(`ID: ${req._id.slice(-4)} | CRITICAL | ⏳ PROCESSING (4s Approval)`, "text-red-500 font-bold");
                     
-                    // Wait 15s then start sequence
+                    // 1. Wait 4s -> Approve
                     setTimeout(() => {
-                         addLog(`ID: ${req._id.slice(-4)} | ✅ SAFETY CHECK PASSED`, "text-green-400");
-                         startApprovalProcess(req); 
-                    }, 15000);
+                        updateStatusInDB(req._id, 'Approved');
+                        addLog(`ID: ${req._id.slice(-4)} | ✅ APPROVED | ⏳ Preparing Dispatch (15s)`, "text-yellow-400");
+                        
+                        // 2. Wait 15s -> Dispatch
+                        setTimeout(() => {
+                            handleAutoDispatch(req);
+                        }, 15000);
+                    }, 4000);
+
+                } else {
+                    // ⏳ STANDARD FLOW (Same logic for simplicity, can be slower if needed)
+                    addLog(`ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ QUEUED`, "text-yellow-400");
+                    
+                    setTimeout(() => {
+                         addLog(`ID: ${req._id.slice(-4)} | ✅ APPROVED`, "text-green-400");
+                         updateStatusInDB(req._id, 'Approved');
+
+                         setTimeout(() => {
+                             handleAutoDispatch(req); 
+                         }, 15000);
+                    }, 4000);
                 }
             }
         });
     }, 3000); 
 
     return () => clearInterval(aiLoop);
-  }, [requests]);
+  }, [requests, processingQueue]);
 
-  // ✅ 3. REALISTIC DISPATCH SEQUENCE
-  const startApprovalProcess = (req) => {
-      // Phase 1: APPROVE (Takes 4 seconds)
-      setTimeout(() => {
-          updateStatusInDB(req._id, 'Approved');
-          addLog(`ID: ${req._id.slice(-4)} | 📝 Request Approved by System`, "text-green-300");
-          
-          // Phase 2: DISPATCH (Takes 12 seconds)
-          setTimeout(() => {
-              handleAutoDispatch(req);
-          }, 12000);
-
-      }, 4000);
-  };
-
+  // ✅ 3. DISPATCH HANDLER (No Redirection)
   const handleAutoDispatch = (req) => {
     if (activeMissions.find(m => m.id === req._id)) return;
 
     updateStatusInDB(req._id, 'Dispatched');
     addLog(`🚁 Drone Dispatched by Pilot Manohar Singh`, "text-blue-400 font-bold");
 
-    const newMission = { id: req._id, phc: req.phc, startTime: Date.now(), delivered: false };
+    // Get Coordinates for Mission
+    const missionCoords = req.coordinates && req.coordinates.lat 
+        ? req.coordinates 
+        : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 }); // Default fallback
+
+    const newMission = { 
+        id: req._id, 
+        phc: req.phc, 
+        destination: missionCoords, // ✅ Save Exact Destination
+        startTime: Date.now(), 
+        delivered: false 
+    };
+
     setActiveMissions(prev => [...prev, newMission]);
     
-    // Switch to Map View ONLY NOW
-    setActiveTab('map'); 
+    // ❌ Removed setActiveTab('map'); (No Auto Redirection)
 
     setTimeout(() => {
         addLog(`📦 Package Out for Delivery - Enroute to ${req.phc}`, "text-white");
     }, 2000);
-  };
-
-  const addLog = (msg, color) => {
-      setAiLogs(prev => [{ time: new Date().toLocaleTimeString(), msg, color }, ...prev].slice(0, 50));
   };
 
   const fetchRequests = async () => {
@@ -214,7 +234,7 @@ const HospitalDashboard = () => {
       if (!res.ok) return;
       const data = await res.json();
       if (Array.isArray(data)) {
-        // Sort Newest First
+        // Sort by NEWEST first
         const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setRequests(sortedData);
 
@@ -232,18 +252,20 @@ const HospitalDashboard = () => {
     return () => clearInterval(interval);
   }, []); 
 
-  // Simulation Loop (10 Mins Flight)
+  // ✅ 4. SIMULATION LOOP (10 Mins Flight)
   useEffect(() => {
     localStorage.setItem('activeMissions', JSON.stringify(activeMissions));
     if (activeTab !== 'map' || activeMissions.length === 0) return;
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    
     const interval = setInterval(() => {
       const mission = activeMissions[0];
       if(!mission) return;
       const now = Date.now();
       const elapsed = now - mission.startTime; 
       
-      const FLIGHT_DURATION = 600000; // 10 Minutes
+      // 10 MINUTES = 600,000 ms
+      const FLIGHT_DURATION = 600000; 
 
       if (elapsed < 10000) {
         const timeLeft = Math.ceil((10000 - elapsed) / 1000);
@@ -304,6 +326,17 @@ const HospitalDashboard = () => {
   const handleReject = (id, urgency) => { if(!confirm("Reject this request?")) return; if (urgency === 'Critical') stopAlarm(); updateStatusInDB(id, 'Rejected'); };
   const updateStock = (id, change) => { setInventory(inventory.map(item => item.id === id ? { ...item, stock: Math.max(0, item.stock + change) } : item)); };
   const addNewItem = () => { if(!newItem.name) return alert("Fill details"); setInventory([...inventory, { id: Date.now(), ...newItem, stock: parseInt(newItem.stock), img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" }]); setShowAddModal(false); };
+
+  // ✅ GET DESTINATION FOR MAP
+  // Uses mission-specific coordinates if available, else hardcoded fallback
+  const getMissionDestination = () => {
+      if (activeMissions.length > 0 && activeMissions[0].destination) {
+          return activeMissions[0].destination;
+      }
+      // Fallback to generic PHC if simulation running without new data
+      return { lat: 19.9000, lng: 79.8500 }; 
+  };
+  const dest = getMissionDestination();
 
   return (
     <div className={`min-h-screen bg-slate-50 flex font-sans text-slate-800 ${isAlarmPlaying ? 'animate-pulse bg-red-50' : ''} relative`}>
@@ -367,7 +400,7 @@ const HospitalDashboard = () => {
                                     <h3 className="font-bold text-slate-800 flex items-center gap-2">
                                         {req.phc}
                                         <span className={`text-[10px] px-2 py-0.5 rounded border ${score >= 0.8 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                                            Priority Score: {score}
+                                            Score: {score}
                                         </span>
                                     </h3>
                                     <p className="text-sm text-slate-600">{req.qty} items <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
@@ -384,15 +417,9 @@ const HospitalDashboard = () => {
                             <div className="flex items-center gap-2">
                                 <button onClick={() => setViewProof(req)} className="px-3 py-2 border rounded-lg text-slate-600 text-sm flex gap-2"><FileText size={16} /> Proof</button>
                                 {req.status === 'Pending' && (
-                                    score >= 0.8 ? (
-                                        <div className="flex items-center gap-2 text-green-600 font-bold text-sm animate-pulse bg-green-50 px-3 py-2 rounded border border-green-200">
-                                            <Brain size={16} /> AI PROCESSING...
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-2 text-yellow-600 font-bold text-sm bg-yellow-50 px-3 py-2 rounded border border-yellow-200">
-                                            <Clock size={16} /> HOLDING (15s)
-                                        </div>
-                                    )
+                                    <div className="flex items-center gap-2 text-green-600 font-bold text-sm animate-pulse bg-green-50 px-3 py-2 rounded border border-green-200">
+                                        {req.urgency === 'Critical' ? '🚀 LAUNCHING...' : '⏳ SAFETY CHECK (15s)'}
+                                    </div>
                                 )}
                                 {req.status === 'Dispatched' && <span className="text-green-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> In-Flight</span>}
                                 {req.status === 'Delivered' && <span className="text-blue-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> Delivered</span>}
@@ -402,19 +429,42 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* MAP & INVENTORY (Kept same) */}
+            {/* MAP & INVENTORY */}
             {activeTab === 'map' && (
                 <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] flex items-center justify-center text-white relative overflow-hidden">
                      {activeMissions.length > 0 ? (
                         <div className="w-full h-full relative">
-                            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div>
+                             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div>
+                             <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                                <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#475569" strokeWidth="4" strokeDasharray="8" />
+                                <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#3b82f6" strokeWidth="4" strokeDasharray="1000" strokeDashoffset={1000 - (trackProgress * 10)} className="transition-all duration-300 ease-linear" />
+                            </svg>
+
+                             {/* Hospital */}
+                            <div className="absolute top-1/2 left-[10%] -translate-y-1/2 flex flex-col items-center z-10">
+                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20"><Building2 size={24} className="text-slate-900" /></div>
+                                <span className="text-white text-xs font-bold mt-3 bg-slate-800 px-2 py-1 rounded border border-slate-700">District Hospital</span>
+                            </div>
+
+                            {/* PHC Destination (Dynamic) */}
+                            <div className="absolute top-1/2 right-[10%] -translate-y-1/2 flex flex-col items-center z-10">
+                                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/50 animate-pulse border-4 border-slate-900"><MapPin size={24} className="text-white" /></div>
+                                <span className="text-white text-xs font-bold mt-3 bg-blue-900 px-2 py-1 rounded border border-blue-700">Destination</span>
+                            </div>
+
                              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center">
                                  {countdown > 0 ? (
                                      <div className="text-center animate-pulse"><h1 className="text-4xl font-bold text-yellow-400">{countdown}s</h1><p className="text-xs text-slate-400 uppercase">Preparing for Takeoff</p></div>
                                  ) : (
-                                    <Plane size={64} className="text-yellow-400 animate-bounce" />
+                                    <div 
+                                        className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-linear z-20 flex flex-col items-center"
+                                        style={{ left: `${10 + (trackProgress * 0.8)}%` }} 
+                                    >
+                                        <Plane size={64} className="text-yellow-400 animate-bounce" />
+                                    </div>
                                  )}
                              </div>
+                             
                              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-6 py-3 rounded-xl border border-slate-700 text-center">
                                  <h3 className="text-lg font-bold">{countdown > 0 ? 'STANDBY' : 'ENROUTE'}</h3>
                                  <div className="flex gap-4 mt-2 text-xs text-slate-400"><span>SPD: {droneStats.speed} km/h</span><span>ALT: {droneStats.altitude}m</span><span className="text-green-400">BAT: {droneStats.battery}%</span></div>
