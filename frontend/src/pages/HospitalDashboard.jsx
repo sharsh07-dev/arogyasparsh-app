@@ -10,8 +10,6 @@ import {
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
-// ✅ IMPORT AI COPILOT
-import AiCopilot from '../components/AiCopilot';
 
 // IMAGES
 import imgAtropine from '../assets/medicines/Atropine.jpg';
@@ -48,6 +46,7 @@ const PHC_COORDINATES = {
 };
 
 const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; 
+const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 19.9260, lng: 79.9033 }; 
 
 // INVENTORY
@@ -112,16 +111,12 @@ const HospitalDashboard = () => {
   const [missionStatusText, setMissionStatusText] = useState('Standby');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [droneStats, setDroneStats] = useState({ speed: 0, battery: 100, altitude: 0 });
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '' });
 
   const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: "" });
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
-
-  // ✅ 1. FORCE NEW VERSION
-  useEffect(() => {
-      console.log("🔹 SYSTEM VERSION 5.0 LOADED - BUGS CLEARED");
-  }, []);
 
   // FETCH AI PREDICTIONS
   const fetchPredictions = async () => {
@@ -186,7 +181,8 @@ const HospitalDashboard = () => {
                 setProcessingQueue(prev => [...prev, req._id]);
 
                 if (req.urgency === 'Critical') {
-                    addLog(`ID: ${req._id.slice(-4)} | CRITICAL - IMMEDIATE LAUNCH`, "text-red-500 font-bold");
+                    const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL - IMMEDIATE LAUNCH`;
+                    addLog(logMsg, "text-red-500 font-bold");
                     startApprovalProcess(req); 
                 } else {
                     addLog(`ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ QUEUED (15s Buffer)`, "text-yellow-400");
@@ -312,10 +308,6 @@ const HospitalDashboard = () => {
     <div className={`min-h-screen bg-slate-50 flex font-sans text-slate-800 relative`}>
       
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
-      
-      {/* ✅ FIXED: Correct Variable Names */}
-      <AiCopilot contextData={{ inventory, requests }} />
-
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
         <div className="p-6 border-b border-slate-800 flex justify-between items-center">
           <div className="mb-4"><img src={logoMain} className="h-10 w-auto object-contain bg-white rounded-lg p-1" /></div>
@@ -398,6 +390,7 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
+            {/* MAP & INVENTORY (Kept same) */}
             {activeTab === 'map' && ( <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] flex items-center justify-center text-white relative overflow-hidden">{activeMissions.length > 0 ? (<div className="w-full h-full relative"><div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div><svg className="absolute inset-0 w-full h-full pointer-events-none"><line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#475569" strokeWidth="4" strokeDasharray="8" /><line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#3b82f6" strokeWidth="4" strokeDasharray="1000" strokeDashoffset={1000 - (trackProgress * 10)} className="transition-all duration-300 ease-linear" /></svg><div className="absolute top-1/2 left-[10%] -translate-y-1/2 flex flex-col items-center z-10"><div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20"><Building2 size={24} className="text-slate-900" /></div><span className="text-white text-xs font-bold mt-3 bg-slate-800 px-2 py-1 rounded border border-slate-700">District Hospital</span></div><div className="absolute top-1/2 right-[10%] -translate-y-1/2 flex flex-col items-center z-10"><div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/50 animate-pulse border-4 border-slate-900"><MapPin size={24} className="text-white" /></div><span className="text-white text-xs font-bold mt-3 bg-blue-900 px-2 py-1 rounded border border-blue-700">Destination</span></div>{countdown > 0 ? (<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center"><div className="bg-black/80 backdrop-blur-md p-6 rounded-2xl border border-yellow-500 text-center shadow-2xl"><Timer className="w-10 h-10 text-yellow-500 mx-auto mb-2 animate-pulse" /><h2 className="text-4xl font-bold text-white font-mono">{countdown}s</h2><p className="text-yellow-400 text-xs font-bold uppercase tracking-widest mt-2">Preparing for Takeoff</p></div></div>) : (<div className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-linear z-20 flex flex-col items-center" style={{ left: `${10 + (trackProgress * 0.8)}%` }}><div className="bg-white p-2 rounded-full shadow-2xl relative"><Navigation size={32} className="text-red-500 rotate-90" fill="currentColor" /><div className="absolute -top-1 -left-1 w-full h-full border-2 border-slate-300 rounded-full animate-spin opacity-50"></div></div><div className="bg-black/80 text-white text-[10px] px-2 py-1 rounded-md mt-2 backdrop-blur-sm font-mono border border-slate-700">{Math.round(trackProgress)}%</div></div>)}<div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-6 py-3 rounded-xl border border-slate-700 text-center"><h3 className="text-lg font-bold">{countdown > 0 ? 'STANDBY' : 'ENROUTE'}</h3><div className="flex gap-4 mt-2 text-xs text-slate-400"><span>SPD: {droneStats.speed} km/h</span><span>ALT: {droneStats.altitude}m</span><span className="text-green-400">BAT: {droneStats.battery}%</span></div></div></div>) : (<div className="text-center text-slate-500"><MapIcon size={48} className="mx-auto mb-2"/><p>No Active Flights</p></div>)}</div> )}
             {activeTab === 'inventory' && ( <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4">{inventory.map(item => (<div key={item.id} className="bg-white p-4 rounded-xl border text-center shadow-sm"><img src={item.img} className="h-24 w-full object-contain mb-2"/><h3 className="font-bold text-sm">{item.name}</h3><div className="flex justify-center gap-2 mt-2"><button onClick={() => updateStock(item.id, -1)} className="p-1 bg-gray-100 rounded"><Minus size={12}/></button><span className="font-bold">{item.stock}</span><button onClick={() => updateStock(item.id, 1)} className="p-1 bg-blue-100 text-blue-600 rounded"><Plus size={12}/></button></div></div>))}</div> )}
         </div>
