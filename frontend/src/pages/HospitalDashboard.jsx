@@ -87,8 +87,10 @@ const HospitalDashboard = () => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
   });
 
+  // AI Engine State
   const [aiLogs, setAiLogs] = useState([]);
-  const [processingQueue, setProcessingQueue] = useState([]);
+  // ✅ Changed: Using a Set to track processed IDs so we don't re-trigger
+  const [processedIds, setProcessedIds] = useState(new Set());
 
   // Simulation State
   const [trackProgress, setTrackProgress] = useState(0);
@@ -103,13 +105,10 @@ const HospitalDashboard = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '' });
 
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: "" 
-  });
-
+  const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: "" });
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
+  // AI SCORING
   const calculatePriorityScore = (req) => {
     let score = 0.0;
     let dist = 10; 
@@ -138,40 +137,39 @@ const HospitalDashboard = () => {
     return score.toFixed(2); 
   };
 
-  // ✅ 1. INTELLIGENT AUTO-PILOT LOOP
+  // ✅ 2. STRICT AUTO-PILOT LOOP (Fixed Delays)
   useEffect(() => {
     const aiLoop = setInterval(() => {
         requests.forEach(req => {
-            if (req.status === 'Pending' && !processingQueue.includes(req._id)) {
+            if (req.status === 'Pending' && !processedIds.has(req._id)) {
                 
                 const score = calculatePriorityScore(req);
                 const logTime = new Date().toLocaleTimeString();
                 
-                setProcessingQueue(prev => [...prev, req._id]);
+                // Mark as processed so we don't trigger multiple timers
+                setProcessedIds(prev => new Set(prev).add(req._id));
 
-                // 🧠 DECISION MATRIX
+                // 🚀 CRITICAL: 0s Delay (Instant)
                 if (req.urgency === 'Critical') {
-                    // 🚀 CRITICAL: IMMEDIATE LAUNCH
                     const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL EMERGENCY | 🚀 IMMEDIATE LAUNCH`;
                     setAiLogs(prev => [{ time: logTime, msg: logMsg, color: "text-red-500 font-bold" }, ...prev].slice(0, 5));
                     handleAutoDispatch(req, 0); 
                 } 
+                // ⏳ STANDARD/HIGH: 15s Delay
                 else {
-                    // ⏳ STANDARD: 4s APPROVAL -> 12s DISPATCH DELAY
-                    const logMsg = `ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ Processing Request...`;
+                    const logMsg = `ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ QUEUED (15s Buffer)`;
                     setAiLogs(prev => [{ time: logTime, msg: logMsg, color: "text-yellow-400" }, ...prev].slice(0, 5));
                     
-                    // 4 Seconds: APPROVE
+                    // 1. WAIT 4s -> APPROVE
                     setTimeout(() => {
                          setAiLogs(prev => [{ 
                              time: new Date().toLocaleTimeString(), 
-                             msg: `ID: ${req._id.slice(-4)} | ✅ Request Approved by System`, 
+                             msg: `ID: ${req._id.slice(-4)} | ✅ APPROVED BY AI`, 
                              color: "text-green-400" 
                          }, ...prev].slice(0, 5));
-                         
                          updateStatusInDB(req._id, 'Approved');
 
-                         // 12 Seconds later (Total 16s): DISPATCH
+                         // 2. WAIT 12s more (Total 16s) -> DISPATCH
                          setTimeout(() => {
                              handleAutoDispatch(req, 0); 
                          }, 12000);
@@ -183,13 +181,12 @@ const HospitalDashboard = () => {
     }, 3000); 
 
     return () => clearInterval(aiLoop);
-  }, [requests]);
+  }, [requests, processedIds]);
 
-  // ✅ 2. AUTO-DISPATCH EXECUTOR
+  // ✅ 3. DISPATCH HANDLER
   const handleAutoDispatch = (req, delay = 2000) => {
     if (activeMissions.find(m => m.id === req._id)) return;
 
-    // Logs for the "Human" element
     setAiLogs(prev => [{ 
         time: new Date().toLocaleTimeString(), 
         msg: `🚁 Drone Dispatched by Pilot Manohar Singh`, 
@@ -202,7 +199,6 @@ const HospitalDashboard = () => {
         setActiveMissions(prev => [...prev, newMission]);
         setActiveTab('map'); 
         
-        // Log "Out for Delivery"
         setTimeout(() => {
              setAiLogs(prev => [{ 
                 time: new Date().toLocaleTimeString(), 
@@ -220,7 +216,6 @@ const HospitalDashboard = () => {
       if (!res.ok) return;
       const data = await res.json();
       if (Array.isArray(data)) {
-        // Sort by NEWEST first (as requested)
         const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setRequests(sortedData);
 
@@ -238,7 +233,7 @@ const HospitalDashboard = () => {
     return () => clearInterval(interval);
   }, []); 
 
-  // ✅ 3. REALISTIC SIMULATION LOOP (10 Minutes Flight)
+  // ✅ 4. REALISTIC 10-MINUTE FLIGHT LOOP
   useEffect(() => {
     localStorage.setItem('activeMissions', JSON.stringify(activeMissions));
     if (activeTab !== 'map' || activeMissions.length === 0) return;
@@ -250,9 +245,7 @@ const HospitalDashboard = () => {
       const now = Date.now();
       const elapsed = now - mission.startTime; 
       
-      // 10 MINUTES = 600,000 milliseconds
-      // Pre-flight: 10s (10,000ms)
-      // Flight: 10 min (600,000ms)
+      // 10 MINUTES = 600,000 ms
       const FLIGHT_DURATION = 600000; 
 
       if (elapsed < 10000) {
@@ -312,8 +305,6 @@ const HospitalDashboard = () => {
       }
   };
   const updateStatusInDB = async (id, newStatus) => { try { await fetch(`${API_URL}/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }), }); fetchRequests(); } catch (err) {} };
-  
-  // Manual overrides
   const handleApprove = (id, urgency) => { if (urgency === 'Critical') stopAlarm(); updateStatusInDB(id, 'Approved'); };
   const handleDispatch = (id, phc) => { if(!confirm("Confirm Manual Dispatch?")) return; updateStatusInDB(id, 'Dispatched'); const newMission = { id, phc, startTime: Date.now(), delivered: false }; setActiveMissions([newMission]); setActiveTab('map'); };
   const handleReject = (id, urgency) => { if(!confirm("Reject this request?")) return; if (urgency === 'Critical') stopAlarm(); updateStatusInDB(id, 'Rejected'); };
@@ -354,6 +345,7 @@ const HospitalDashboard = () => {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 relative">
             
+            {/* AI COMMAND CENTER (ALERTS) */}
             {activeTab === 'alerts' && (
                 <div className="grid gap-6 max-w-6xl mx-auto">
                     
@@ -380,11 +372,12 @@ const HospitalDashboard = () => {
                                 <div>
                                     <h3 className="font-bold text-slate-800 flex items-center gap-2">
                                         {req.phc}
-                                        <span className={`text-[10px] px-2 py-0.5 rounded border ${score >= 0.8 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                                            Score: {score}
+                                        <span className={`text-[10px] px-2 py-0.5 rounded border ${score > 0.8 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                                            Priority Score: {score}
                                         </span>
                                     </h3>
                                     <p className="text-sm text-slate-600">{req.qty} items <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
+                                    {/* ✅ DATE & TIME */}
                                     <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
                                         <Clock size={12}/> 
                                         {new Date(req.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} 
@@ -418,20 +411,21 @@ const HospitalDashboard = () => {
             {/* MAP & INVENTORY (Kept same) */}
             {activeTab === 'map' && (
                 <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] flex items-center justify-center text-white relative overflow-hidden">
+                     {/* ... (Map Code from previous version) ... */}
                      {activeMissions.length > 0 ? (
                         <div className="w-full h-full relative">
                             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div>
-                             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center">
-                                 {countdown > 0 ? (
-                                     <div className="text-center animate-pulse"><h1 className="text-4xl font-bold text-yellow-400">{countdown}s</h1><p className="text-xs text-slate-400 uppercase">Preparing for Takeoff</p></div>
-                                 ) : (
-                                    <Plane size={64} className="text-yellow-400 animate-bounce" />
-                                 )}
-                             </div>
-                             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-6 py-3 rounded-xl border border-slate-700 text-center">
-                                 <h3 className="text-lg font-bold">{countdown > 0 ? 'STANDBY' : 'ENROUTE'}</h3>
-                                 <div className="flex gap-4 mt-2 text-xs text-slate-400"><span>SPD: {droneStats.speed} km/h</span><span>ALT: {droneStats.altitude}m</span><span className="text-green-400">BAT: {droneStats.battery}%</span></div>
-                             </div>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center">
+                                {countdown > 0 ? (
+                                    <div className="text-center animate-pulse"><h1 className="text-4xl font-bold text-yellow-400">{countdown}s</h1><p className="text-xs text-slate-400 uppercase">Preparing for Takeoff</p></div>
+                                ) : (
+                                   <Plane size={64} className="text-yellow-400 animate-bounce" />
+                                )}
+                            </div>
+                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-6 py-3 rounded-xl border border-slate-700 text-center">
+                                <h3 className="text-lg font-bold">{countdown > 0 ? 'STANDBY' : 'ENROUTE'}</h3>
+                                <div className="flex gap-4 mt-2 text-xs text-slate-400"><span>SPD: {droneStats.speed} km/h</span><span>ALT: {droneStats.altitude}m</span><span className="text-green-400">BAT: {droneStats.battery}%</span></div>
+                            </div>
                         </div>
                      ) : (
                         <div className="text-center text-slate-500"><MapIcon size={48} className="mx-auto mb-2"/><p>No Active Flights</p></div>
