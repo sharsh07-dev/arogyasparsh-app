@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
 import { 
   Activity, Users, Package, Navigation, LogOut, 
   MapPin, CheckCircle2, Clock, AlertOctagon, 
   Battery, Signal, Plane, Plus, Minus, Search, 
-  Map as MapIcon, X, Check, Menu,
+  Map as MapIcon, VolumeX, Siren, X, Check, Menu,
   Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2, Globe, Timer, Zap, Brain, Cpu, Terminal
 } from 'lucide-react';
 
+import ambulanceSiren from '../assets/ambulance.mp3';
 import logoMain from '../assets/logo_final.png';
 
 // IMAGES
@@ -32,7 +33,7 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// FALLBACK COORDINATES (Used only if no GPS provided)
+// FALLBACK COORDINATES (Used ONLY if PHC user didn't set a location)
 const PHC_COORDINATES = {
   "Wagholi PHC": { lat: 18.5808, lng: 73.9787 },
   "PHC Chamorshi": { lat: 19.9280, lng: 79.9050 },
@@ -86,11 +87,9 @@ const HospitalDashboard = () => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
   });
 
-  // PERSISTENT AI LOGS
+  // Persistent AI Logs
   const [aiLogs, setAiLogs] = useState(() => {
-    try {
-        return JSON.parse(localStorage.getItem('aiSystemLogs')) || [];
-    } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('aiSystemLogs')) || []; } catch { return []; }
   });
   
   useEffect(() => {
@@ -99,7 +98,7 @@ const HospitalDashboard = () => {
 
   const addLog = (msg, color) => {
     setAiLogs(prev => {
-        if (prev.length > 0 && prev[0].msg === msg) return prev; // No duplicates
+        if (prev.length > 0 && prev[0].msg === msg) return prev; 
         return [{ time: new Date().toLocaleTimeString(), msg, color }, ...prev].slice(0, 50);
     });
   };
@@ -156,6 +155,7 @@ const HospitalDashboard = () => {
                 
                 const score = calculatePriorityScore(req);
                 const logTime = new Date().toLocaleTimeString();
+                
                 setProcessingQueue(prev => [...prev, req._id]);
 
                 if (req.urgency === 'Critical') {
@@ -164,8 +164,6 @@ const HospitalDashboard = () => {
                 } 
                 else {
                     addLog(`ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ QUEUED (15s Buffer)`, "text-yellow-400");
-                    
-                    // 15s Safety Delay before starting process
                     setTimeout(() => {
                          addLog(`ID: ${req._id.slice(-4)} | ✅ SAFETY CHECK PASSED`, "text-green-400");
                          startApprovalProcess(req); 
@@ -174,46 +172,41 @@ const HospitalDashboard = () => {
             }
         });
     }, 3000); 
-
     return () => clearInterval(aiLoop);
   }, [requests, processingQueue]);
 
-  // DISPATCH SEQUENCE (Timed)
+  // APPROVAL & DISPATCH SEQUENCE
   const startApprovalProcess = (req) => {
-      // Phase 1: APPROVE (Takes 4 seconds)
       setTimeout(() => {
           updateStatusInDB(req._id, 'Approved');
           addLog(`ID: ${req._id.slice(-4)} | 📝 Request Approved by System`, "text-green-300");
-          
-          // Phase 2: DISPATCH (Takes 12 seconds)
-          setTimeout(() => {
-              handleAutoDispatch(req);
-          }, 12000);
-
+          setTimeout(() => { handleAutoDispatch(req); }, 12000);
       }, 4000);
   };
 
+  // ✅ UNIFIED DISPATCH LOGIC (Auto & Manual use this)
   const handleAutoDispatch = (req) => {
     if (activeMissions.find(m => m.id === req._id)) return;
 
     updateStatusInDB(req._id, 'Dispatched');
     addLog(`🚁 Drone Dispatched by Pilot Manohar Singh`, "text-blue-400 font-bold");
 
-    // ✅ 1. USE EXACT COORDINATES FROM REQUEST (IF AVAILABLE)
-    const destination = (req.coordinates && req.coordinates.lat)
+    // ✅ GET EXACT DESTINATION
+    const destination = (req.coordinates && req.coordinates.lat) 
         ? req.coordinates 
-        : (PHC_COORDINATES[req.phc] || { lat: 19.9000, lng: 79.8500 }); // Fallback
+        : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
 
     const newMission = { 
         id: req._id, 
         phc: req.phc, 
-        destination: destination, // Save for map
+        destination: destination, // ✅ SAVED TO MISSION
         startTime: Date.now(), 
         delivered: false 
     };
 
     setActiveMissions(prev => [...prev, newMission]);
-    // Note: NOT switching tab automatically anymore
+    
+    // NO AUTO REDIRECT TO MAP (User must click manually)
 
     setTimeout(() => {
         addLog(`📦 Package Out for Delivery - Enroute to ${req.phc}`, "text-white");
@@ -226,7 +219,6 @@ const HospitalDashboard = () => {
       if (!res.ok) return;
       const data = await res.json();
       if (Array.isArray(data)) {
-        // Sort Newest First
         const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setRequests(sortedData);
       }
@@ -246,24 +238,24 @@ const HospitalDashboard = () => {
     localStorage.setItem('activeMissions', JSON.stringify(activeMissions));
     if (activeTab !== 'map' || activeMissions.length === 0) return;
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    
     const interval = setInterval(() => {
       const mission = activeMissions[0];
       if(!mission) return;
       const now = Date.now();
       const elapsed = now - mission.startTime; 
-      
-      const FLIGHT_DURATION = 600000; // 10 Minutes
+      const FLIGHT_DURATION = 600000; 
 
-      if (elapsed < 30000) {
-        const timeLeft = Math.ceil((30000 - elapsed) / 1000);
+      if (elapsed < 10000) {
+        const timeLeft = Math.ceil((10000 - elapsed) / 1000);
         setCountdown(timeLeft);
         setTrackProgress(0);
         setMissionStatusText(`Pre-Flight Checks`);
         setDroneStats({ speed: 0, battery: 100, altitude: 0 });
       } 
-      else if (elapsed < (FLIGHT_DURATION + 30000)) {
+      else if (elapsed < (FLIGHT_DURATION + 10000)) {
         setCountdown(0);
-        const flightTime = elapsed - 30000;
+        const flightTime = elapsed - 10000;
         const percent = (flightTime / FLIGHT_DURATION) * 100;
         setTrackProgress(percent);
         setMissionStatusText('In-Flight');
@@ -272,11 +264,7 @@ const HospitalDashboard = () => {
         if (percent < 5) { currentSpeed = percent * 12; currentAlt = percent * 24; } 
         else if (percent > 95) { currentSpeed = 60 - (percent-95)*12; currentAlt = 120 - (percent-95)*24; } 
 
-        setDroneStats({
-            speed: Math.floor(currentSpeed),
-            battery: Math.max(0, 100 - Math.floor(percent / 1.5)),
-            altitude: Math.floor(currentAlt)
-        });
+        setDroneStats({ speed: Math.floor(currentSpeed), battery: Math.max(0, 100 - Math.floor(percent / 1.5)), altitude: Math.floor(currentAlt) });
       }
       else {
         setTrackProgress(100);
@@ -296,7 +284,7 @@ const HospitalDashboard = () => {
 
   const handleLogout = () => { localStorage.removeItem('userInfo'); navigate('/login'); };
   
-  // VIEW LOCATION
+  // ✅ VIEW LOCATION (Use exact coords from request)
   const showCoordinates = (req) => {
       if (req.coordinates && req.coordinates.lat) {
           alert(`📍 GPS Drop Location [${req.phc}]:\n\nLatitude: ${req.coordinates.lat}\nLongitude: ${req.coordinates.lng}\n\n✅ Received from PHC App.`);
@@ -307,24 +295,33 @@ const HospitalDashboard = () => {
   };
 
   const updateStatusInDB = async (id, newStatus) => { try { await fetch(`${API_URL}/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }), }); fetchRequests(); } catch (err) {} };
+  
+  // Manual Button Handlers
   const handleApprove = (id, urgency) => { updateStatusInDB(id, 'Approved'); };
-  const handleDispatch = (id, phc) => { if(!confirm("Confirm Manual Dispatch?")) return; updateStatusInDB(id, 'Dispatched'); const newMission = { id, phc, startTime: Date.now(), delivered: false }; setActiveMissions([newMission]); setActiveTab('map'); };
+  
+  // ✅ MANUAL DISPATCH NOW USES SAME LOGIC AS AUTO (Gets Coordinates)
+  const handleDispatch = (req) => { 
+      if(!confirm("Confirm Manual Dispatch?")) return; 
+      handleAutoDispatch(req, 0); // Call main dispatch function with 0 delay
+  };
+  
   const handleReject = (id, urgency) => { if(!confirm("Reject this request?")) return; updateStatusInDB(id, 'Rejected'); };
   const updateStock = (id, change) => { setInventory(inventory.map(item => item.id === id ? { ...item, stock: Math.max(0, item.stock + change) } : item)); };
   const addNewItem = () => { if(!newItem.name) return alert("Fill details"); setInventory([...inventory, { id: Date.now(), ...newItem, stock: parseInt(newItem.stock), img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" }]); setShowAddModal(false); };
 
-  // ✅ 2. DYNAMIC MAP DESTINATION
-  // If there is an active mission, use its saved destination (from PHC coordinates)
-  // If not, fallback to a default point to avoid crash
-  const currentDestination = (activeMissions.length > 0 && activeMissions[0].destination) 
-      ? activeMissions[0].destination 
-      : { lat: 19.9000, lng: 79.8500 };
+  // ✅ GET MAP DESTINATION (Dynamic from Mission)
+  const getMissionDestination = () => {
+      if (activeMissions.length > 0 && activeMissions[0].destination) {
+          return activeMissions[0].destination;
+      }
+      return { lat: 19.9000, lng: 79.8500 }; 
+  };
+  const dest = getMissionDestination();
 
   return (
-    <div className={`min-h-screen bg-slate-50 flex font-sans text-slate-800`}>
+    <div className={`min-h-screen bg-slate-50 flex font-sans text-slate-800 relative`}>
       
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
-      
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
         <div className="p-6 border-b border-slate-800 flex justify-between items-center">
           <div className="mb-4"><img src={logoMain} className="h-10 w-auto object-contain bg-white rounded-lg p-1" /></div>
@@ -338,7 +335,7 @@ const HospitalDashboard = () => {
         <div className="p-4 border-t border-slate-800"><button onClick={handleLogout} className="w-full flex items-center gap-2 text-red-400 hover:bg-slate-800 p-3 rounded-xl"><LogOut size={16} /> Logout</button></div>
       </aside>
 
-      <main className="flex-1 overflow-hidden flex flex-col relative w-full">
+      <main className={`flex-1 overflow-hidden flex flex-col relative w-full`}>
         <header className="bg-white border-b border-slate-200 px-4 py-4 flex justify-between items-center shadow-sm z-10">
           <div className="flex items-center gap-3">
             <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-600"><Menu size={24} /></button>
@@ -368,14 +365,14 @@ const HospitalDashboard = () => {
                         const score = calculatePriorityScore(req);
                         
                         return (
-                        <div key={req._id} className={`bg-white rounded-xl shadow-sm border p-4 flex flex-col md:flex-row justify-between gap-4 ${req.status === 'Rejected' ? 'opacity-50' : ''} ${score >= 0.8 && req.status === 'Pending' ? 'border-green-500 ring-2 ring-green-100' : ''}`}>
+                        <div key={req._id} className={`bg-white rounded-xl shadow-sm border p-4 flex flex-col md:flex-row justify-between gap-4 ${req.status === 'Rejected' ? 'opacity-50' : ''} ${req.status === 'Pending' ? 'border-green-500 ring-2 ring-green-100' : ''}`}>
                             <div className="flex items-start gap-4">
                                 <div className={`p-3 rounded-full ${req.urgency === 'Critical' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-600'}`}><AlertOctagon size={24} /></div>
                                 <div>
                                     <h3 className="font-bold text-slate-800 flex items-center gap-2">
                                         {req.phc}
                                         <span className={`text-[10px] px-2 py-0.5 rounded border ${score >= 0.8 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                                            Priority Score: {score}
+                                            Score: {score}
                                         </span>
                                     </h3>
                                     <p className="text-sm text-slate-600">{req.qty} items <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
@@ -403,24 +400,44 @@ const HospitalDashboard = () => {
                                 )}
                                 {req.status === 'Dispatched' && <span className="text-green-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> In-Flight</span>}
                                 {req.status === 'Delivered' && <span className="text-blue-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> Delivered</span>}
+                                
+                                {/* Manual Override Buttons */}
+                                {req.status === 'Pending' && score < 0.8 && (
+                                    <>
+                                        <button onClick={() => handleReject(req._id, req.urgency)} className="px-3 py-2 border text-red-600 text-sm rounded-lg">Reject</button>
+                                        <button onClick={() => handleApprove(req._id, req.urgency)} className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg">Approve</button>
+                                    </>
+                                )}
+                                {req.status === 'Approved' && (
+                                    // ✅ FIXED: Manual Dispatch now calls main function
+                                    <button onClick={() => handleDispatch(req)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm animate-pulse">Dispatch</button>
+                                )}
                             </div>
                         </div>
                     )})}
                 </div>
             )}
 
-            {/* MAP & INVENTORY (Same as before) */}
             {activeTab === 'map' && (
                 <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] flex items-center justify-center text-white relative overflow-hidden">
                      {activeMissions.length > 0 ? (
                         <div className="w-full h-full relative">
                             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div>
-                            
-                            {/* PATH LOGIC */}
-                             <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                            <svg className="absolute inset-0 w-full h-full pointer-events-none">
                                 <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#475569" strokeWidth="4" strokeDasharray="8" />
                                 <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#3b82f6" strokeWidth="4" strokeDasharray="1000" strokeDashoffset={1000 - (trackProgress * 10)} className="transition-all duration-300 ease-linear" />
                             </svg>
+
+                             <div className="absolute top-1/2 left-[10%] -translate-y-1/2 flex flex-col items-center z-10">
+                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20"><Building2 size={24} className="text-slate-900" /></div>
+                                <span className="text-white text-xs font-bold mt-3 bg-slate-800 px-2 py-1 rounded border border-slate-700">District Hospital</span>
+                            </div>
+
+                            {/* ✅ DYNAMIC DESTINATION */}
+                            <div className="absolute top-1/2 right-[10%] -translate-y-1/2 flex flex-col items-center z-10">
+                                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/50 animate-pulse border-4 border-slate-900"><MapPin size={24} className="text-white" /></div>
+                                <span className="text-white text-xs font-bold mt-3 bg-blue-900 px-2 py-1 rounded border border-blue-700">Destination</span>
+                            </div>
 
                              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center">
                                  {countdown > 0 ? (
