@@ -48,6 +48,7 @@ const PHC_COORDINATES = {
 };
 
 const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; 
+const center = { lat: 19.9260, lng: 79.9033 }; 
 
 // INVENTORY
 const INITIAL_INVENTORY = [
@@ -90,13 +91,13 @@ const HospitalDashboard = () => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
   });
 
-  // PERSISTENT LOGS
+  // Persistent AI Logs
   const [aiLogs, setAiLogs] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('hospitalLogs_v1')) || []; } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('aiSystemLogs')) || []; } catch { return []; }
   });
   
   useEffect(() => {
-    localStorage.setItem('hospitalLogs_v1', JSON.stringify(aiLogs));
+    localStorage.setItem('aiSystemLogs', JSON.stringify(aiLogs));
   }, [aiLogs]);
 
   const addLog = (msg, color) => {
@@ -107,18 +108,21 @@ const HospitalDashboard = () => {
   };
 
   const [processingQueue, setProcessingQueue] = useState([]);
+
+  // Simulation State
   const [trackProgress, setTrackProgress] = useState(0);
   const [countdown, setCountdown] = useState(0); 
   const [missionStatusText, setMissionStatusText] = useState('Standby');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [droneStats, setDroneStats] = useState({ speed: 0, battery: 100, altitude: 0 });
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '' });
 
   const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: "" });
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
-  // FETCH AI
+  // FETCH AI PREDICTIONS
   const fetchPredictions = async () => {
     try {
         const res = await fetch("https://arogyasparsh-backend.onrender.com/api/analytics/predict"); 
@@ -141,6 +145,7 @@ const HospitalDashboard = () => {
   };
   useEffect(() => { fetchPredictions(); }, []);
 
+  // FILTER LOGIC
   useEffect(() => {
       if (selectedPhc === "All") {
           setFilteredPredictions(predictions.slice(0, 3));
@@ -180,7 +185,8 @@ const HospitalDashboard = () => {
                 setProcessingQueue(prev => [...prev, req._id]);
 
                 if (req.urgency === 'Critical') {
-                    addLog(`ID: ${req._id.slice(-4)} | CRITICAL - IMMEDIATE LAUNCH`, "text-red-500 font-bold");
+                    const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL - IMMEDIATE LAUNCH`;
+                    addLog(logMsg, "text-red-500 font-bold");
                     startApprovalProcess(req); 
                 } else {
                     addLog(`ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ QUEUED (15s Buffer)`, "text-yellow-400");
@@ -307,7 +313,7 @@ const HospitalDashboard = () => {
       
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
       
-      {/* ✅ FIX: Corrected contextData to pass 'requests' and 'inventory' */}
+      {/* ✅ FIXED: Passed correct props 'inventory' and 'requests' */}
       <AiCopilot contextData={{ inventory, requests }} />
 
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
@@ -329,7 +335,7 @@ const HospitalDashboard = () => {
             <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-600"><Menu size={24} /></button>
             <h1 className="text-lg md:text-2xl font-bold text-slate-800">{activeTab === 'alerts' ? 'Autonomous Command Center' : (activeTab === 'map' ? 'Global Tracking' : 'Inventory')}</h1>
           </div>
-          <div className="bg-blue-50 px-3 py-1 rounded-full text-xs font-semibold text-blue-700 flex items-center gap-2"><Cpu size={14} /> AI Active (v3.0)</div>
+          <div className="bg-blue-50 px-3 py-1 rounded-full text-xs font-semibold text-blue-700 flex items-center gap-2"><Cpu size={14} /> AI Active</div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 relative">
