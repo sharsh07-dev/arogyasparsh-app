@@ -87,7 +87,6 @@ const HospitalDashboard = () => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
   });
 
-  // AI Engine State
   const [aiLogs, setAiLogs] = useState([]);
   const [processingQueue, setProcessingQueue] = useState([]);
 
@@ -111,100 +110,79 @@ const HospitalDashboard = () => {
 
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
-  // ✅ 1. NEW AI SCORING ALGORITHM (9-Point Matrix)
+  // ✅ 1. AI SCORING (9-Point Matrix)
   const calculatePriorityScore = (req) => {
     let score = 0.0;
-    
-    // Parse Distance (Default to 10km if missing)
     let dist = 10; 
     if (req.distance) {
-         // Extract number from "12 km"
          const match = req.distance.match(/(\d+)/);
          if (match) dist = parseFloat(match[0]);
     }
-
-    // Define Distance Categories
     const isLong = dist > 15;
     const isMedium = dist >= 5 && dist <= 15;
-    const isShort = dist < 5;
 
-    // 🧠 THE 9 COMBINATIONS LOGIC
+    // Priority Calculation
     if (req.urgency === 'Critical') {
-        // Critical Base: 0.80
-        if (isLong) score = 0.95;       // 1. Critical + Long (Highest)
-        else if (isMedium) score = 0.90; // 2. Critical + Medium
-        else score = 0.85;              // 3. Critical + Short
+        if (isLong) score = 0.99;
+        else if (isMedium) score = 0.95;
+        else score = 0.90;
     } 
     else if (req.urgency === 'High') {
-        // High Base: 0.50
-        if (isLong) score = 0.65;       // 4. High + Long
-        else if (isMedium) score = 0.60; // 5. High + Medium
-        else score = 0.55;              // 6. High + Short
+        if (isLong) score = 0.85;
+        else if (isMedium) score = 0.80;
+        else score = 0.75;
     } 
-    else {
-        // Low/Standard Base: 0.20
-        if (isLong) score = 0.35;       // 7. Low + Long
-        else if (isMedium) score = 0.30; // 8. Low + Medium
-        else score = 0.25;              // 9. Low + Short
+    else { // Standard
+        if (isLong) score = 0.60;
+        else if (isMedium) score = 0.55;
+        else score = 0.50;
     }
-
-    // Bonus for Stock Availability (Mocked)
-    score += 0.04; 
-
-    return score.toFixed(2); // Returns string like "0.99"
+    return score.toFixed(2); 
   };
 
-  // ✅ 2. AUTO-PILOT LOOP
+  // ✅ 2. AUTO-PILOT LOOP (Aggressive Dispatch)
   useEffect(() => {
     const aiLoop = setInterval(() => {
         requests.forEach(req => {
+            // Only process 'Pending' requests that haven't been handled yet
             if (req.status === 'Pending' && !processingQueue.includes(req._id)) {
                 
                 const score = calculatePriorityScore(req);
                 const logTime = new Date().toLocaleTimeString();
-                let action = "";
-                let logColor = "text-slate-400";
+                
+                // Mark as processed immediately to avoid duplicates
+                setProcessingQueue(prev => [...prev, req._id]);
 
-                // 🧠 DECISION MATRIX
-                if (score >= 0.8) {
-                    action = "🚀 AUTO-DISPATCHING";
-                    logColor = "text-green-400";
-                    handleAutoDispatch(req); 
-                } else if (score >= 0.5) {
-                    action = "⏳ ADDED TO WAITLIST";
-                    logColor = "text-yellow-400";
-                } else {
-                    action = "⏸️ LOW PRIORITY - DELAYED";
-                    logColor = "text-red-400";
-                }
-
+                // LOG ACTION
                 const newLog = {
                     time: logTime,
-                    msg: `ID: ${req._id.slice(-4)} | Score: ${score} | ${action}`,
-                    color: logColor
+                    msg: `ID: ${req._id.slice(-4)} | Score: ${score} | 🚀 AUTO-DISPATCHING`,
+                    color: "text-green-400"
                 };
                 setAiLogs(prev => [newLog, ...prev].slice(0, 5)); 
-                setProcessingQueue(prev => [...prev, req._id]);
+
+                // 🚀 TRIGGER DISPATCH (For ALL Scores > 0)
+                handleAutoDispatch(req);
             }
         });
-    }, 4000); 
+    }, 3000); // Check every 3 seconds
 
     return () => clearInterval(aiLoop);
-  }, [requests]);
+  }, [requests]); // Re-run when requests update
 
   // ✅ 3. AUTO-DISPATCH HANDLER
   const handleAutoDispatch = (req) => {
-    if (activeMissions.find(m => m.id === req._id)) return; // Prevent double dispatch
-    
+    if (activeMissions.find(m => m.id === req._id)) return;
+
     // 1. Approve
     updateStatusInDB(req._id, 'Approved');
     
-    // 2. Dispatch after 2 seconds
+    // 2. Dispatch (Small delay for UI effect)
     setTimeout(() => {
         updateStatusInDB(req._id, 'Dispatched');
         const newMission = { id: req._id, phc: req.phc, startTime: Date.now(), delivered: false };
         setActiveMissions(prev => [...prev, newMission]);
-        setActiveTab('map'); 
+        // Don't force switch tab, let user watch the list update
     }, 2000);
   };
 
@@ -214,7 +192,6 @@ const HospitalDashboard = () => {
       if (!res.ok) return;
       const data = await res.json();
       if (Array.isArray(data)) {
-        // Sort by Priority Score (High to Low)
         const sortedData = data.sort((a, b) => calculatePriorityScore(b) - calculatePriorityScore(a));
         setRequests(sortedData);
 
@@ -277,6 +254,8 @@ const HospitalDashboard = () => {
   const handleLogout = () => { stopAlarm(); localStorage.removeItem('userInfo'); navigate('/login'); };
   const showCoordinates = (phcName) => { const coords = PHC_COORDINATES[phcName] || { lat: 'Unknown', lng: 'Unknown' }; alert(`📍 Location:\nLat: ${coords.lat}\nLng: ${coords.lng}`); };
   const updateStatusInDB = async (id, newStatus) => { try { await fetch(`${API_URL}/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }), }); fetchRequests(); } catch (err) {} };
+  
+  // Manual overrides kept just in case
   const handleApprove = (id, urgency) => { if (urgency === 'Critical') stopAlarm(); updateStatusInDB(id, 'Approved'); };
   const handleDispatch = (id, phc) => { if(!confirm("Confirm Manual Dispatch?")) return; updateStatusInDB(id, 'Dispatched'); const newMission = { id, phc, startTime: Date.now(), delivered: false }; setActiveMissions([newMission]); setActiveTab('map'); };
   const handleReject = (id, urgency) => { if(!confirm("Reject this request?")) return; if (urgency === 'Critical') stopAlarm(); updateStatusInDB(id, 'Rejected'); };
@@ -338,7 +317,7 @@ const HospitalDashboard = () => {
                         const score = calculatePriorityScore(req);
                         
                         return (
-                        <div key={req._id} className={`bg-white rounded-xl shadow-sm border p-4 flex flex-col md:flex-row justify-between gap-4 ${req.status === 'Rejected' ? 'opacity-50' : ''} ${score >= 0.8 && req.status === 'Pending' ? 'border-green-500 ring-2 ring-green-100' : ''}`}>
+                        <div key={req._id} className={`bg-white rounded-xl shadow-sm border p-4 flex flex-col md:flex-row justify-between gap-4 ${req.status === 'Rejected' ? 'opacity-50' : ''} ${req.status === 'Pending' ? 'border-green-500 ring-2 ring-green-100' : ''}`}>
                             <div className="flex items-start gap-4">
                                 <div className={`p-3 rounded-full ${req.urgency === 'Critical' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-600'}`}><AlertOctagon size={24} /></div>
                                 <div>
@@ -356,17 +335,10 @@ const HospitalDashboard = () => {
                             <div className="flex items-center gap-2">
                                 <button onClick={() => setViewProof(req)} className="px-3 py-2 border rounded-lg text-slate-600 text-sm flex gap-2"><FileText size={16} /> Proof</button>
                                 {req.status === 'Pending' && (
-                                    score >= 0.8 ? (
-                                        <div className="flex items-center gap-2 text-green-600 font-bold text-sm animate-pulse bg-green-50 px-3 py-2 rounded border border-green-200">
-                                            <Brain size={16} /> AI PROCESSING...
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <div className="text-xs text-slate-400 mr-2">Low Priority (Manual)</div>
-                                            <button onClick={() => updateStatusInDB(req._id, 'Rejected')} className="px-3 py-1 border rounded text-red-600 text-xs">Reject</button>
-                                            <button onClick={() => handleDispatch(req._id, req.phc)} className="px-3 py-1 bg-blue-600 text-white rounded text-xs">Dispatch</button>
-                                        </>
-                                    )
+                                    // ✅ AUTOMATICALLY DISPATCHING VISUAL
+                                    <div className="flex items-center gap-2 text-green-600 font-bold text-sm animate-pulse bg-green-50 px-3 py-2 rounded border border-green-200">
+                                        <Brain size={16} /> AI PROCESSING...
+                                    </div>
                                 )}
                                 {req.status === 'Dispatched' && <span className="text-green-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> In-Flight</span>}
                                 {req.status === 'Delivered' && <span className="text-blue-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> Delivered</span>}
@@ -376,18 +348,33 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* MAP & INVENTORY (Same as before) */}
+            {/* MAP & INVENTORY (Kept same) */}
             {activeTab === 'map' && (
                 <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] flex items-center justify-center text-white relative overflow-hidden">
-                     {/* ... (Same Map Code) ... */}
+                     {/* ... (Map Code) ... */}
                      {activeMissions.length > 0 ? (
                         <div className="w-full h-full relative">
-                            {/* Placeholder for visual brevity, assume same map code here */}
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 text-center animate-pulse">
-                                 <Plane size={64} className="mx-auto mb-4 text-yellow-400"/>
-                                 <h2 className="text-2xl">AI DRONE DEPLOYED</h2>
-                                 <p>{missionStatusText}</p>
-                            </div>
+                            {/* Visuals for simulation */}
+                             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div>
+                             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center">
+                                 {countdown > 0 ? (
+                                     <div className="text-center animate-pulse">
+                                         <h1 className="text-4xl font-bold text-yellow-400">{countdown}s</h1>
+                                         <p className="text-xs text-slate-400 uppercase">Preparing for Takeoff</p>
+                                     </div>
+                                 ) : (
+                                    <Plane size={64} className="text-yellow-400 animate-bounce" />
+                                 )}
+                             </div>
+                             
+                             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-6 py-3 rounded-xl border border-slate-700 text-center">
+                                 <h3 className="text-lg font-bold">{countdown > 0 ? 'STANDBY' : 'ENROUTE'}</h3>
+                                 <div className="flex gap-4 mt-2 text-xs text-slate-400">
+                                     <span>SPD: {droneStats.speed} km/h</span>
+                                     <span>ALT: {droneStats.altitude}m</span>
+                                     <span className="text-green-400">BAT: {droneStats.battery}%</span>
+                                 </div>
+                             </div>
                         </div>
                      ) : (
                         <div className="text-center text-slate-500"><MapIcon size={48} className="mx-auto mb-2"/><p>No Active Flights</p></div>
