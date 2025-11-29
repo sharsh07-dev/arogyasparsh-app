@@ -12,7 +12,7 @@ import {
 import ambulanceSiren from '../assets/ambulance.mp3';
 import logoMain from '../assets/logo_final.png';
 
-// ✅ 1. IMPORT YOUR 19 LOCAL IMAGES
+// IMAGES
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
 import imgDopamine from '../assets/medicines/Dopamine_med.jpg'; 
@@ -33,7 +33,7 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// FALLBACK COORDINATES (Only used if PHC hasn't set custom location)
+// COORDINATES
 const PHC_COORDINATES = {
   "Wagholi PHC": { lat: 18.5808, lng: 73.9787 },
   "PHC Chamorshi": { lat: 19.9280, lng: 79.9050 },
@@ -50,7 +50,7 @@ const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 };
 const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 19.9260, lng: 79.9033 }; 
 
-// ✅ 2. INVENTORY LIST
+// INVENTORY
 const INITIAL_INVENTORY = [
   { id: 6, name: 'Inj. Atropine', stock: 50, batch: 'EM-001', img: imgAtropine },
   { id: 7, name: 'Inj. Adrenaline', stock: 40, batch: 'EM-002', img: imgAdrenaline },
@@ -87,17 +87,11 @@ const HospitalDashboard = () => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
   });
 
-  // ✅ PERSISTENT AI LOGS (Loads from storage)
   const [aiLogs, setAiLogs] = useState(() => {
-    try {
-        return JSON.parse(localStorage.getItem('aiSystemLogs')) || [];
-    } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('aiSystemLogs')) || []; } catch { return []; }
   });
   
-  // ✅ SAVE LOGS ON CHANGE
-  useEffect(() => {
-    localStorage.setItem('aiSystemLogs', JSON.stringify(aiLogs));
-  }, [aiLogs]);
+  useEffect(() => { localStorage.setItem('aiSystemLogs', JSON.stringify(aiLogs)); }, [aiLogs]);
 
   const [processingQueue, setProcessingQueue] = useState([]);
 
@@ -114,14 +108,10 @@ const HospitalDashboard = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '' });
 
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: "" 
-  });
-
+  const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: "" });
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
-  // ✅ AI SCORING (9-Point Matrix)
+  // AI SCORING
   const calculatePriorityScore = (req) => {
     let score = 0.0;
     let dist = 10; 
@@ -150,40 +140,29 @@ const HospitalDashboard = () => {
     return score.toFixed(2); 
   };
 
-  // ✅ AUTO-PILOT LOOP
+  // ✅ 2. INTELLIGENT AUTO-PILOT LOOP (Strict Timing)
   useEffect(() => {
     const aiLoop = setInterval(() => {
         requests.forEach(req => {
+            // Only process Pending requests that aren't in the queue
             if (req.status === 'Pending' && !processingQueue.includes(req._id)) {
                 
                 const score = calculatePriorityScore(req);
-                const logTime = new Date().toLocaleTimeString();
-                let action = "";
-                let logColor = "text-slate-400";
-
                 setProcessingQueue(prev => [...prev, req._id]);
 
+                // 🚀 CRITICAL (No 15s wait)
                 if (req.urgency === 'Critical') {
-                    action = "🚀 CRITICAL - IMMEDIATE LAUNCH";
-                    logColor = "text-red-500 font-bold";
-                    const logMsg = `ID: ${req._id.slice(-4)} | ${action}`;
-                    setAiLogs(prev => [{ time: logTime, msg: logMsg, color: logColor }, ...prev].slice(0, 50));
-                    handleAutoDispatch(req, 0); 
+                    addLog(`ID: ${req._id.slice(-4)} | CRITICAL - IMMEDIATE LAUNCH`, "text-red-500 font-bold");
+                    startApprovalProcess(req); // Start sequence immediately
                 } 
+                // ⏳ STANDARD/HIGH (15s Safety Wait)
                 else {
-                    action = "⏳ HOLDING 15s (Safety Check)";
-                    logColor = "text-yellow-400";
-                    const logMsg = `ID: ${req._id.slice(-4)} | Score: ${score} | ${action}`;
-                    setAiLogs(prev => [{ time: logTime, msg: logMsg, color: logColor }, ...prev].slice(0, 50));
+                    addLog(`ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ HOLDING 15s (Safety Check)`, "text-yellow-400");
                     
+                    // Wait 15s then start sequence
                     setTimeout(() => {
-                         setAiLogs(prev => [{ 
-                             time: new Date().toLocaleTimeString(), 
-                             msg: `ID: ${req._id.slice(-4)} | ✅ SAFETY CHECK PASSED | DISPATCHING`, 
-                             color: "text-green-400" 
-                         }, ...prev].slice(0, 50));
-                         
-                         handleAutoDispatch(req, 0); 
+                         addLog(`ID: ${req._id.slice(-4)} | ✅ SAFETY CHECK PASSED`, "text-green-400");
+                         startApprovalProcess(req); 
                     }, 15000);
                 }
             }
@@ -193,17 +172,40 @@ const HospitalDashboard = () => {
     return () => clearInterval(aiLoop);
   }, [requests]);
 
-  const handleAutoDispatch = (req, delay = 2000) => {
+  // ✅ 3. REALISTIC DISPATCH SEQUENCE
+  const startApprovalProcess = (req) => {
+      // Phase 1: APPROVE (Takes 4 seconds)
+      setTimeout(() => {
+          updateStatusInDB(req._id, 'Approved');
+          addLog(`ID: ${req._id.slice(-4)} | 📝 Request Approved by System`, "text-green-300");
+          
+          // Phase 2: DISPATCH (Takes 12 seconds)
+          setTimeout(() => {
+              handleAutoDispatch(req);
+          }, 12000);
+
+      }, 4000);
+  };
+
+  const handleAutoDispatch = (req) => {
     if (activeMissions.find(m => m.id === req._id)) return;
 
-    updateStatusInDB(req._id, 'Approved');
+    updateStatusInDB(req._id, 'Dispatched');
+    addLog(`🚁 Drone Dispatched by Pilot Manohar Singh`, "text-blue-400 font-bold");
+
+    const newMission = { id: req._id, phc: req.phc, startTime: Date.now(), delivered: false };
+    setActiveMissions(prev => [...prev, newMission]);
     
+    // Switch to Map View ONLY NOW
+    setActiveTab('map'); 
+
     setTimeout(() => {
-        updateStatusInDB(req._id, 'Dispatched');
-        const newMission = { id: req._id, phc: req.phc, startTime: Date.now(), delivered: false };
-        setActiveMissions(prev => [...prev, newMission]);
-        setActiveTab('map'); 
-    }, delay + 2000);
+        addLog(`📦 Package Out for Delivery - Enroute to ${req.phc}`, "text-white");
+    }, 2000);
+  };
+
+  const addLog = (msg, color) => {
+      setAiLogs(prev => [{ time: new Date().toLocaleTimeString(), msg, color }, ...prev].slice(0, 50));
   };
 
   const fetchRequests = async () => {
@@ -212,7 +214,7 @@ const HospitalDashboard = () => {
       if (!res.ok) return;
       const data = await res.json();
       if (Array.isArray(data)) {
-        // ✅ SORTING LOGIC: Newest First (as requested)
+        // Sort Newest First
         const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setRequests(sortedData);
 
@@ -230,7 +232,7 @@ const HospitalDashboard = () => {
     return () => clearInterval(interval);
   }, []); 
 
-  // Simulation Loop
+  // Simulation Loop (10 Mins Flight)
   useEffect(() => {
     localStorage.setItem('activeMissions', JSON.stringify(activeMissions));
     if (activeTab !== 'map' || activeMissions.length === 0) return;
@@ -241,34 +243,39 @@ const HospitalDashboard = () => {
       const now = Date.now();
       const elapsed = now - mission.startTime; 
       
-      if (elapsed < 30000) {
-        const timeLeft = Math.ceil((30000 - elapsed) / 1000);
+      const FLIGHT_DURATION = 600000; // 10 Minutes
+
+      if (elapsed < 10000) {
+        const timeLeft = Math.ceil((10000 - elapsed) / 1000);
         setCountdown(timeLeft);
         setTrackProgress(0);
-        setMissionStatusText(`AI Pre-Flight Checks`);
+        setMissionStatusText(`Pre-Flight Checks`);
         setDroneStats({ speed: 0, battery: 100, altitude: 0 });
-      } else if (elapsed < 90000) {
+      } 
+      else if (elapsed < (FLIGHT_DURATION + 10000)) {
         setCountdown(0);
-        const flightTime = elapsed - 30000;
-        const percent = (flightTime / 60000) * 100;
+        const flightTime = elapsed - 10000;
+        const percent = (flightTime / FLIGHT_DURATION) * 100;
         setTrackProgress(percent);
-        setMissionStatusText('Autonomous Flight');
+        setMissionStatusText('In-Flight');
+        
         let currentSpeed = 60; let currentAlt = 120;
-        if (percent < 10) { currentSpeed = percent * 6; currentAlt = percent * 12; } 
-        else if (percent > 90) { currentSpeed = 60 - (percent-90)*6; currentAlt = 120 - (percent-90)*12; } 
-        setDroneStats({ speed: Math.floor(currentSpeed), battery: Math.max(0, 100 - Math.floor(percent / 1.5)), altitude: Math.floor(currentAlt) });
-      } else {
+        if (percent < 5) { currentSpeed = percent * 12; currentAlt = percent * 24; } 
+        else if (percent > 95) { currentSpeed = 60 - (percent-95)*12; currentAlt = 120 - (percent-95)*24; } 
+
+        setDroneStats({
+            speed: Math.floor(currentSpeed),
+            battery: Math.max(0, 100 - Math.floor(percent / 1.5)),
+            altitude: Math.floor(currentAlt)
+        });
+      }
+      else {
         setTrackProgress(100);
         setMissionStatusText('Delivered');
-        setDroneStats({ speed: 0, battery: 40, altitude: 0 });
-        if (!mission.delivered) {
-           // ✅ LOG SUCCESSFUL DELIVERY
-           setAiLogs(prev => [{ 
-               time: new Date().toLocaleTimeString(), 
-               msg: `✅ DELIVERY SUCCESS: Drone-04 landed at ${mission.phc}`, 
-               color: "text-blue-400 font-bold border-l-2 border-blue-500 pl-2" 
-           }, ...prev].slice(0, 50));
+        setDroneStats({ speed: 0, battery: 30, altitude: 0 });
 
+        if (!mission.delivered) {
+           addLog(`✅ DELIVERY SUCCESSFUL at ${mission.phc}`, "text-blue-400 font-bold border-l-2 border-blue-500 pl-2");
            updateStatusInDB(mission.id, 'Delivered');
            const updatedMissions = activeMissions.map(m => m.id === mission.id ? { ...m, delivered: true } : m);
            setTimeout(() => { setActiveMissions(prev => prev.filter(m => m.id !== mission.id)); }, 5000);
@@ -282,10 +289,9 @@ const HospitalDashboard = () => {
   const stopAlarm = () => { setIsAlarmPlaying(false); audioRef.current.pause(); audioRef.current.currentTime = 0; };
   const handleLogout = () => { stopAlarm(); localStorage.removeItem('userInfo'); navigate('/login'); };
   
-  // ✅ UPDATED: SHOW EXACT COORDINATES
   const showCoordinates = (req) => {
       if (req.coordinates && req.coordinates.lat) {
-          alert(`📍 Exact GPS Drop Location [${req.phc}]:\n\nLatitude: ${req.coordinates.lat}\nLongitude: ${req.coordinates.lng}\n\n✅ Received from PHC App.`);
+          alert(`📍 GPS Drop Location [${req.phc}]:\n\nLatitude: ${req.coordinates.lat}\nLongitude: ${req.coordinates.lng}\n\n✅ Received from PHC App.`);
       } else {
           const coords = PHC_COORDINATES[req.phc] || { lat: 'Unknown', lng: 'Unknown' };
           alert(`📍 Static Location [${req.phc}]:\n\nLatitude: ${coords.lat}\nLongitude: ${coords.lng}\n\n⚠️ Using database default.`);
@@ -354,7 +360,7 @@ const HospitalDashboard = () => {
                         const score = calculatePriorityScore(req);
                         
                         return (
-                        <div key={req._id} className={`bg-white rounded-xl shadow-sm border p-4 flex flex-col md:flex-row justify-between gap-4 ${req.status === 'Rejected' ? 'opacity-50' : ''} ${score >= 0.8 && req.status === 'Pending' ? 'border-green-500 ring-2 ring-green-100' : ''}`}>
+                        <div key={req._id} className={`bg-white rounded-xl shadow-sm border p-4 flex flex-col md:flex-row justify-between gap-4 ${req.status === 'Rejected' ? 'opacity-50' : ''} ${req.status === 'Pending' ? 'border-green-500 ring-2 ring-green-100' : ''}`}>
                             <div className="flex items-start gap-4">
                                 <div className={`p-3 rounded-full ${req.urgency === 'Critical' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-600'}`}><AlertOctagon size={24} /></div>
                                 <div>
@@ -365,12 +371,12 @@ const HospitalDashboard = () => {
                                         </span>
                                     </h3>
                                     <p className="text-sm text-slate-600">{req.qty} items <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
+                                    {/* ✅ DATE & TIME */}
                                     <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
                                         <Clock size={12}/> 
                                         {new Date(req.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} 
                                         , {new Date(req.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                                     </div>
-                                    {/* ✅ View Location Button */}
                                     <button onClick={() => showCoordinates(req)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1"><Globe size={12} /> Loc</button>
                                 </div>
                             </div>
@@ -399,7 +405,6 @@ const HospitalDashboard = () => {
             {/* MAP & INVENTORY (Kept same) */}
             {activeTab === 'map' && (
                 <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] flex items-center justify-center text-white relative overflow-hidden">
-                     {/* ... (Map Code) ... */}
                      {activeMissions.length > 0 ? (
                         <div className="w-full h-full relative">
                             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div>
