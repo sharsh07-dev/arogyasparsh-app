@@ -5,8 +5,8 @@ import {
   Activity, Users, Package, Navigation, LogOut, 
   MapPin, CheckCircle2, Clock, AlertOctagon, 
   Battery, Signal, Plane, Plus, Minus, Search, 
-  Map as MapIcon, VolumeX, Siren, X, Check, Menu,
-  Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2, Globe, Timer, Zap, Brain, Cpu, Terminal, TrendingUp
+  Map as MapIcon, X, Check, Menu,
+  Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2, Globe, Timer, Zap, Brain, Cpu, Terminal, ClipboardList
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
@@ -81,7 +81,7 @@ const HospitalDashboard = () => {
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [viewProof, setViewProof] = useState(null);
-  const [predictions, setPredictions] = useState([]); // ✅ RESTORED: AI Data
+  const [viewItemList, setViewItemList] = useState(null); 
 
   const [activeMissions, setActiveMissions] = useState(() => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
@@ -104,6 +104,7 @@ const HospitalDashboard = () => {
 
   const [processingQueue, setProcessingQueue] = useState([]);
 
+  // Simulation State
   const [trackProgress, setTrackProgress] = useState(0);
   const [countdown, setCountdown] = useState(0); 
   const [missionStatusText, setMissionStatusText] = useState('Standby');
@@ -115,26 +116,6 @@ const HospitalDashboard = () => {
 
   const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: "" });
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
-
-  // ✅ 1. RESTORED: FETCH AI PREDICTIONS
-  const fetchPredictions = async () => {
-    try {
-        const res = await fetch("https://arogyasparsh-backend.onrender.com/api/analytics/predict"); 
-        const data = await res.json();
-        if (Array.isArray(data)) {
-            setPredictions(data);
-        }
-    } catch (err) {
-        console.log("AI Service Offline (Using cached model)");
-        // Fallback Data
-        setPredictions([
-            { name: "Inj. Atropine", predictedQty: 42, trend: "📈 Rising" },
-            { name: "IV Paracetamol", predictedQty: 15, trend: "📉 Stable" },
-            { name: "Inj. Adrenaline", predictedQty: 30, trend: "📈 Urgent" }
-        ]);
-    }
-  };
-  useEffect(() => { fetchPredictions(); }, []);
 
   // AI SCORING
   const calculatePriorityScore = (req) => {
@@ -178,14 +159,32 @@ const HospitalDashboard = () => {
                 if (req.urgency === 'Critical') {
                     const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL - IMMEDIATE LAUNCH`;
                     addLog(logMsg, "text-red-500 font-bold");
-                    startApprovalProcess(req); 
+                    
+                    setTimeout(() => {
+                        updateStatusInDB(req._id, 'Approved');
+                        addLog(`ID: ${req._id.slice(-4)} | ✅ APPROVED BY SYSTEM`, "text-green-400");
+
+                        setTimeout(() => {
+                             handleAutoDispatch(req); 
+                        }, 15000); 
+                    }, 4000); 
                 } 
                 else {
                     addLog(`ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ QUEUED (15s Buffer)`, "text-yellow-400");
+                    
                     setTimeout(() => {
                          addLog(`ID: ${req._id.slice(-4)} | ✅ SAFETY CHECK PASSED`, "text-green-400");
-                         startApprovalProcess(req); 
-                    }, 15000);
+                         
+                         setTimeout(() => {
+                              updateStatusInDB(req._id, 'Approved');
+                              addLog(`ID: ${req._id.slice(-4)} | 📝 Request Approved`, "text-green-300");
+                              
+                              setTimeout(() => {
+                                  handleAutoDispatch(req);
+                              }, 12000); 
+                         }, 4000); 
+
+                    }, 15000); 
                 }
             }
         });
@@ -194,21 +193,13 @@ const HospitalDashboard = () => {
     return () => clearInterval(aiLoop);
   }, [requests, processingQueue]);
 
-  const startApprovalProcess = (req) => {
-      setTimeout(() => {
-          updateStatusInDB(req._id, 'Approved');
-          addLog(`ID: ${req._id.slice(-4)} | 📝 Request Approved by System`, "text-green-300");
-          setTimeout(() => { handleAutoDispatch(req); }, 12000);
-      }, 4000);
-  };
-
+  // DISPATCH HANDLER
   const handleAutoDispatch = (req) => {
     if (activeMissions.find(m => m.id === req._id)) return;
 
     updateStatusInDB(req._id, 'Dispatched');
     addLog(`🚁 Drone Dispatched by Pilot Manohar Singh`, "text-blue-400 font-bold");
 
-    // EXACT LOCATION
     const destination = (req.coordinates && req.coordinates.lat) 
         ? req.coordinates 
         : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
@@ -234,7 +225,6 @@ const HospitalDashboard = () => {
       if (!res.ok) return;
       const data = await res.json();
       if (Array.isArray(data)) {
-        // Sort: Newest First
         const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setRequests(sortedData);
       }
@@ -260,7 +250,7 @@ const HospitalDashboard = () => {
       const now = Date.now();
       const elapsed = now - mission.startTime; 
       
-      const FLIGHT_DURATION = 600000; // 10 Mins
+      const FLIGHT_DURATION = 600000; // 10 Minutes
 
       if (elapsed < 10000) {
         const timeLeft = Math.ceil((10000 - elapsed) / 1000);
@@ -293,6 +283,10 @@ const HospitalDashboard = () => {
 
         if (!mission.delivered) {
            addLog(`✅ DELIVERY SUCCESSFUL at ${mission.phc}`, "text-blue-400 font-bold border-l-2 border-blue-500 pl-2");
+           
+           // ✅ FORCE LOCAL UPDATE (So UI shows "Delivered" instantly)
+           setRequests(prev => prev.map(r => r._id === mission.id ? { ...r, status: 'Delivered' } : r));
+
            updateStatusInDB(mission.id, 'Delivered');
            const updatedMissions = activeMissions.map(m => m.id === mission.id ? { ...m, delivered: true } : m);
            setTimeout(() => { setActiveMissions(prev => prev.filter(m => m.id !== mission.id)); }, 5000);
@@ -351,25 +345,6 @@ const HospitalDashboard = () => {
             {activeTab === 'alerts' && (
                 <div className="grid gap-6 max-w-6xl mx-auto">
                     
-                    {/* ✅ RESTORED: AI FORECAST WIDGET */}
-                    {predictions.length > 0 && (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
-                            {predictions.slice(0, 3).map((pred, i) => (
-                                <div key={i} className="bg-white border border-slate-200 p-4 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
-                                    <div>
-                                        <h4 className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">AI Demand Forecast</h4>
-                                        <p className="text-sm font-bold text-slate-800">{pred.name}</p>
-                                        <p className="text-xl font-bold text-indigo-600">{pred.predictedQty} <span className="text-xs text-slate-400 font-normal">units next week</span></p>
-                                    </div>
-                                    <div className={`p-2.5 rounded-lg ${pred.trend.includes('Rising') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
-                                        <TrendingUp size={24} />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* SYSTEM LOGS */}
                     <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-xs h-36 overflow-y-auto border border-slate-700 shadow-inner relative">
                         <div className="flex items-center gap-2 mb-2 border-b border-slate-700 pb-1 sticky top-0 bg-slate-900 w-full">
                             <Terminal size={14}/> SYSTEM LOGS [AUTO-PILOT ENABLED]:
@@ -393,10 +368,18 @@ const HospitalDashboard = () => {
                                     <h3 className="font-bold text-slate-800 flex items-center gap-2">
                                         {req.phc}
                                         <span className={`text-[10px] px-2 py-0.5 rounded border ${score >= 0.8 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                                            Priority Score: {score}
+                                            Score: {score}
                                         </span>
                                     </h3>
-                                    <p className="text-sm text-slate-600">{req.qty} items <span className="text-xs bg-slate-100 px-2 py-0.5 rounded ml-2">{req.status}</span></p>
+                                    
+                                    {/* CLICKABLE ITEMS */}
+                                    <button 
+                                        onClick={() => setViewItemList(req)} 
+                                        className="text-sm text-slate-600 hover:text-blue-600 hover:underline text-left mt-1 font-medium flex items-center gap-1"
+                                    >
+                                        <ClipboardList size={14}/> {req.qty} items (Click to View List)
+                                    </button>
+
                                     <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
                                         <Clock size={12}/> 
                                         {new Date(req.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} 
@@ -431,12 +414,12 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* MAP & INVENTORY (Kept same) */}
+            {/* MAP & INVENTORY (Kept Same) */}
             {activeTab === 'map' && (
                 <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] flex items-center justify-center text-white relative overflow-hidden">
                      {activeMissions.length > 0 ? (
                         <div className="w-full h-full relative">
-                             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div>
+                            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div>
                              <svg className="absolute inset-0 w-full h-full pointer-events-none">
                                 <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#475569" strokeWidth="4" strokeDasharray="8" />
                                 <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#3b82f6" strokeWidth="4" strokeDasharray="1000" strokeDashoffset={1000 - (trackProgress * 10)} className="transition-all duration-300 ease-linear" />
@@ -480,23 +463,14 @@ const HospitalDashboard = () => {
                                 </div>
                             )}
 
-                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-2xl w-[90%] max-w-md border border-slate-200">
-                                <div className="flex justify-between items-center mb-3">
-                                    <div><h3 className="text-lg font-bold text-slate-800">Drone-04</h3><p className="text-xs text-slate-500">Enroute</p></div>
-                                    <span className={`text-xs font-bold px-2 py-1 rounded-full animate-pulse ${countdown > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
-                                        {countdown > 0 ? 'PREPARING' : 'LIVE'}
-                                    </span>
-                                </div>
-                                <div className="grid grid-cols-3 gap-2 text-center divide-x divide-slate-200">
-                                    <div><p className="text-[10px] text-slate-400 font-bold">Speed</p><p className="text-lg font-bold text-blue-600">{droneStats.speed} <span className="text-xs text-slate-500">km/h</span></p></div>
-                                    <div><p className="text-[10px] text-slate-400 font-bold">Battery</p><div className="flex items-center justify-center gap-1 text-lg font-bold text-green-600"><Battery size={16} /> {droneStats.battery}%</div></div>
-                                    <div><p className="text-[10px] text-slate-400 font-bold">Alt</p><p className="text-lg font-bold text-slate-700">{droneStats.altitude}m</p></div>
-                                </div>
+                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-6 py-3 rounded-xl border border-slate-700 text-center">
+                                <h3 className="text-lg font-bold">{countdown > 0 ? 'STANDBY' : 'ENROUTE'}</h3>
+                                <div className="flex gap-4 mt-2 text-xs text-slate-400"><span>SPD: {droneStats.speed} km/h</span><span>ALT: {droneStats.altitude}m</span><span className="text-green-400">BAT: {droneStats.battery}%</span></div>
                             </div>
                         </div>
-                    ) : (
+                     ) : (
                         <div className="text-center text-slate-500"><MapIcon size={48} className="mx-auto mb-2"/><p>No Active Flights</p></div>
-                    )}
+                     )}
                 </div>
             )}
             {activeTab === 'inventory' && (
@@ -516,7 +490,90 @@ const HospitalDashboard = () => {
             )}
         </div>
       </main>
-      {viewProof && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-4 rounded shadow-lg w-96"><img src={viewProof.proofFiles[0]} className="w-full"/><button onClick={()=>setViewProof(null)} className="mt-2 w-full bg-gray-200 p-2 rounded">Close</button></div></div>}
+
+      {/* ITEM LIST MODAL */}
+      {viewItemList && (
+          <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+              <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+                  <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
+                      <h3 className="font-bold flex items-center gap-2"><ClipboardList size={18} /> Packing List</h3>
+                      <button onClick={() => setViewItemList(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button>
+                  </div>
+                  <div className="p-6 max-h-96 overflow-y-auto bg-slate-50">
+                      <div className="space-y-3">
+                          {viewItemList.item.split(', ').map((itm, idx) => (
+                              <div key={idx} className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                                  <span className="font-bold text-slate-800">{itm}</span>
+                                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-bold">Pack This</span>
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+                  <div className="p-4 bg-white text-right border-t border-slate-200">
+                      <button onClick={() => setViewItemList(null)} className="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-bold text-sm shadow-md">Done Packing</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* VIEW PROOF MODAL */}
+      {viewProof && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+                <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
+                    <h3 className="font-bold flex items-center gap-2"><FileText size={18} /> Proof Document</h3>
+                    <button onClick={() => setViewProof(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button>
+                </div>
+                <div className="p-8 flex flex-col items-center justify-center space-y-4 bg-slate-50">
+                    {viewProof.proofFiles && viewProof.proofFiles.length > 0 ? (
+                        <div className="w-full space-y-4">
+                            {viewProof.proofFiles.map((fileUrl, idx) => (
+                                <div key={idx} className="border-2 border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                                    <img src={fileUrl} alt="Proof" className="w-full h-48 object-contain bg-black/5" />
+                                    <a href={fileUrl} target="_blank" className="block bg-blue-50 text-blue-600 text-center text-xs py-2 hover:bg-blue-100 font-bold border-t border-slate-200">Open Full Size ↗</a>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="w-full h-64 bg-white border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-slate-400">
+                            <FileText size={48} className="mb-2 text-blue-200" />
+                            <p className="text-sm font-bold text-slate-500">No Document Attached</p>
+                        </div>
+                    )}
+                </div>
+                <div className="p-4 bg-white text-right border-t border-slate-200">
+                    <button onClick={() => setViewProof(null)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold text-sm">Close</button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* ADD ITEM MODAL */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-0 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100">
+                <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                    <div><h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Package className="text-blue-600" size={20}/> Add New Medicine</h3><p className="text-xs text-slate-500 mt-0.5">Enter stock details below</p></div>
+                    <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1 rounded-full transition-colors"><X size={20} /></button>
+                </div>
+                <div className="p-6 space-y-5">
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Medicine Name</label>
+                        <div className="relative"><Pill className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium placeholder:text-slate-400" placeholder="e.g., Paracetamol 500mg" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} /></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-5">
+                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Batch ID</label><div className="relative"><QrCode className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium" placeholder="B-1023" value={newItem.batch} onChange={e => setNewItem({...newItem, batch: e.target.value})} /></div></div>
+                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Initial Stock</label><div className="relative"><Layers className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium" type="number" placeholder="0" value={newItem.stock} onChange={e => setNewItem({...newItem, stock: e.target.value})} /></div></div>
+                    </div>
+                </div>
+                <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                    <button onClick={() => setShowAddModal(false)} className="px-5 py-2.5 text-slate-600 font-medium hover:bg-white hover:text-slate-800 border border-transparent hover:border-slate-200 rounded-xl transition-all">Cancel</button>
+                    <button onClick={addNewItem} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all transform active:scale-95"><Save size={18} /> Save Item</button>
+                </div>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 };
