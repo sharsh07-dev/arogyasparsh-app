@@ -87,7 +87,7 @@ const HospitalDashboard = () => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
   });
 
-  // 🤖 AI ENGINE STATE
+  // AI Engine State
   const [aiLogs, setAiLogs] = useState([]);
   const [processingQueue, setProcessingQueue] = useState([]);
 
@@ -111,22 +111,50 @@ const HospitalDashboard = () => {
 
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
-  // ✅ AI SCORING ALGORITHM
+  // ✅ 1. NEW AI SCORING ALGORITHM (9-Point Matrix)
   const calculatePriorityScore = (req) => {
-    let score = 0;
+    let score = 0.0;
     
-    if (req.urgency === 'Critical') score += 0.5;
-    else if (req.urgency === 'High') score += 0.3;
-    else score += 0.1;
+    // Parse Distance (Default to 10km if missing)
+    let dist = 10; 
+    if (req.distance) {
+         // Extract number from "12 km"
+         const match = req.distance.match(/(\d+)/);
+         if (match) dist = parseFloat(match[0]);
+    }
 
-    const distFactor = Math.random() * 0.2; 
-    score += distFactor;
-    score += 0.2;
+    // Define Distance Categories
+    const isLong = dist > 15;
+    const isMedium = dist >= 5 && dist <= 15;
+    const isShort = dist < 5;
 
-    return Math.min(score, 0.99).toFixed(2);
+    // 🧠 THE 9 COMBINATIONS LOGIC
+    if (req.urgency === 'Critical') {
+        // Critical Base: 0.80
+        if (isLong) score = 0.95;       // 1. Critical + Long (Highest)
+        else if (isMedium) score = 0.90; // 2. Critical + Medium
+        else score = 0.85;              // 3. Critical + Short
+    } 
+    else if (req.urgency === 'High') {
+        // High Base: 0.50
+        if (isLong) score = 0.65;       // 4. High + Long
+        else if (isMedium) score = 0.60; // 5. High + Medium
+        else score = 0.55;              // 6. High + Short
+    } 
+    else {
+        // Low/Standard Base: 0.20
+        if (isLong) score = 0.35;       // 7. Low + Long
+        else if (isMedium) score = 0.30; // 8. Low + Medium
+        else score = 0.25;              // 9. Low + Short
+    }
+
+    // Bonus for Stock Availability (Mocked)
+    score += 0.04; 
+
+    return score.toFixed(2); // Returns string like "0.99"
   };
 
-  // ✅ AUTO-PILOT LOOP
+  // ✅ 2. AUTO-PILOT LOOP
   useEffect(() => {
     const aiLoop = setInterval(() => {
         requests.forEach(req => {
@@ -137,6 +165,7 @@ const HospitalDashboard = () => {
                 let action = "";
                 let logColor = "text-slate-400";
 
+                // 🧠 DECISION MATRIX
                 if (score >= 0.8) {
                     action = "🚀 AUTO-DISPATCHING";
                     logColor = "text-green-400";
@@ -163,8 +192,14 @@ const HospitalDashboard = () => {
     return () => clearInterval(aiLoop);
   }, [requests]);
 
+  // ✅ 3. AUTO-DISPATCH HANDLER
   const handleAutoDispatch = (req) => {
+    if (activeMissions.find(m => m.id === req._id)) return; // Prevent double dispatch
+    
+    // 1. Approve
     updateStatusInDB(req._id, 'Approved');
+    
+    // 2. Dispatch after 2 seconds
     setTimeout(() => {
         updateStatusInDB(req._id, 'Dispatched');
         const newMission = { id: req._id, phc: req.phc, startTime: Date.now(), delivered: false };
@@ -179,6 +214,7 @@ const HospitalDashboard = () => {
       if (!res.ok) return;
       const data = await res.json();
       if (Array.isArray(data)) {
+        // Sort by Priority Score (High to Low)
         const sortedData = data.sort((a, b) => calculatePriorityScore(b) - calculatePriorityScore(a));
         setRequests(sortedData);
 
@@ -285,7 +321,7 @@ const HospitalDashboard = () => {
             {activeTab === 'alerts' && (
                 <div className="grid gap-6 max-w-6xl mx-auto">
                     
-                    {/* ✅ AI LOGS (Fixed Syntax Error) */}
+                    {/* AI LOGS */}
                     <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-xs h-36 overflow-y-auto border border-slate-700 shadow-inner relative">
                         <div className="flex items-center gap-2 mb-2 border-b border-slate-700 pb-1 sticky top-0 bg-slate-900 w-full">
                             <Terminal size={14}/> SYSTEM LOGS [AUTO-PILOT ENABLED]:
@@ -300,10 +336,9 @@ const HospitalDashboard = () => {
                     
                     {requests.map((req) => {
                         const score = calculatePriorityScore(req);
-                        const isAuto = score >= 0.8;
                         
                         return (
-                        <div key={req._id} className={`bg-white rounded-xl shadow-sm border p-4 flex flex-col md:flex-row justify-between gap-4 ${req.status === 'Rejected' ? 'opacity-50' : ''} ${isAuto && req.status === 'Pending' ? 'border-green-500 ring-2 ring-green-100' : ''}`}>
+                        <div key={req._id} className={`bg-white rounded-xl shadow-sm border p-4 flex flex-col md:flex-row justify-between gap-4 ${req.status === 'Rejected' ? 'opacity-50' : ''} ${score >= 0.8 && req.status === 'Pending' ? 'border-green-500 ring-2 ring-green-100' : ''}`}>
                             <div className="flex items-start gap-4">
                                 <div className={`p-3 rounded-full ${req.urgency === 'Critical' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-600'}`}><AlertOctagon size={24} /></div>
                                 <div>
@@ -321,13 +356,13 @@ const HospitalDashboard = () => {
                             <div className="flex items-center gap-2">
                                 <button onClick={() => setViewProof(req)} className="px-3 py-2 border rounded-lg text-slate-600 text-sm flex gap-2"><FileText size={16} /> Proof</button>
                                 {req.status === 'Pending' && (
-                                    isAuto ? (
+                                    score >= 0.8 ? (
                                         <div className="flex items-center gap-2 text-green-600 font-bold text-sm animate-pulse bg-green-50 px-3 py-2 rounded border border-green-200">
                                             <Brain size={16} /> AI PROCESSING...
                                         </div>
                                     ) : (
                                         <>
-                                            <div className="text-xs text-slate-400 mr-2">Manual Mode</div>
+                                            <div className="text-xs text-slate-400 mr-2">Low Priority (Manual)</div>
                                             <button onClick={() => updateStatusInDB(req._id, 'Rejected')} className="px-3 py-1 border rounded text-red-600 text-xs">Reject</button>
                                             <button onClick={() => handleDispatch(req._id, req.phc)} className="px-3 py-1 bg-blue-600 text-white rounded text-xs">Dispatch</button>
                                         </>
@@ -341,12 +376,19 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* MAP & INVENTORY */}
+            {/* MAP & INVENTORY (Same as before) */}
             {activeTab === 'map' && (
                 <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] flex items-center justify-center text-white relative overflow-hidden">
-                     {/* ... (Previous Map Code) ... */}
+                     {/* ... (Same Map Code) ... */}
                      {activeMissions.length > 0 ? (
-                        <div className="text-center animate-pulse"><Plane size={64} className="mx-auto mb-4 text-yellow-400"/><h2 className="text-2xl">AI DRONE DEPLOYED</h2><p>{missionStatusText}</p></div>
+                        <div className="w-full h-full relative">
+                            {/* Placeholder for visual brevity, assume same map code here */}
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 text-center animate-pulse">
+                                 <Plane size={64} className="mx-auto mb-4 text-yellow-400"/>
+                                 <h2 className="text-2xl">AI DRONE DEPLOYED</h2>
+                                 <p>{missionStatusText}</p>
+                            </div>
+                        </div>
                      ) : (
                         <div className="text-center text-slate-500"><MapIcon size={48} className="mx-auto mb-2"/><p>No Active Flights</p></div>
                      )}
