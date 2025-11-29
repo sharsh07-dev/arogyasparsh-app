@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
-
 // ✅ IMPORT AI COPILOT
 import AiCopilot from '../components/AiCopilot';
 
@@ -49,8 +48,6 @@ const PHC_COORDINATES = {
 };
 
 const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; 
-const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
-const center = { lat: 19.9260, lng: 79.9033 }; 
 
 // INVENTORY
 const INITIAL_INVENTORY = [
@@ -93,13 +90,13 @@ const HospitalDashboard = () => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
   });
 
-  // Persistent AI Logs
+  // ✅ FIXED: PERSISTENT AI LOGS (Renamed key to avoid conflicts)
   const [aiLogs, setAiLogs] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('aiSystemLogs')) || []; } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('hospitalLogs_v1')) || []; } catch { return []; }
   });
   
   useEffect(() => {
-    localStorage.setItem('aiSystemLogs', JSON.stringify(aiLogs));
+    localStorage.setItem('hospitalLogs_v1', JSON.stringify(aiLogs));
   }, [aiLogs]);
 
   const addLog = (msg, color) => {
@@ -110,8 +107,6 @@ const HospitalDashboard = () => {
   };
 
   const [processingQueue, setProcessingQueue] = useState([]);
-
-  // Simulation State
   const [trackProgress, setTrackProgress] = useState(0);
   const [countdown, setCountdown] = useState(0); 
   const [missionStatusText, setMissionStatusText] = useState('Standby');
@@ -147,7 +142,6 @@ const HospitalDashboard = () => {
   };
   useEffect(() => { fetchPredictions(); }, []);
 
-  // FILTER LOGIC
   useEffect(() => {
       if (selectedPhc === "All") {
           setFilteredPredictions(predictions.slice(0, 3));
@@ -157,7 +151,6 @@ const HospitalDashboard = () => {
       }
   }, [selectedPhc, predictions]);
 
-  // AI SCORING
   const calculatePriorityScore = (req) => {
     let score = 0.0;
     let dist = 10; 
@@ -189,39 +182,27 @@ const HospitalDashboard = () => {
                 if (req.urgency === 'Critical') {
                     const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL - IMMEDIATE LAUNCH`;
                     addLog(logMsg, "text-red-500 font-bold");
-                    
-                    setTimeout(() => {
-                        updateStatusInDB(req._id, 'Approved');
-                        addLog(`ID: ${req._id.slice(-4)} | ✅ APPROVED BY SYSTEM`, "text-green-400");
-
-                        setTimeout(() => {
-                             handleAutoDispatch(req); 
-                        }, 15000); 
-                    }, 4000); 
-                } 
-                else {
+                    startApprovalProcess(req); 
+                } else {
                     addLog(`ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ QUEUED (15s Buffer)`, "text-yellow-400");
-                    
                     setTimeout(() => {
                          addLog(`ID: ${req._id.slice(-4)} | ✅ SAFETY CHECK PASSED`, "text-green-400");
-                         
-                         setTimeout(() => {
-                              updateStatusInDB(req._id, 'Approved');
-                              addLog(`ID: ${req._id.slice(-4)} | 📝 Request Approved`, "text-green-300");
-                              
-                              setTimeout(() => {
-                                  handleAutoDispatch(req);
-                              }, 12000); 
-                         }, 4000); 
-
-                    }, 15000); 
+                         startApprovalProcess(req); 
+                    }, 15000);
                 }
             }
         });
     }, 3000); 
-
     return () => clearInterval(aiLoop);
   }, [requests, processingQueue]);
+
+  const startApprovalProcess = (req) => {
+      setTimeout(() => {
+          updateStatusInDB(req._id, 'Approved');
+          addLog(`ID: ${req._id.slice(-4)} | 📝 Request Approved by System`, "text-green-300");
+          setTimeout(() => { handleAutoDispatch(req); }, 12000);
+      }, 4000);
+  };
 
   const handleAutoDispatch = (req) => {
     if (activeMissions.find(m => m.id === req._id)) return;
@@ -234,11 +215,8 @@ const HospitalDashboard = () => {
         : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
 
     const newMission = { 
-        id: req._id, 
-        phc: req.phc, 
-        destination: destination, 
-        startTime: Date.now(), 
-        delivered: false 
+        id: req._id, phc: req.phc, destination: destination, 
+        startTime: Date.now(), delivered: false 
     };
 
     setActiveMissions(prev => [...prev, newMission]);
@@ -257,9 +235,7 @@ const HospitalDashboard = () => {
         const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setRequests(sortedData);
       }
-    } catch (err) {
-      console.error("Network Error");
-    }
+    } catch (err) {}
   };
 
   useEffect(() => {
@@ -278,7 +254,6 @@ const HospitalDashboard = () => {
       if(!mission) return;
       const now = Date.now();
       const elapsed = now - mission.startTime; 
-      
       const FLIGHT_DURATION = 600000; 
 
       if (elapsed < 10000) {
@@ -286,36 +261,23 @@ const HospitalDashboard = () => {
         setTrackProgress(0);
         setMissionStatusText(`Pre-Flight Checks`);
         setDroneStats({ speed: 0, battery: 100, altitude: 0 });
-      } 
-      else if (elapsed < (FLIGHT_DURATION + 10000)) {
+      } else if (elapsed < (FLIGHT_DURATION + 10000)) {
         setCountdown(0);
-        const flightTime = elapsed - 10000;
-        const percent = (flightTime / FLIGHT_DURATION) * 100;
+        const percent = ((elapsed - 10000) / FLIGHT_DURATION) * 100;
         setTrackProgress(percent);
         setMissionStatusText('In-Flight');
-        
         let currentSpeed = 60; let currentAlt = 120;
         if (percent < 5) { currentSpeed = percent * 12; currentAlt = percent * 24; } 
         else if (percent > 95) { currentSpeed = 60 - (percent-95)*12; currentAlt = 120 - (percent-95)*24; } 
-
-        setDroneStats({
-            speed: Math.floor(currentSpeed),
-            battery: Math.max(0, 100 - Math.floor(percent / 1.5)),
-            altitude: Math.floor(currentAlt)
-        });
-      }
-      else {
+        setDroneStats({ speed: Math.floor(currentSpeed), battery: Math.max(0, 100 - Math.floor(percent / 1.5)), altitude: Math.floor(currentAlt) });
+      } else {
         setTrackProgress(100);
         setMissionStatusText('Delivered');
         setDroneStats({ speed: 0, battery: 30, altitude: 0 });
-
         if (!mission.delivered) {
            addLog(`✅ DELIVERY SUCCESSFUL at ${mission.phc}`, "text-blue-400 font-bold border-l-2 border-blue-500 pl-2");
-           
            setRequests(prev => prev.map(r => r._id === mission.id ? { ...r, status: 'Delivered' } : r));
            updateStatusInDB(mission.id, 'Delivered');
-           
-           const updatedMissions = activeMissions.map(m => m.id === mission.id ? { ...m, delivered: true } : m);
            setTimeout(() => { setActiveMissions(prev => prev.filter(m => m.id !== mission.id)); }, 5000);
         }
       }
@@ -346,7 +308,7 @@ const HospitalDashboard = () => {
       
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
       
-      {/* ✅ FIXED: Uses 'requests' instead of 'orderHistory' to avoid crash */}
+      {/* ✅ FIXED: Uses 'requests' so it doesn't crash */}
       <AiCopilot contextData={{ inventory, requests }} />
 
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
@@ -384,15 +346,7 @@ const HospitalDashboard = () => {
                                  <div className="flex items-center gap-2">
                                      <Filter size={14} className="text-slate-400"/>
                                      <select className="bg-white border border-slate-300 text-xs p-2 rounded-lg outline-none font-medium text-slate-600" onChange={(e) => setSelectedPhc(e.target.value)}>
-                                        <option value="All">All PHCs</option>
-                                        <option value="PHC Chamorshi">PHC Chamorshi</option>
-                                        <option value="PHC Gadhchiroli">PHC Gadhchiroli</option>
-                                        <option value="PHC Panera">PHC Panera</option>
-                                        <option value="PHC Belgaon">PHC Belgaon</option>
-                                        <option value="PHC Dhutergatta">PHC Dhutergatta</option>
-                                        <option value="PHC Gatta">PHC Gatta</option>
-                                        <option value="PHC Gaurkheda">PHC Gaurkheda</option>
-                                        <option value="PHC Murmadi">PHC Murmadi</option>
+                                        <option value="All">All PHCs</option><option value="Wagholi PHC">Wagholi PHC</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option>
                                      </select>
                                  </div>
                              </div>
@@ -426,6 +380,7 @@ const HospitalDashboard = () => {
                                     <button onClick={() => setViewItemList(req)} className="text-sm text-slate-600 hover:text-blue-600 hover:underline text-left mt-1 font-medium flex items-center gap-1"><ClipboardList size={14}/> {req.qty} items (Click to View List)</button>
 
                                     <div className="flex items-center gap-2 mt-1 text-xs text-slate-500"><Clock size={12}/> {new Date(req.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+                                    {/* EXACT LOCATION BUTTON */}
                                     <button onClick={() => showCoordinates(req)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1"><Globe size={12} /> Loc ({req.coordinates ? 'GPS' : 'Static'})</button>
                                 </div>
                             </div>
@@ -442,7 +397,7 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* MAP & INVENTORY (Kept same) */}
+            {/* MAP & INVENTORY */}
             {activeTab === 'map' && ( <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] flex items-center justify-center text-white relative overflow-hidden">{activeMissions.length > 0 ? (<div className="w-full h-full relative"><div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div><svg className="absolute inset-0 w-full h-full pointer-events-none"><line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#475569" strokeWidth="4" strokeDasharray="8" /><line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#3b82f6" strokeWidth="4" strokeDasharray="1000" strokeDashoffset={1000 - (trackProgress * 10)} className="transition-all duration-300 ease-linear" /></svg><div className="absolute top-1/2 left-[10%] -translate-y-1/2 flex flex-col items-center z-10"><div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20"><Building2 size={24} className="text-slate-900" /></div><span className="text-white text-xs font-bold mt-3 bg-slate-800 px-2 py-1 rounded border border-slate-700">District Hospital</span></div><div className="absolute top-1/2 right-[10%] -translate-y-1/2 flex flex-col items-center z-10"><div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/50 animate-pulse border-4 border-slate-900"><MapPin size={24} className="text-white" /></div><span className="text-white text-xs font-bold mt-3 bg-blue-900 px-2 py-1 rounded border border-blue-700">Destination</span></div>{countdown > 0 ? (<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center"><div className="bg-black/80 backdrop-blur-md p-6 rounded-2xl border border-yellow-500 text-center shadow-2xl"><Timer className="w-10 h-10 text-yellow-500 mx-auto mb-2 animate-pulse" /><h2 className="text-4xl font-bold text-white font-mono">{countdown}s</h2><p className="text-yellow-400 text-xs font-bold uppercase tracking-widest mt-2">Preparing for Takeoff</p></div></div>) : (<div className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-linear z-20 flex flex-col items-center" style={{ left: `${10 + (trackProgress * 0.8)}%` }}><div className="bg-white p-2 rounded-full shadow-2xl relative"><Navigation size={32} className="text-red-500 rotate-90" fill="currentColor" /><div className="absolute -top-1 -left-1 w-full h-full border-2 border-slate-300 rounded-full animate-spin opacity-50"></div></div><div className="bg-black/80 text-white text-[10px] px-2 py-1 rounded-md mt-2 backdrop-blur-sm font-mono border border-slate-700">{Math.round(trackProgress)}%</div></div>)}<div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-6 py-3 rounded-xl border border-slate-700 text-center"><h3 className="text-lg font-bold">{countdown > 0 ? 'STANDBY' : 'ENROUTE'}</h3><div className="flex gap-4 mt-2 text-xs text-slate-400"><span>SPD: {droneStats.speed} km/h</span><span>ALT: {droneStats.altitude}m</span><span className="text-green-400">BAT: {droneStats.battery}%</span></div></div></div>) : (<div className="text-center text-slate-500"><MapIcon size={48} className="mx-auto mb-2"/><p>No Active Flights</p></div>)}</div> )}
             {activeTab === 'inventory' && ( <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4">{inventory.map(item => (<div key={item.id} className="bg-white p-4 rounded-xl border text-center shadow-sm"><img src={item.img} className="h-24 w-full object-contain mb-2"/><h3 className="font-bold text-sm">{item.name}</h3><div className="flex justify-center gap-2 mt-2"><button onClick={() => updateStock(item.id, -1)} className="p-1 bg-gray-100 rounded"><Minus size={12}/></button><span className="font-bold">{item.stock}</span><button onClick={() => updateStock(item.id, 1)} className="p-1 bg-blue-100 text-blue-600 rounded"><Plus size={12}/></button></div></div>))}</div> )}
         </div>
@@ -455,4 +410,4 @@ const HospitalDashboard = () => {
   );
 };
 
-export default HospitalDashboard;//aa
+export default HospitalDashboard;
