@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
+// ✅ REMOVED unused Google Maps imports to fix the "NoApiKeys" warning
 import { 
   Activity, Users, Package, Navigation, LogOut, 
   MapPin, CheckCircle2, Clock, AlertOctagon, 
   Battery, Signal, Plane, Plus, Minus, Search, 
   Map as MapIcon, VolumeX, Siren, X, Check, Menu,
   Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2, Globe, Timer, Zap, Brain, Cpu, Terminal, 
-  TrendingUp, ClipboardList, Filter, MessageCircle, Send, AlertTriangle, ShieldAlert
+  TrendingUp, ClipboardList, Filter, MessageCircle, Send, AlertTriangle // ✅ ADDED AlertTriangle here
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
-// ✅ IMPORT AI COPILOT
 import AiCopilot from '../components/AiCopilot';
 
 // IMAGES
@@ -49,6 +48,7 @@ const PHC_COORDINATES = {
 };
 
 const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; 
+const center = { lat: 19.9260, lng: 79.9033 }; 
 
 // INVENTORY
 const INITIAL_INVENTORY = [
@@ -87,7 +87,7 @@ const HospitalDashboard = () => {
   const [filteredPredictions, setFilteredPredictions] = useState([]); 
   const [selectedPhc, setSelectedPhc] = useState("All"); 
 
-  // Chat & Incident State
+  // Chat State
   const [activeChatRequest, setActiveChatRequest] = useState(null);
   const [chatMessage, setChatMessage] = useState("");
 
@@ -117,11 +117,9 @@ const HospitalDashboard = () => {
   const [missionStatusText, setMissionStatusText] = useState('Standby');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [droneStats, setDroneStats] = useState({ speed: 0, battery: 100, altitude: 0 });
-
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '' });
 
-  const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: "" });
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
   // FETCH & CHAT SYNC
@@ -133,8 +131,6 @@ const HospitalDashboard = () => {
       if (Array.isArray(data)) {
         const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setRequests(sortedData);
-
-        // Sync active chat
         if (activeChatRequest) {
             const updatedChat = sortedData.find(r => r._id === activeChatRequest._id);
             if (updatedChat) setActiveChatRequest(updatedChat);
@@ -149,7 +145,6 @@ const HospitalDashboard = () => {
     return () => clearInterval(interval);
   }, [activeChatRequest]);
 
-  // SEND MESSAGE
   const sendMessage = async () => {
     if (!chatMessage.trim() || !activeChatRequest) return;
     try {
@@ -244,6 +239,7 @@ const HospitalDashboard = () => {
       setTimeout(() => {
           updateStatusInDB(req._id, 'Approved');
           addLog(`ID: ${req._id.slice(-4)} | 📝 Request Approved by System`, "text-green-300");
+          // Manual Dispatch Required
       }, 4000);
   };
 
@@ -328,8 +324,6 @@ const HospitalDashboard = () => {
   return (
     <div className={`min-h-screen bg-slate-50 flex font-sans text-slate-800 relative`}>
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
-      
-      {/* ✅ CORRECT AI COPILOT (Variables Fixed) */}
       <AiCopilot contextData={{ inventory, requests }} />
 
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
@@ -355,11 +349,10 @@ const HospitalDashboard = () => {
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 relative">
-            
             {activeTab === 'alerts' && (
                 <div className="grid gap-6 max-w-6xl mx-auto">
                     
-                    {/* AI FORECAST WIDGET */}
+                    {/* AI FORECAST */}
                     {predictions.length > 0 && (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
                              <div className="md:col-span-3 flex justify-between items-center mb-2">
@@ -367,7 +360,7 @@ const HospitalDashboard = () => {
                                  <div className="flex items-center gap-2">
                                      <Filter size={14} className="text-slate-400"/>
                                      <select className="bg-white border border-slate-300 text-xs p-2 rounded-lg outline-none font-medium text-slate-600" onChange={(e) => setSelectedPhc(e.target.value)}>
-                                        <option value="All">All PHCs</option><option value="Wagholi PHC">Wagholi PHC</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option>
+                                        <option value="All">All PHCs</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option><option value="PHC Belgaon">PHC Belgaon</option><option value="PHC Dhutergatta">PHC Dhutergatta</option><option value="PHC Gatta">PHC Gatta</option><option value="PHC Gaurkheda">PHC Gaurkheda</option><option value="PHC Murmadi">PHC Murmadi</option>
                                      </select>
                                  </div>
                              </div>
@@ -380,7 +373,7 @@ const HospitalDashboard = () => {
                         </div>
                     )}
 
-                    {/* SYSTEM LOGS */}
+                    {/* LOGS */}
                     <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-xs h-36 overflow-y-auto border border-slate-700 shadow-inner relative">
                         <div className="flex items-center gap-2 mb-2 border-b border-slate-700 pb-1 sticky top-0 bg-slate-900 w-full"><Terminal size={14}/> SYSTEM LOGS [AUTO-PILOT ENABLED]:</div>
                         {aiLogs.map((log, i) => (<p key={i} className={`mb-1 ${log.color}`}>{log.time} &gt; {log.msg}</p>))}
@@ -396,23 +389,15 @@ const HospitalDashboard = () => {
                             <div className="flex items-start gap-4">
                                 <div className={`p-3 rounded-full ${req.urgency === 'Critical' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-600'}`}><AlertOctagon size={24} /></div>
                                 <div>
-                                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                                        {req.phc}
-                                        <span className={`text-[10px] px-2 py-0.5 rounded border ${score >= 0.8 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>Score: {score}</span>
-                                        {/* ✅ INCIDENT FLAG */}
-                                        {hasIncident && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 ml-2"><AlertTriangle size={10}/> ISSUE</span>}
-                                    </h3>
-                                    
+                                    <h3 className="font-bold text-slate-800 flex items-center gap-2">{req.phc}<span className={`text-[10px] px-2 py-0.5 rounded border ${score >= 0.8 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>Score: {score}</span>
+                                    {hasIncident && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 ml-2"><AlertTriangle size={10}/> ISSUE</span>}</h3>
                                     <button onClick={() => setViewItemList(req)} className="text-sm text-slate-600 hover:text-blue-600 hover:underline text-left mt-1 font-medium flex items-center gap-1"><ClipboardList size={14}/> {req.qty} items (Click to View List)</button>
-
                                     <div className="flex items-center gap-2 mt-1 text-xs text-slate-500"><Clock size={12}/> {new Date(req.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
                                     <button onClick={() => showCoordinates(req)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1"><Globe size={12} /> Loc ({req.coordinates ? 'GPS' : 'Static'})</button>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                {/* ✅ CHAT BUTTON */}
                                 <button onClick={() => setActiveChatRequest(req)} className={`p-2 rounded-full relative ${req.chat?.length > 0 ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}><MessageCircle size={18}/></button>
-                                
                                 <button onClick={() => setViewProof(req)} className="px-3 py-2 border rounded-lg text-slate-600 text-sm flex gap-2"><FileText size={16} /> Proof</button>
                                 {req.status === 'Pending' && (<div className="flex items-center gap-2 text-green-600 font-bold text-sm animate-pulse bg-green-50 px-3 py-2 rounded border border-green-200">{req.urgency === 'Critical' ? '🚀 LAUNCHING...' : '⏳ SAFETY CHECK (15s)'}</div>)}
                                 {req.status === 'Dispatched' && <span className="text-green-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> In-Flight</span>}
@@ -424,40 +409,17 @@ const HospitalDashboard = () => {
                     )})}
                 </div>
             )}
-
-            {/* MAP & INVENTORY (Kept same) */}
+            
+            {/* MAP */}
             {activeTab === 'map' && ( <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] flex items-center justify-center text-white relative overflow-hidden">{activeMissions.length > 0 ? (<div className="w-full h-full relative"><div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div><svg className="absolute inset-0 w-full h-full pointer-events-none"><line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#475569" strokeWidth="4" strokeDasharray="8" /><line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#3b82f6" strokeWidth="4" strokeDasharray="1000" strokeDashoffset={1000 - (trackProgress * 10)} className="transition-all duration-300 ease-linear" /></svg><div className="absolute top-1/2 left-[10%] -translate-y-1/2 flex flex-col items-center z-10"><div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20"><Building2 size={24} className="text-slate-900" /></div><span className="text-white text-xs font-bold mt-3 bg-slate-800 px-2 py-1 rounded border border-slate-700">District Hospital</span></div><div className="absolute top-1/2 right-[10%] -translate-y-1/2 flex flex-col items-center z-10"><div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/50 animate-pulse border-4 border-slate-900"><MapPin size={24} className="text-white" /></div><span className="text-white text-xs font-bold mt-3 bg-blue-900 px-2 py-1 rounded border border-blue-700">Destination</span></div>{countdown > 0 ? (<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center"><div className="bg-black/80 backdrop-blur-md p-6 rounded-2xl border border-yellow-500 text-center shadow-2xl"><Timer className="w-10 h-10 text-yellow-500 mx-auto mb-2 animate-pulse" /><h2 className="text-4xl font-bold text-white font-mono">{countdown}s</h2><p className="text-yellow-400 text-xs font-bold uppercase tracking-widest mt-2">Preparing for Takeoff</p></div></div>) : (<div className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-linear z-20 flex flex-col items-center" style={{ left: `${10 + (trackProgress * 0.8)}%` }}><div className="bg-white p-2 rounded-full shadow-2xl relative"><Navigation size={32} className="text-red-500 rotate-90" fill="currentColor" /><div className="absolute -top-1 -left-1 w-full h-full border-2 border-slate-300 rounded-full animate-spin opacity-50"></div></div><div className="bg-black/80 text-white text-[10px] px-2 py-1 rounded-md mt-2 backdrop-blur-sm font-mono border border-slate-700">{Math.round(trackProgress)}%</div></div>)}<div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-6 py-3 rounded-xl border border-slate-700 text-center"><h3 className="text-lg font-bold">{countdown > 0 ? 'STANDBY' : 'ENROUTE'}</h3><div className="flex gap-4 mt-2 text-xs text-slate-400"><span>SPD: {droneStats.speed} km/h</span><span>ALT: {droneStats.altitude}m</span><span className="text-green-400">BAT: {droneStats.battery}%</span></div></div></div>) : (<div className="text-center text-slate-500"><MapIcon size={48} className="mx-auto mb-2"/><p>No Active Flights</p></div>)}</div> )}
+
+            {/* INVENTORY */}
             {activeTab === 'inventory' && ( <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4">{inventory.map(item => (<div key={item.id} className="bg-white p-4 rounded-xl border text-center shadow-sm"><img src={item.img} className="h-24 w-full object-contain mb-2"/><h3 className="font-bold text-sm">{item.name}</h3><div className="flex justify-center gap-2 mt-2"><button onClick={() => updateStock(item.id, -1)} className="p-1 bg-gray-100 rounded"><Minus size={12}/></button><span className="font-bold">{item.stock}</span><button onClick={() => updateStock(item.id, 1)} className="p-1 bg-blue-100 text-blue-600 rounded"><Plus size={12}/></button></div></div>))}</div> )}
         </div>
       </main>
 
-      {/* CHAT MODAL */}
-      {activeChatRequest && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[500px]">
-                <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
-                    <h3 className="font-bold flex items-center gap-2"><MessageCircle size={18}/> Chat with PHC</h3>
-                    <button onClick={() => setActiveChatRequest(null)}><X size={20}/></button>
-                </div>
-                <div className="flex-1 p-4 overflow-y-auto bg-slate-50 space-y-3">
-                    {activeChatRequest.chat?.length === 0 && <p className="text-center text-slate-400 text-sm mt-10">No messages yet. Start the conversation.</p>}
-                    {activeChatRequest.chat?.map((c, i) => (
-                        <div key={i} className={`flex ${c.sender === 'Hospital' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`p-3 rounded-xl text-sm max-w-[80%] ${c.sender === 'Hospital' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border border-slate-200 rounded-bl-none'}`}>
-                                <p>{c.message}</p>
-                                <span className="text-[10px] opacity-70 block mt-1 text-right">{new Date(c.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-                <div className="p-3 bg-white border-t flex gap-2">
-                    <input className="flex-1 bg-slate-100 border-0 rounded-xl px-4 py-2 text-sm focus:outline-none" placeholder="Type message..." value={chatMessage} onChange={(e)=>setChatMessage(e.target.value)} onKeyPress={(e)=>e.key==='Enter' && sendMessage()}/>
-                    <button onClick={sendMessage} className="bg-blue-600 text-white p-2 rounded-xl hover:bg-blue-700"><Send size={18}/></button>
-                </div>
-            </div>
-        </div>
-      )}
-
+      {/* MODALS */}
+      {activeChatRequest && (<div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"><div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[500px]"><div className="bg-blue-600 p-4 flex justify-between items-center text-white"><h3 className="font-bold flex items-center gap-2"><MessageCircle size={18}/> Chat with PHC</h3><button onClick={() => setActiveChatRequest(null)}><X size={20}/></button></div><div className="flex-1 p-4 overflow-y-auto bg-slate-50 space-y-3">{activeChatRequest.chat?.map((c, i) => (<div key={i} className={`flex ${c.sender === 'Hospital' ? 'justify-end' : 'justify-start'}`}><div className={`p-3 rounded-xl text-sm max-w-[80%] ${c.sender === 'Hospital' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border border-slate-200 rounded-bl-none'}`}><p>{c.message}</p><span className="text-[10px] opacity-70 block mt-1 text-right">{new Date(c.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div></div>))}</div><div className="p-3 bg-white border-t flex gap-2"><input className="flex-1 bg-slate-100 border-0 rounded-xl px-4 py-2 text-sm focus:outline-none" placeholder="Type message..." value={chatMessage} onChange={(e)=>setChatMessage(e.target.value)} onKeyPress={(e)=>e.key==='Enter' && sendMessage()}/><button onClick={sendMessage} className="bg-blue-600 text-white p-2 rounded-xl hover:bg-blue-700"><Send size={18}/></button></div></div></div>)}
       {viewItemList && (<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"><div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"><div className="bg-blue-600 p-4 flex justify-between items-center text-white"><h3 className="font-bold flex items-center gap-2"><ClipboardList size={18} /> Packing List</h3><button onClick={() => setViewItemList(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button></div><div className="p-6 max-h-96 overflow-y-auto bg-slate-50"><div className="space-y-3">{viewItemList.item.split(', ').map((itm, idx) => (<div key={idx} className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm"><span className="font-bold text-slate-800">{itm}</span><span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-bold">Pack This</span></div>))}</div></div><div className="p-4 bg-white text-right border-t border-slate-200"><button onClick={() => setViewItemList(null)} className="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-bold text-sm shadow-md">Done Packing</button></div></div></div>)}
       {viewProof && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-4 rounded shadow-lg w-96"><img src={viewProof.proofFiles[0]} className="w-full"/><button onClick={()=>setViewProof(null)} className="mt-2 w-full bg-gray-200 p-2 rounded">Close</button></div></div>}
       {showAddModal && (<div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-0 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100"><div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center"><div><h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Package className="text-blue-600" size={20}/> Add New Medicine</h3><p className="text-xs text-slate-500 mt-0.5">Enter stock details below</p></div><button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1 rounded-full transition-colors"><X size={20} /></button></div><div className="p-6 space-y-5"><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Medicine Name</label><div className="relative"><Pill className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium placeholder:text-slate-400" placeholder="e.g., Paracetamol 500mg" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} /></div></div><div className="grid grid-cols-2 gap-5"><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Batch ID</label><div className="relative"><QrCode className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium" placeholder="B-1023" value={newItem.batch} onChange={e => setNewItem({...newItem, batch: e.target.value})} /></div></div><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Initial Stock</label><div className="relative"><Layers className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium" type="number" placeholder="0" value={newItem.stock} onChange={e => setNewItem({...newItem, stock: e.target.value})} /></div></div></div></div><div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3"><button onClick={() => setShowAddModal(false)} className="px-5 py-2.5 text-slate-600 font-medium hover:bg-white hover:text-slate-800 border border-transparent hover:border-slate-200 rounded-xl transition-all">Cancel</button><button onClick={addNewItem} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all transform active:scale-95"><Save size={18} /> Save Item</button></div></div></div>)}
