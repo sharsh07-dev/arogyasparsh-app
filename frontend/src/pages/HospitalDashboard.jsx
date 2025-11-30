@@ -92,7 +92,7 @@ const HospitalDashboard = () => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
   });
 
-  // Persistent AI Logs
+  // PERSISTENT AI LOGS
   const [aiLogs, setAiLogs] = useState(() => {
     try { return JSON.parse(localStorage.getItem('aiSystemLogs')) || []; } catch { return []; }
   });
@@ -177,63 +177,74 @@ const HospitalDashboard = () => {
     return score.toFixed(2); 
   };
 
-  // ✅ MODIFIED: AUTO-PILOT APPROVAL ONLY
+  // ✅ UPDATED AUTO-PILOT LOOP (Only Approves, No Dispatch)
   useEffect(() => {
     const aiLoop = setInterval(() => {
         requests.forEach(req => {
             if (req.status === 'Pending' && !processingQueue.includes(req._id)) {
+                
                 const score = calculatePriorityScore(req);
                 setProcessingQueue(prev => [...prev, req._id]);
 
-                // AUTOMATIC APPROVAL ONLY (No Auto Dispatch)
                 if (req.urgency === 'Critical') {
-                    addLog(`ID: ${req._id.slice(-4)} | CRITICAL - AUTO-APPROVING`, "text-red-500 font-bold");
-                    startApprovalProcess(req); 
-                } else {
-                    addLog(`ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ QUEUED (15s Buffer)`, "text-yellow-400");
+                    // 10 Seconds Approval
+                    const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL - PROCESSING (10s)`;
+                    addLog(logMsg, "text-red-500 font-bold");
+                    
                     setTimeout(() => {
-                         addLog(`ID: ${req._id.slice(-4)} | ✅ SAFETY CHECK PASSED`, "text-green-400");
-                         startApprovalProcess(req); 
-                    }, 15000);
+                        updateStatusInDB(req._id, 'Approved');
+                        addLog(`ID: ${req._id.slice(-4)} | ✅ APPROVED. WAITING FOR DISPATCH.`, "text-green-400");
+                    }, 10000); // 10s Wait
+                } 
+                else {
+                    // 20 Seconds Approval
+                    addLog(`ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ QUEUED (20s Buffer)`, "text-yellow-400");
+                    
+                    setTimeout(() => {
+                         updateStatusInDB(req._id, 'Approved');
+                         addLog(`ID: ${req._id.slice(-4)} | ✅ APPROVED. WAITING FOR DISPATCH.`, "text-green-300");
+                    }, 20000); // 20s Wait
                 }
             }
         });
     }, 3000); 
+
     return () => clearInterval(aiLoop);
   }, [requests, processingQueue]);
 
-  const startApprovalProcess = (req) => {
-      setTimeout(() => {
-          updateStatusInDB(req._id, 'Approved');
-          addLog(`ID: ${req._id.slice(-4)} | 📝 Approved. Waiting for Packing & Dispatch.`, "text-green-300");
-          // 🛑 STOP HERE. Do not auto-dispatch. Wait for manual click.
-      }, 4000);
-  };
-
   // ✅ MANUAL DISPATCH HANDLER (Triggers 15s Safety Check)
   const handleDispatch = (req) => {
-    if(!confirm("Confirm Manual Dispatch?")) return;
+    if(!confirm("Confirm Drone Dispatch?")) return;
     
     if (activeMissions.find(m => m.id === req._id)) return;
 
-    updateStatusInDB(req._id, 'Dispatched');
-    addLog(`🚁 Dispatch Initiated by Operator for ${req.phc}`, "text-blue-400 font-bold");
+    addLog(`🚁 Safety Checks Initiated for ${req.phc} (15s)...`, "text-blue-400 font-bold");
     
-    // Create mission immediately so simulation loop picks it up
-    const destination = (req.coordinates && req.coordinates.lat) 
-        ? req.coordinates 
-        : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
+    // Wait 15s for Safety Checks
+    setTimeout(() => {
+        updateStatusInDB(req._id, 'Dispatched');
+        addLog(`🚀 DRONE LAUNCHED TO ${req.phc}`, "text-green-400 font-bold");
 
-    const newMission = { 
-        id: req._id, 
-        phc: req.phc, 
-        destination: destination, 
-        startTime: Date.now(), // Flight starts logic now
-        delivered: false 
-    };
+        const destination = (req.coordinates && req.coordinates.lat) 
+            ? req.coordinates 
+            : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
 
-    setActiveMissions(prev => [...prev, newMission]);
-    setActiveTab('map'); // Show tracking
+        const newMission = { 
+            id: req._id, 
+            phc: req.phc, 
+            destination: destination, 
+            startTime: Date.now(), 
+            delivered: false 
+        };
+
+        setActiveMissions(prev => [...prev, newMission]);
+        setActiveTab('map'); // Show Map
+
+        setTimeout(() => {
+            addLog(`📦 Package Out for Delivery - Enroute to ${req.phc}`, "text-white");
+        }, 2000);
+
+    }, 15000); // 15s Delay
   };
 
   const fetchRequests = async () => {
@@ -245,7 +256,7 @@ const HospitalDashboard = () => {
         const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setRequests(sortedData);
       }
-    } catch (err) {}
+    } catch (err) { console.error("Network Error"); }
   };
 
   useEffect(() => {
@@ -254,7 +265,7 @@ const HospitalDashboard = () => {
     return () => clearInterval(interval);
   }, []); 
 
-  // ✅ SIMULATION LOOP (15s Pre-Flight + 10m Flight)
+  // SIMULATION LOOP
   useEffect(() => {
     localStorage.setItem('activeMissions', JSON.stringify(activeMissions));
     if (activeTab !== 'map' || activeMissions.length === 0) return;
@@ -265,35 +276,29 @@ const HospitalDashboard = () => {
       const now = Date.now();
       const elapsed = now - mission.startTime; 
       
-      const SAFETY_CHECK_DURATION = 15000; // 15 Seconds
       const FLIGHT_DURATION = 600000; // 10 Minutes
 
-      // Phase 1: Safety Checks (0 - 15s)
-      if (elapsed < SAFETY_CHECK_DURATION) {
-        setCountdown(Math.ceil((SAFETY_CHECK_DURATION - elapsed) / 1000));
+      if (elapsed < 10000) {
+        setCountdown(Math.ceil((10000 - elapsed) / 1000));
         setTrackProgress(0);
-        setMissionStatusText(`System Safety Checks...`);
+        setMissionStatusText(`Ascending to Altitude`);
         setDroneStats({ speed: 0, battery: 100, altitude: 0 });
       } 
-      // Phase 2: Flight (15s - 10m 15s)
-      else if (elapsed < (FLIGHT_DURATION + SAFETY_CHECK_DURATION)) {
+      else if (elapsed < (FLIGHT_DURATION + 10000)) {
         setCountdown(0);
-        const flightTime = elapsed - SAFETY_CHECK_DURATION;
-        const percent = (flightTime / FLIGHT_DURATION) * 100;
+        const percent = ((elapsed - 10000) / FLIGHT_DURATION) * 100;
         setTrackProgress(percent);
         setMissionStatusText('In-Flight');
-        
         let currentSpeed = 60; let currentAlt = 120;
         if (percent < 5) { currentSpeed = percent * 12; currentAlt = percent * 24; } 
         else if (percent > 95) { currentSpeed = 60 - (percent-95)*12; currentAlt = 120 - (percent-95)*24; } 
-
         setDroneStats({ speed: Math.floor(currentSpeed), battery: Math.max(0, 100 - Math.floor(percent / 1.5)), altitude: Math.floor(currentAlt) });
       }
-      // Phase 3: Delivered
       else {
         setTrackProgress(100);
         setMissionStatusText('Delivered');
         setDroneStats({ speed: 0, battery: 30, altitude: 0 });
+
         if (!mission.delivered) {
            addLog(`✅ DELIVERY SUCCESSFUL at ${mission.phc}`, "text-blue-400 font-bold border-l-2 border-blue-500 pl-2");
            setRequests(prev => prev.map(r => r._id === mission.id ? { ...r, status: 'Delivered' } : r));
@@ -317,7 +322,6 @@ const HospitalDashboard = () => {
   };
 
   const updateStatusInDB = async (id, newStatus) => { try { await fetch(`${API_URL}/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }), }); fetchRequests(); } catch (err) {} };
-  const handleApprove = (id, urgency) => { updateStatusInDB(id, 'Approved'); };
   const handleReject = (id, urgency) => { if(!confirm("Reject this request?")) return; updateStatusInDB(id, 'Rejected'); };
   const updateStock = (id, change) => { setInventory(inventory.map(item => item.id === id ? { ...item, stock: Math.max(0, item.stock + change) } : item)); };
   const addNewItem = () => { if(!newItem.name) return alert("Fill details"); setInventory([...inventory, { id: Date.now(), ...newItem, stock: parseInt(newItem.stock), img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" }]); setShowAddModal(false); };
@@ -325,6 +329,7 @@ const HospitalDashboard = () => {
   return (
     <div className={`min-h-screen bg-slate-50 flex font-sans text-slate-800 relative`}>
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
+      
       <AiCopilot contextData={{ inventory, requests }} />
 
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
@@ -362,8 +367,7 @@ const HospitalDashboard = () => {
                                  <div className="flex items-center gap-2">
                                      <Filter size={14} className="text-slate-400"/>
                                      <select className="bg-white border border-slate-300 text-xs p-2 rounded-lg outline-none font-medium text-slate-600" onChange={(e) => setSelectedPhc(e.target.value)}>
-                                        <option value="All">All PHCs</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option>
-                                        <option value="PHC Belgaon">PHC Belgaon</option><option value="PHC Dhutergatta">PHC Dhutergatta</option><option value="PHC Gatta">PHC Gatta</option><option value="PHC Gaurkheda">PHC Gaurkheda</option><option value="PHC Murmadi">PHC Murmadi</option>
+                                        <option value="All">All PHCs</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option><option value="PHC Belgaon">PHC Belgaon</option><option value="PHC Dhutergatta">PHC Dhutergatta</option><option value="PHC Gatta">PHC Gatta</option><option value="PHC Gaurkheda">PHC Gaurkheda</option><option value="PHC Murmadi">PHC Murmadi</option>
                                      </select>
                                  </div>
                              </div>
@@ -399,22 +403,11 @@ const HospitalDashboard = () => {
                             </div>
                             <div className="flex items-center gap-2">
                                 <button onClick={() => setViewProof(req)} className="px-3 py-2 border rounded-lg text-slate-600 text-sm flex gap-2"><FileText size={16} /> Proof</button>
-                                {req.status === 'Pending' && (<div className="flex items-center gap-2 text-green-600 font-bold text-sm animate-pulse bg-green-50 px-3 py-2 rounded border border-green-200">{req.urgency === 'Critical' ? '🚀 LAUNCHING...' : '⏳ SAFETY CHECK (15s)'}</div>)}
+                                {req.status === 'Pending' && (<div className="flex items-center gap-2 text-green-600 font-bold text-sm animate-pulse bg-green-50 px-3 py-2 rounded border border-green-200">{req.urgency === 'Critical' ? 'AI Processing...' : 'AI Queue...'}</div>)}
                                 {req.status === 'Dispatched' && <span className="text-green-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> In-Flight</span>}
                                 {req.status === 'Delivered' && <span className="text-blue-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> Delivered</span>}
-                                
-                                {/* ✅ MANUAL BUTTONS: REJECT & APPROVE (Visible for Pending) */}
-                                {req.status === 'Pending' && (
-                                    <>
-                                        <button onClick={() => handleReject(req._id, req.urgency)} className="px-3 py-2 border text-red-600 text-sm rounded-lg">Reject</button>
-                                        <button onClick={() => handleApprove(req._id, req.urgency)} className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg">Approve</button>
-                                    </>
-                                )}
-                                
-                                {/* ✅ DISPATCH BUTTON (Only Visible if Approved) */}
-                                {req.status === 'Approved' && (
-                                    <button onClick={() => handleDispatch(req)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm animate-pulse">Dispatch</button>
-                                )}
+                                {req.status === 'Pending' && score < 0.8 && (<button onClick={() => handleReject(req._id, req.urgency)} className="px-3 py-2 border text-red-600 text-sm rounded-lg">Reject</button>)}
+                                {req.status === 'Approved' && (<button onClick={() => handleDispatch(req)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm animate-pulse">Dispatch</button>)}
                             </div>
                         </div>
                     )})}
