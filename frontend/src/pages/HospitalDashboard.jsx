@@ -39,9 +39,9 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// FALLBACK COORDINATES
+// ✅ CORRECTED PHC COORDINATES (8 PHCs ONLY)
+// Used as fallback if the PHC user hasn't set a custom pin
 const PHC_COORDINATES = {
-  "Wagholi PHC": { lat: 18.5808, lng: 73.9787 },
   "PHC Chamorshi": { lat: 19.9280, lng: 79.9050 },
   "PHC Gadhchiroli": { lat: 20.1849, lng: 79.9948 },
   "PHC Panera": { lat: 19.9500, lng: 79.8500 },
@@ -85,20 +85,22 @@ const HospitalDashboard = () => {
   const [requests, setRequests] = useState([]); 
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Feature States
   const [viewProof, setViewProof] = useState(null);
   const [viewItemList, setViewItemList] = useState(null);
   const [predictions, setPredictions] = useState([]); 
   const [filteredPredictions, setFilteredPredictions] = useState([]); 
   const [selectedPhc, setSelectedPhc] = useState("All"); 
 
-  // ✅ FIXED CHAT STATE (Using ID instead of Object to prevent re-renders)
+  // Chat & Incident State
   const [activeChatId, setActiveChatId] = useState(null);
   const [chatMessage, setChatMessage] = useState("");
 
-  // ✅ DERIVE ACTIVE CHAT FROM REQUESTS
+  // Derive active chat
   const activeChatRequest = requests.find(r => r._id === activeChatId) || null;
 
-  // INCIDENT REPORT STATE
+  // Incident Data
   const [incidentData, setIncidentData] = useState([]);
   const [barChartData, setBarChartData] = useState(null);
   const [pieChartData, setPieChartData] = useState(null);
@@ -126,7 +128,6 @@ const HospitalDashboard = () => {
   const [missionStatusText, setMissionStatusText] = useState('Standby');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [droneStats, setDroneStats] = useState({ speed: 0, battery: 100, altitude: 0 });
-
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '' });
 
@@ -143,60 +144,37 @@ const HospitalDashboard = () => {
         const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setRequests(sortedData);
 
-        // INCIDENT PROCESSING
+        // Incident Processing
         const allIncidents = [];
         const phcCounts = {};
         const typeCounts = {};
-
         sortedData.forEach(req => {
             if (req.incidents && req.incidents.length > 0) {
                 req.incidents.forEach(inc => {
                     allIncidents.push({ ...inc, phc: req.phc, item: req.item, orderId: req._id });
-                    
-                    // Count by PHC
                     phcCounts[req.phc] = (phcCounts[req.phc] || 0) + 1;
-                    // Count by Type
                     typeCounts[inc.type] = (typeCounts[inc.type] || 0) + 1;
                 });
             }
         });
-
         setIncidentData(allIncidents);
-
-        // Prepare Chart Data
         setBarChartData({
             labels: Object.keys(phcCounts),
-            datasets: [{
-                label: 'Incidents Reported',
-                data: Object.values(phcCounts),
-                backgroundColor: 'rgba(239, 68, 68, 0.6)',
-                borderColor: 'rgba(239, 68, 68, 1)',
-                borderWidth: 1,
-            }]
+            datasets: [{ label: 'Incidents', data: Object.values(phcCounts), backgroundColor: 'rgba(239, 68, 68, 0.6)', borderColor: 'rgba(239, 68, 68, 1)', borderWidth: 1 }]
         });
-
         setPieChartData({
             labels: Object.keys(typeCounts),
-            datasets: [{
-                data: Object.values(typeCounts),
-                backgroundColor: [
-                    'rgba(255, 99, 132, 0.6)',
-                    'rgba(54, 162, 235, 0.6)',
-                    'rgba(255, 206, 86, 0.6)',
-                    'rgba(75, 192, 192, 0.6)',
-                ],
-            }]
+            datasets: [{ data: Object.values(typeCounts), backgroundColor: ['rgba(255, 99, 132, 0.6)', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 206, 86, 0.6)'] }]
         });
       }
     } catch (err) { console.error("Network Error"); }
   };
 
-  // ✅ FIXED: Only fetch on interval, don't depend on chat state
   useEffect(() => {
     fetchRequests();
     const interval = setInterval(fetchRequests, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, []); // Only mount/unmount
 
   // SEND MESSAGE
   const sendMessage = async () => {
@@ -208,7 +186,7 @@ const HospitalDashboard = () => {
             body: JSON.stringify({ sender: "Hospital", message: chatMessage })
         });
         setChatMessage("");
-        fetchRequests();
+        fetchRequests(); 
     } catch (err) { alert("Failed to send message"); }
   };
 
@@ -250,16 +228,10 @@ const HospitalDashboard = () => {
          const match = req.distance.match(/(\d+)/);
          if (match) dist = parseFloat(match[0]);
     }
-    const isLong = dist > 15;
-    const isMedium = dist >= 5 && dist <= 15;
-
-    if (req.urgency === 'Critical') {
-        if (isLong) score = 0.99; else if (isMedium) score = 0.95; else score = 0.90;
-    } else if (req.urgency === 'High') {
-        if (isLong) score = 0.85; else if (isMedium) score = 0.80; else score = 0.75;
-    } else { 
-        if (isLong) score = 0.60; else if (isMedium) score = 0.55; else score = 0.50;
-    }
+    const isLong = dist > 15; const isMedium = dist >= 5 && dist <= 15;
+    if (req.urgency === 'Critical') { if (isLong) score = 0.99; else if (isMedium) score = 0.95; else score = 0.90; } 
+    else if (req.urgency === 'High') { if (isLong) score = 0.85; else if (isMedium) score = 0.80; else score = 0.75; } 
+    else { if (isLong) score = 0.60; else if (isMedium) score = 0.55; else score = 0.50; }
     return score.toFixed(2); 
   };
 
@@ -272,15 +244,19 @@ const HospitalDashboard = () => {
                 setProcessingQueue(prev => [...prev, req._id]);
 
                 if (req.urgency === 'Critical') {
-                    const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL - IMMEDIATE LAUNCH`;
+                    const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL - PROCESSING (10s)`;
                     addLog(logMsg, "text-red-500 font-bold");
-                    startApprovalProcess(req); 
-                } else {
-                    addLog(`ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ QUEUED (15s Buffer)`, "text-yellow-400");
+                    
                     setTimeout(() => {
-                         addLog(`ID: ${req._id.slice(-4)} | ✅ SAFETY CHECK PASSED`, "text-green-400");
-                         startApprovalProcess(req); 
-                    }, 15000);
+                        updateStatusInDB(req._id, 'Approved');
+                        addLog(`ID: ${req._id.slice(-4)} | ✅ APPROVED. WAITING FOR DISPATCH.`, "text-green-400");
+                    }, 10000);
+                } else {
+                    addLog(`ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ QUEUED (20s Buffer)`, "text-yellow-400");
+                    setTimeout(() => {
+                         updateStatusInDB(req._id, 'Approved');
+                         addLog(`ID: ${req._id.slice(-4)} | ✅ APPROVED. WAITING FOR DISPATCH.`, "text-green-300");
+                    }, 20000);
                 }
             }
         });
@@ -288,34 +264,31 @@ const HospitalDashboard = () => {
     return () => clearInterval(aiLoop);
   }, [requests, processingQueue]);
 
-  const startApprovalProcess = (req) => {
-      setTimeout(() => {
-          updateStatusInDB(req._id, 'Approved');
-          addLog(`ID: ${req._id.slice(-4)} | 📝 Request Approved by System`, "text-green-300");
-          // NO AUTO DISPATCH
-      }, 4000);
-  };
-
   const handleAutoDispatch = (req) => {
     if (activeMissions.find(m => m.id === req._id)) return;
 
-    updateStatusInDB(req._id, 'Dispatched');
-    addLog(`🚁 Drone Dispatched by Pilot Manohar Singh`, "text-blue-400 font-bold");
-
-    const destination = (req.coordinates && req.coordinates.lat) 
-        ? req.coordinates 
-        : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
-
-    const newMission = { 
-        id: req._id, phc: req.phc, destination: destination, 
-        startTime: Date.now(), delivered: false 
-    };
-
-    setActiveMissions(prev => [...prev, newMission]);
-
+    addLog(`🚁 Safety Checks Initiated for ${req.phc} (15s)...`, "text-blue-400 font-bold");
+    
     setTimeout(() => {
-        addLog(`📦 Package Out for Delivery - Enroute to ${req.phc}`, "text-white");
-    }, 2000);
+        updateStatusInDB(req._id, 'Dispatched');
+        addLog(`🚀 DRONE LAUNCHED TO ${req.phc}`, "text-green-400 font-bold");
+        
+        // ✅ EXACT GPS PRIORITY
+        const destination = (req.coordinates && req.coordinates.lat) 
+            ? req.coordinates 
+            : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
+
+        const newMission = { 
+            id: req._id, phc: req.phc, destination: destination, 
+            startTime: Date.now(), delivered: false 
+        };
+
+        setActiveMissions(prev => [...prev, newMission]);
+        setActiveTab('map'); // Go to Map
+
+        setTimeout(() => { addLog(`📦 Package Out for Delivery - Enroute to ${req.phc}`, "text-white"); }, 2000);
+
+    }, 15000); // 15s Safety Check
   };
 
   // SIMULATION LOOP
@@ -372,15 +345,16 @@ const HospitalDashboard = () => {
 
   const updateStatusInDB = async (id, newStatus) => { try { await fetch(`${API_URL}/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }), }); fetchRequests(); } catch (err) {} };
   const handleApprove = (id, urgency) => { updateStatusInDB(id, 'Approved'); };
-  const handleDispatch = (req) => { if(!confirm("Confirm Manual Dispatch?")) return; handleAutoDispatch(req, 0); };
+  const handleDispatch = (req) => { if(!confirm("Confirm Manual Dispatch?")) return; handleAutoDispatch(req); };
   const handleReject = (id, urgency) => { if(!confirm("Reject this request?")) return; updateStatusInDB(id, 'Rejected'); };
   const updateStock = (id, change) => { setInventory(inventory.map(item => item.id === id ? { ...item, stock: Math.max(0, item.stock + change) } : item)); };
   const addNewItem = () => { if(!newItem.name) return alert("Fill details"); setInventory([...inventory, { id: Date.now(), ...newItem, stock: parseInt(newItem.stock), img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" }]); setShowAddModal(false); };
 
   return (
     <div className={`min-h-screen bg-slate-50 flex font-sans text-slate-800 relative`}>
-      
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
+      <AiCopilot contextData={{ inventory, requests }} />
+
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
         <div className="p-6 border-b border-slate-800 flex justify-between items-center">
           <div className="mb-4"><img src={logoMain} className="h-10 w-auto object-contain bg-white rounded-lg p-1" /></div>
@@ -405,7 +379,6 @@ const HospitalDashboard = () => {
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 relative">
-            
             {activeTab === 'alerts' && (
                 <div className="grid gap-6 max-w-6xl mx-auto">
                     
@@ -417,16 +390,7 @@ const HospitalDashboard = () => {
                                  <div className="flex items-center gap-2">
                                      <Filter size={14} className="text-slate-400"/>
                                      <select className="bg-white border border-slate-300 text-xs p-2 rounded-lg outline-none font-medium text-slate-600" onChange={(e) => setSelectedPhc(e.target.value)}>
-                                        <option value="All">All PHCs</option>
-                                        <option value="Wagholi PHC">Wagholi PHC</option>
-                                        <option value="PHC Chamorshi">PHC Chamorshi</option>
-                                        <option value="PHC Gadhchiroli">PHC Gadhchiroli</option>
-                                        <option value="PHC Panera">PHC Panera</option>
-                                        <option value="PHC Belgaon">PHC Belgaon</option>
-                                        <option value="PHC Dhutergatta">PHC Dhutergatta</option>
-                                        <option value="PHC Gatta">PHC Gatta</option>
-                                        <option value="PHC Gaurkheda">PHC Gaurkheda</option>
-                                        <option value="PHC Murmadi">PHC Murmadi</option>
+                                        <option value="All">All PHCs</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option><option value="PHC Belgaon">PHC Belgaon</option><option value="PHC Dhutergatta">PHC Dhutergatta</option><option value="PHC Gatta">PHC Gatta</option><option value="PHC Gaurkheda">PHC Gaurkheda</option><option value="PHC Murmadi">PHC Murmadi</option>
                                      </select>
                                  </div>
                              </div>
@@ -439,11 +403,7 @@ const HospitalDashboard = () => {
                         </div>
                     )}
 
-                    {/* SYSTEM LOGS */}
-                    <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-xs h-36 overflow-y-auto border border-slate-700 shadow-inner relative">
-                        <div className="flex items-center gap-2 mb-2 border-b border-slate-700 pb-1 sticky top-0 bg-slate-900 w-full"><Terminal size={14}/> SYSTEM LOGS [AUTO-PILOT ENABLED]:</div>
-                        {aiLogs.map((log, i) => (<p key={i} className={`mb-1 ${log.color}`}>{log.time} &gt; {log.msg}</p>))}
-                    </div>
+                    <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-xs h-36 overflow-y-auto border border-slate-700 shadow-inner relative"><div className="flex items-center gap-2 mb-2 border-b border-slate-700 pb-1 sticky top-0 bg-slate-900 w-full"><Terminal size={14}/> SYSTEM LOGS [AUTO-PILOT ENABLED]:</div>{aiLogs.map((log, i) => (<p key={i} className={`mb-1 ${log.color}`}>{log.time} &gt; {log.msg}</p>))}</div>
 
                     {requests.length === 0 && <p className="text-center text-slate-400 mt-4">No pending requests.</p>}
                     
@@ -458,20 +418,15 @@ const HospitalDashboard = () => {
                                     <h3 className="font-bold text-slate-800 flex items-center gap-2">
                                         {req.phc}
                                         <span className={`text-[10px] px-2 py-0.5 rounded border ${score >= 0.8 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>Score: {score}</span>
-                                        {/* ✅ INCIDENT FLAG */}
                                         {hasIncident && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 ml-2"><AlertTriangle size={10}/> ISSUE</span>}
                                     </h3>
-                                    
                                     <button onClick={() => setViewItemList(req)} className="text-sm text-slate-600 hover:text-blue-600 hover:underline text-left mt-1 font-medium flex items-center gap-1"><ClipboardList size={14}/> {req.qty} items (Click to View List)</button>
-
                                     <div className="flex items-center gap-2 mt-1 text-xs text-slate-500"><Clock size={12}/> {new Date(req.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
                                     <button onClick={() => showCoordinates(req)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1"><Globe size={12} /> Loc ({req.coordinates ? 'GPS' : 'Static'})</button>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                {/* ✅ CHAT BUTTON (UPDATED) */}
                                 <button onClick={() => setActiveChatId(req._id)} className={`p-2 rounded-full relative ${req.chat?.length > 0 ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}><MessageCircle size={18}/></button>
-                                
                                 <button onClick={() => setViewProof(req)} className="px-3 py-2 border rounded-lg text-slate-600 text-sm flex gap-2"><FileText size={16} /> Proof</button>
                                 {req.status === 'Pending' && (<div className="flex items-center gap-2 text-green-600 font-bold text-sm animate-pulse bg-green-50 px-3 py-2 rounded border border-green-200">{req.urgency === 'Critical' ? '🚀 LAUNCHING...' : '⏳ SAFETY CHECK (15s)'}</div>)}
                                 {req.status === 'Dispatched' && <span className="text-green-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> In-Flight</span>}
@@ -484,46 +439,28 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* ✅ NEW: REPORTS TAB */}
+            {/* REPORTS TAB */}
             {activeTab === 'reports' && (
                 <div className="max-w-5xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        <div className="bg-white p-6 rounded-2xl border shadow-sm">
-                            <h3 className="font-bold text-slate-800 mb-4">Incident Type Distribution</h3>
-                            {pieChartData && <div className="h-64 flex justify-center"><Pie data={pieChartData} /></div>}
-                        </div>
-                        <div className="bg-white p-6 rounded-2xl border shadow-sm">
-                            <h3 className="font-bold text-slate-800 mb-4">Reports per PHC</h3>
-                            {barChartData && <div className="h-64"><Bar data={barChartData} options={{ maintainAspectRatio: false }} /></div>}
-                        </div>
+                        <div className="bg-white p-6 rounded-2xl border shadow-sm"><h3 className="font-bold text-slate-800 mb-4">Incident Type Distribution</h3>{pieChartData && <div className="h-64 flex justify-center"><Pie data={pieChartData} /></div>}</div>
+                        <div className="bg-white p-6 rounded-2xl border shadow-sm"><h3 className="font-bold text-slate-800 mb-4">Reports per PHC</h3>{barChartData && <div className="h-64"><Bar data={barChartData} options={{ maintainAspectRatio: false }} /></div>}</div>
                     </div>
                     <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
                         <div className="p-4 border-b bg-slate-50 font-bold text-slate-700">Recent Incident Logs</div>
                         {incidentData.length === 0 && <p className="p-8 text-center text-slate-400">No incidents reported.</p>}
-                        {incidentData.map((inc, i) => (
-                            <div key={i} className="p-4 border-b last:border-0 hover:bg-slate-50 transition-colors flex justify-between items-start">
-                                <div>
-                                    <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                        <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-xs uppercase">{inc.type}</span>
-                                        {inc.phc}
-                                    </p>
-                                    <p className="text-sm text-slate-600 mt-1">{inc.details}</p>
-                                    <p className="text-xs text-slate-400 mt-2">Order ID: {inc.orderId.slice(-6)} • Item: {inc.item}</p>
-                                </div>
-                                <span className="text-xs text-slate-400">{new Date(inc.timestamp).toLocaleDateString()}</span>
-                            </div>
-                        ))}
+                        {incidentData.map((inc, i) => (<div key={i} className="p-4 border-b last:border-0 hover:bg-slate-50 transition-colors flex justify-between items-start"><div><p className="text-sm font-bold text-slate-800 flex items-center gap-2"><span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-xs uppercase">{inc.type}</span>{inc.phc}</p><p className="text-sm text-slate-600 mt-1">{inc.details}</p><p className="text-xs text-slate-400 mt-2">Order ID: {inc.orderId.slice(-6)} • Item: {inc.item}</p></div><span className="text-xs text-slate-400">{new Date(inc.timestamp).toLocaleDateString()}</span></div>))}
                     </div>
                 </div>
             )}
 
-            {/* MAP & INVENTORY (Standard Code) */}
+            {/* MAP & INVENTORY (Standard) */}
             {activeTab === 'map' && ( <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] flex items-center justify-center text-white relative overflow-hidden">{activeMissions.length > 0 ? (<div className="w-full h-full relative"><div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div><svg className="absolute inset-0 w-full h-full pointer-events-none"><line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#475569" strokeWidth="4" strokeDasharray="8" /><line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#3b82f6" strokeWidth="4" strokeDasharray="1000" strokeDashoffset={1000 - (trackProgress * 10)} className="transition-all duration-300 ease-linear" /></svg><div className="absolute top-1/2 left-[10%] -translate-y-1/2 flex flex-col items-center z-10"><div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20"><Building2 size={24} className="text-slate-900" /></div><span className="text-white text-xs font-bold mt-3 bg-slate-800 px-2 py-1 rounded border border-slate-700">District Hospital</span></div><div className="absolute top-1/2 right-[10%] -translate-y-1/2 flex flex-col items-center z-10"><div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/50 animate-pulse border-4 border-slate-900"><MapPin size={24} className="text-white" /></div><span className="text-white text-xs font-bold mt-3 bg-blue-900 px-2 py-1 rounded border border-blue-700">Destination</span></div>{countdown > 0 ? (<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center"><div className="bg-black/80 backdrop-blur-md p-6 rounded-2xl border border-yellow-500 text-center shadow-2xl"><Timer className="w-10 h-10 text-yellow-500 mx-auto mb-2 animate-pulse" /><h2 className="text-4xl font-bold text-white font-mono">{countdown}s</h2><p className="text-yellow-400 text-xs font-bold uppercase tracking-widest mt-2">Preparing for Takeoff</p></div></div>) : (<div className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-linear z-20 flex flex-col items-center" style={{ left: `${10 + (trackProgress * 0.8)}%` }}><div className="bg-white p-2 rounded-full shadow-2xl relative"><Navigation size={32} className="text-red-500 rotate-90" fill="currentColor" /><div className="absolute -top-1 -left-1 w-full h-full border-2 border-slate-300 rounded-full animate-spin opacity-50"></div></div><div className="bg-black/80 text-white text-[10px] px-2 py-1 rounded-md mt-2 backdrop-blur-sm font-mono border border-slate-700">{Math.round(trackProgress)}%</div></div>)}<div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-6 py-3 rounded-xl border border-slate-700 text-center"><h3 className="text-lg font-bold">{countdown > 0 ? 'STANDBY' : 'ENROUTE'}</h3><div className="flex gap-4 mt-2 text-xs text-slate-400"><span>SPD: {droneStats.speed} km/h</span><span>ALT: {droneStats.altitude}m</span><span className="text-green-400">BAT: {droneStats.battery}%</span></div></div></div>) : (<div className="text-center text-slate-500"><MapIcon size={48} className="mx-auto mb-2"/><p>No Active Flights</p></div>)}</div> )}
             {activeTab === 'inventory' && ( <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4">{inventory.map(item => (<div key={item.id} className="bg-white p-4 rounded-xl border text-center shadow-sm"><img src={item.img} className="h-24 w-full object-contain mb-2"/><h3 className="font-bold text-sm">{item.name}</h3><div className="flex justify-center gap-2 mt-2"><button onClick={() => updateStock(item.id, -1)} className="p-1 bg-gray-100 rounded"><Minus size={12}/></button><span className="font-bold">{item.stock}</span><button onClick={() => updateStock(item.id, 1)} className="p-1 bg-blue-100 text-blue-600 rounded"><Plus size={12}/></button></div></div>))}</div> )}
         </div>
       </main>
 
-      {/* CHAT MODAL (Using ID) */}
+      {/* CHAT MODAL */}
       {activeChatId && activeChatRequest && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[500px]">
@@ -549,8 +486,6 @@ const HospitalDashboard = () => {
             </div>
         </div>
       )}
-      
-      <AiCopilot contextData={{ inventory, requests }} />
 
       {viewItemList && (<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"><div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"><div className="bg-blue-600 p-4 flex justify-between items-center text-white"><h3 className="font-bold flex items-center gap-2"><ClipboardList size={18} /> Packing List</h3><button onClick={() => setViewItemList(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button></div><div className="p-6 max-h-96 overflow-y-auto bg-slate-50"><div className="space-y-3">{viewItemList.item.split(', ').map((itm, idx) => (<div key={idx} className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm"><span className="font-bold text-slate-800">{itm}</span><span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-bold">Pack This</span></div>))}</div></div><div className="p-4 bg-white text-right border-t border-slate-200"><button onClick={() => setViewItemList(null)} className="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-bold text-sm shadow-md">Done Packing</button></div></div></div>)}
       {viewProof && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-4 rounded shadow-lg w-96"><img src={viewProof.proofFiles[0]} className="w-full"/><button onClick={()=>setViewProof(null)} className="mt-2 w-full bg-gray-200 p-2 rounded">Close</button></div></div>}
