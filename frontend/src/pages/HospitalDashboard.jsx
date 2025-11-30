@@ -18,7 +18,7 @@ import AiCopilot from '../components/AiCopilot';
 // Register ChartJS
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
-// IMAGES (Keep same as before)
+// IMAGES
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
 import imgDopamine from '../assets/medicines/Dopamine_med.jpg'; 
@@ -91,9 +91,12 @@ const HospitalDashboard = () => {
   const [filteredPredictions, setFilteredPredictions] = useState([]); 
   const [selectedPhc, setSelectedPhc] = useState("All"); 
 
-  // CHAT STATE
-  const [activeChatRequest, setActiveChatRequest] = useState(null);
+  // ✅ FIXED CHAT STATE (Using ID instead of Object to prevent re-renders)
+  const [activeChatId, setActiveChatId] = useState(null);
   const [chatMessage, setChatMessage] = useState("");
+
+  // ✅ DERIVE ACTIVE CHAT FROM REQUESTS
+  const activeChatRequest = requests.find(r => r._id === activeChatId) || null;
 
   // INCIDENT REPORT STATE
   const [incidentData, setIncidentData] = useState([]);
@@ -139,12 +142,6 @@ const HospitalDashboard = () => {
       if (Array.isArray(data)) {
         const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setRequests(sortedData);
-
-        // CHAT SYNC
-        if (activeChatRequest) {
-            const updatedChat = sortedData.find(r => r._id === activeChatRequest._id);
-            if (updatedChat) setActiveChatRequest(updatedChat);
-        }
 
         // INCIDENT PROCESSING
         const allIncidents = [];
@@ -194,17 +191,18 @@ const HospitalDashboard = () => {
     } catch (err) { console.error("Network Error"); }
   };
 
+  // ✅ FIXED: Only fetch on interval, don't depend on chat state
   useEffect(() => {
     fetchRequests();
     const interval = setInterval(fetchRequests, 3000);
     return () => clearInterval(interval);
-  }, [activeChatRequest]);
+  }, []);
 
   // SEND MESSAGE
   const sendMessage = async () => {
-    if (!chatMessage.trim() || !activeChatRequest) return;
+    if (!chatMessage.trim() || !activeChatId) return;
     try {
-        await fetch(`${API_URL}/${activeChatRequest._id}/chat`, {
+        await fetch(`${API_URL}/${activeChatId}/chat`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ sender: "Hospital", message: chatMessage })
@@ -419,7 +417,16 @@ const HospitalDashboard = () => {
                                  <div className="flex items-center gap-2">
                                      <Filter size={14} className="text-slate-400"/>
                                      <select className="bg-white border border-slate-300 text-xs p-2 rounded-lg outline-none font-medium text-slate-600" onChange={(e) => setSelectedPhc(e.target.value)}>
-                                        <option value="All">All PHCs</option><option value="Wagholi PHC">Wagholi PHC</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option>
+                                        <option value="All">All PHCs</option>
+                                        <option value="Wagholi PHC">Wagholi PHC</option>
+                                        <option value="PHC Chamorshi">PHC Chamorshi</option>
+                                        <option value="PHC Gadhchiroli">PHC Gadhchiroli</option>
+                                        <option value="PHC Panera">PHC Panera</option>
+                                        <option value="PHC Belgaon">PHC Belgaon</option>
+                                        <option value="PHC Dhutergatta">PHC Dhutergatta</option>
+                                        <option value="PHC Gatta">PHC Gatta</option>
+                                        <option value="PHC Gaurkheda">PHC Gaurkheda</option>
+                                        <option value="PHC Murmadi">PHC Murmadi</option>
                                      </select>
                                  </div>
                              </div>
@@ -462,8 +469,8 @@ const HospitalDashboard = () => {
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                {/* ✅ CHAT BUTTON */}
-                                <button onClick={() => setActiveChatRequest(req)} className={`p-2 rounded-full relative ${req.chat?.length > 0 ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}><MessageCircle size={18}/></button>
+                                {/* ✅ CHAT BUTTON (UPDATED) */}
+                                <button onClick={() => setActiveChatId(req._id)} className={`p-2 rounded-full relative ${req.chat?.length > 0 ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}><MessageCircle size={18}/></button>
                                 
                                 <button onClick={() => setViewProof(req)} className="px-3 py-2 border rounded-lg text-slate-600 text-sm flex gap-2"><FileText size={16} /> Proof</button>
                                 {req.status === 'Pending' && (<div className="flex items-center gap-2 text-green-600 font-bold text-sm animate-pulse bg-green-50 px-3 py-2 rounded border border-green-200">{req.urgency === 'Critical' ? '🚀 LAUNCHING...' : '⏳ SAFETY CHECK (15s)'}</div>)}
@@ -516,13 +523,13 @@ const HospitalDashboard = () => {
         </div>
       </main>
 
-      {/* CHAT MODAL */}
-      {activeChatRequest && (
+      {/* CHAT MODAL (Using ID) */}
+      {activeChatId && activeChatRequest && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[500px]">
                 <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
                     <h3 className="font-bold flex items-center gap-2"><MessageCircle size={18}/> Chat with PHC</h3>
-                    <button onClick={() => setActiveChatRequest(null)}><X size={20}/></button>
+                    <button onClick={() => setActiveChatId(null)}><X size={20}/></button>
                 </div>
                 <div className="flex-1 p-4 overflow-y-auto bg-slate-50 space-y-3">
                     {activeChatRequest.chat?.length === 0 && <p className="text-center text-slate-400 text-sm mt-10">No messages yet. Start the conversation.</p>}
@@ -542,6 +549,8 @@ const HospitalDashboard = () => {
             </div>
         </div>
       )}
+      
+      <AiCopilot contextData={{ inventory, requests }} />
 
       {viewItemList && (<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"><div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"><div className="bg-blue-600 p-4 flex justify-between items-center text-white"><h3 className="font-bold flex items-center gap-2"><ClipboardList size={18} /> Packing List</h3><button onClick={() => setViewItemList(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button></div><div className="p-6 max-h-96 overflow-y-auto bg-slate-50"><div className="space-y-3">{viewItemList.item.split(', ').map((itm, idx) => (<div key={idx} className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm"><span className="font-bold text-slate-800">{itm}</span><span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-bold">Pack This</span></div>))}</div></div><div className="p-4 bg-white text-right border-t border-slate-200"><button onClick={() => setViewItemList(null)} className="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-bold text-sm shadow-md">Done Packing</button></div></div></div>)}
       {viewProof && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-4 rounded shadow-lg w-96"><img src={viewProof.proofFiles[0]} className="w-full"/><button onClick={()=>setViewProof(null)} className="mt-2 w-full bg-gray-200 p-2 rounded">Close</button></div></div>}
