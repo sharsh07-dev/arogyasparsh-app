@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
+// ✅ Import the Realistic Tracker
+import RealisticFlightTracker from '../components/RealisticFlightTracker'; 
+
 import { 
   Activity, Users, Package, Navigation, LogOut, 
   MapPin, CheckCircle2, Clock, AlertOctagon, 
@@ -39,8 +41,7 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// ✅ CORRECTED PHC COORDINATES (8 PHCs ONLY)
-// Used as fallback if the PHC user hasn't set a custom pin
+// FALLBACK COORDINATES (8 PHCs)
 const PHC_COORDINATES = {
   "PHC Chamorshi": { lat: 19.9280, lng: 79.9050 },
   "PHC Gadhchiroli": { lat: 20.1849, lng: 79.9948 },
@@ -97,13 +98,13 @@ const HospitalDashboard = () => {
   const [activeChatId, setActiveChatId] = useState(null);
   const [chatMessage, setChatMessage] = useState("");
 
-  // Derive active chat
-  const activeChatRequest = requests.find(r => r._id === activeChatId) || null;
-
   // Incident Data
   const [incidentData, setIncidentData] = useState([]);
   const [barChartData, setBarChartData] = useState(null);
   const [pieChartData, setPieChartData] = useState(null);
+
+  // Derive active chat
+  const activeChatRequest = requests.find(r => r._id === activeChatId) || null;
 
   const [activeMissions, setActiveMissions] = useState(() => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
@@ -123,15 +124,10 @@ const HospitalDashboard = () => {
   };
 
   const [processingQueue, setProcessingQueue] = useState([]);
-  const [trackProgress, setTrackProgress] = useState(0);
-  const [countdown, setCountdown] = useState(0); 
-  const [missionStatusText, setMissionStatusText] = useState('Standby');
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [droneStats, setDroneStats] = useState({ speed: 0, battery: 100, altitude: 0 });
+  // Removed internal simulation state in favor of RealisticFlightTracker state
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '' });
 
-  const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: "" });
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
   // FETCH REQUESTS & PROCESS INCIDENTS
@@ -148,6 +144,7 @@ const HospitalDashboard = () => {
         const allIncidents = [];
         const phcCounts = {};
         const typeCounts = {};
+
         sortedData.forEach(req => {
             if (req.incidents && req.incidents.length > 0) {
                 req.incidents.forEach(inc => {
@@ -157,14 +154,25 @@ const HospitalDashboard = () => {
                 });
             }
         });
+
         setIncidentData(allIncidents);
         setBarChartData({
             labels: Object.keys(phcCounts),
-            datasets: [{ label: 'Incidents', data: Object.values(phcCounts), backgroundColor: 'rgba(239, 68, 68, 0.6)', borderColor: 'rgba(239, 68, 68, 1)', borderWidth: 1 }]
+            datasets: [{
+                label: 'Incidents Reported',
+                data: Object.values(phcCounts),
+                backgroundColor: 'rgba(239, 68, 68, 0.6)',
+                borderColor: 'rgba(239, 68, 68, 1)',
+                borderWidth: 1,
+            }]
         });
+
         setPieChartData({
             labels: Object.keys(typeCounts),
-            datasets: [{ data: Object.values(typeCounts), backgroundColor: ['rgba(255, 99, 132, 0.6)', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 206, 86, 0.6)'] }]
+            datasets: [{
+                data: Object.values(typeCounts),
+                backgroundColor: ['rgba(255, 99, 132, 0.6)', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 206, 86, 0.6)'],
+            }]
         });
       }
     } catch (err) { console.error("Network Error"); }
@@ -174,7 +182,22 @@ const HospitalDashboard = () => {
     fetchRequests();
     const interval = setInterval(fetchRequests, 3000);
     return () => clearInterval(interval);
-  }, []); // Only mount/unmount
+  }, []);
+
+  // CLEAR DATA
+  const handleClearAll = async () => {
+      if(!confirm("⚠️ WARNING: This will delete ALL order history and logs. Are you sure?")) return;
+      try {
+          await fetch(`${API_URL}/clear-all`, { method: "DELETE" });
+          if(res.ok) {
+              alert("System Reset Successful");
+              setRequests([]);
+              setAiLogs([]);
+              localStorage.removeItem('aiSystemLogs');
+              fetchRequests();
+          }
+      } catch (e) { alert("Failed to clear data"); }
+  };
 
   // SEND MESSAGE
   const sendMessage = async () => {
@@ -266,71 +289,23 @@ const HospitalDashboard = () => {
 
   const handleAutoDispatch = (req) => {
     if (activeMissions.find(m => m.id === req._id)) return;
-
-    addLog(`🚁 Safety Checks Initiated for ${req.phc} (15s)...`, "text-blue-400 font-bold");
+    updateStatusInDB(req._id, 'Dispatched');
+    addLog(`🚁 Drone Dispatched by Pilot Manohar Singh`, "text-blue-400 font-bold");
+    const destination = (req.coordinates && req.coordinates.lat) ? req.coordinates : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
+    const newMission = { id: req._id, phc: req.phc, destination: destination, startTime: Date.now(), delivered: false };
+    setActiveMissions(prev => [...prev, newMission]);
     
-    setTimeout(() => {
-        updateStatusInDB(req._id, 'Dispatched');
-        addLog(`🚀 DRONE LAUNCHED TO ${req.phc}`, "text-green-400 font-bold");
-        
-        // ✅ EXACT GPS PRIORITY
-        const destination = (req.coordinates && req.coordinates.lat) 
-            ? req.coordinates 
-            : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
-
-        const newMission = { 
-            id: req._id, phc: req.phc, destination: destination, 
-            startTime: Date.now(), delivered: false 
-        };
-
-        setActiveMissions(prev => [...prev, newMission]);
-        setActiveTab('map'); // Go to Map
-
-        setTimeout(() => { addLog(`📦 Package Out for Delivery - Enroute to ${req.phc}`, "text-white"); }, 2000);
-
-    }, 15000); // 15s Safety Check
+    // Switch to Map View
+    setActiveTab('map');
+    
+    setTimeout(() => { addLog(`📦 Package Out for Delivery - Enroute to ${req.phc}`, "text-white"); }, 2000);
   };
 
-  // SIMULATION LOOP
+  // Persist Missions
   useEffect(() => {
     localStorage.setItem('activeMissions', JSON.stringify(activeMissions));
-    if (activeTab !== 'map' || activeMissions.length === 0) return;
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
-    const interval = setInterval(() => {
-      const mission = activeMissions[0];
-      if(!mission) return;
-      const now = Date.now();
-      const elapsed = now - mission.startTime; 
-      const FLIGHT_DURATION = 600000; 
+  }, [activeMissions]);
 
-      if (elapsed < 10000) {
-        setCountdown(Math.ceil((10000 - elapsed) / 1000));
-        setTrackProgress(0);
-        setMissionStatusText(`Pre-Flight Checks`);
-        setDroneStats({ speed: 0, battery: 100, altitude: 0 });
-      } else if (elapsed < (FLIGHT_DURATION + 10000)) {
-        setCountdown(0);
-        const percent = ((elapsed - 10000) / FLIGHT_DURATION) * 100;
-        setTrackProgress(percent);
-        setMissionStatusText('In-Flight');
-        let currentSpeed = 60; let currentAlt = 120;
-        if (percent < 5) { currentSpeed = percent * 12; currentAlt = percent * 24; } 
-        else if (percent > 95) { currentSpeed = 60 - (percent-95)*12; currentAlt = 120 - (percent-95)*24; } 
-        setDroneStats({ speed: Math.floor(currentSpeed), battery: Math.max(0, 100 - Math.floor(percent / 1.5)), altitude: Math.floor(currentAlt) });
-      } else {
-        setTrackProgress(100);
-        setMissionStatusText('Delivered');
-        setDroneStats({ speed: 0, battery: 30, altitude: 0 });
-        if (!mission.delivered) {
-           addLog(`✅ DELIVERY SUCCESSFUL at ${mission.phc}`, "text-blue-400 font-bold border-l-2 border-blue-500 pl-2");
-           setRequests(prev => prev.map(r => r._id === mission.id ? { ...r, status: 'Delivered' } : r));
-           updateStatusInDB(mission.id, 'Delivered');
-           setTimeout(() => { setActiveMissions(prev => prev.filter(m => m.id !== mission.id)); }, 5000);
-        }
-      }
-    }, 100);
-    return () => { clearInterval(interval); clearInterval(timer); };
-  }, [activeTab, activeMissions]);
 
   const handleLogout = () => { localStorage.removeItem('userInfo'); navigate('/login'); };
   
@@ -375,38 +350,26 @@ const HospitalDashboard = () => {
             <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-600"><Menu size={24} /></button>
             <h1 className="text-lg md:text-2xl font-bold text-slate-800">{activeTab === 'alerts' ? 'Autonomous Command Center' : activeTab === 'reports' ? 'Incident Analytics' : (activeTab === 'map' ? 'Global Tracking' : 'Inventory')}</h1>
           </div>
-          <div className="bg-blue-50 px-3 py-1 rounded-full text-xs font-semibold text-blue-700 flex items-center gap-2"><Cpu size={14} /> AI Active</div>
+          <div className="flex items-center gap-3">
+             <button onClick={handleClearAll} className="bg-red-50 text-red-600 px-3 py-1 rounded-lg text-xs font-bold border border-red-200 hover:bg-red-100 transition-colors flex items-center gap-1"><Trash2 size={14}/> Reset System</button>
+             <div className="bg-blue-50 px-3 py-1 rounded-full text-xs font-semibold text-blue-700 flex items-center gap-2"><Cpu size={14} /> AI Active</div>
+          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 relative">
             {activeTab === 'alerts' && (
                 <div className="grid gap-6 max-w-6xl mx-auto">
-                    
-                    {/* AI FORECAST WIDGET */}
                     {predictions.length > 0 && (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
                              <div className="md:col-span-3 flex justify-between items-center mb-2">
                                  <h4 className="text-sm font-bold text-slate-500 uppercase flex items-center gap-2"><TrendingUp size={16}/> AI Demand Predictions</h4>
-                                 <div className="flex items-center gap-2">
-                                     <Filter size={14} className="text-slate-400"/>
-                                     <select className="bg-white border border-slate-300 text-xs p-2 rounded-lg outline-none font-medium text-slate-600" onChange={(e) => setSelectedPhc(e.target.value)}>
-                                        <option value="All">All PHCs</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option><option value="PHC Belgaon">PHC Belgaon</option><option value="PHC Dhutergatta">PHC Dhutergatta</option><option value="PHC Gatta">PHC Gatta</option><option value="PHC Gaurkheda">PHC Gaurkheda</option><option value="PHC Murmadi">PHC Murmadi</option>
-                                     </select>
-                                 </div>
+                                 <div className="flex items-center gap-2"><Filter size={14} className="text-slate-400"/><select className="bg-white border border-slate-300 text-xs p-2 rounded-lg outline-none font-medium text-slate-600" onChange={(e) => setSelectedPhc(e.target.value)}><option value="All">All PHCs</option><option value="Wagholi PHC">Wagholi PHC</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option></select></div>
                              </div>
-                             {filteredPredictions.map((pred, i) => (
-                                 <div key={i} className="bg-white border border-slate-200 p-4 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
-                                     <div><p className="text-[10px] text-slate-400 mb-1 uppercase font-bold">{pred.phc || "District Wide"}</p><p className="text-sm font-bold text-slate-800">{pred.name}</p><p className="text-lg font-bold text-indigo-600">{pred.predictedQty} <span className="text-xs text-slate-400 font-normal">units/week</span></p></div>
-                                     <div className={`p-2.5 rounded-lg ${pred.trend.includes('Rising') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}><TrendingUp size={24} /></div>
-                                 </div>
-                             ))}
+                             {filteredPredictions.map((pred, i) => (<div key={i} className="bg-white border border-slate-200 p-4 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-shadow"><div><p className="text-[10px] text-slate-400 mb-1 uppercase font-bold">{pred.phc || "District Wide"}</p><p className="text-sm font-bold text-slate-800">{pred.name}</p><p className="text-lg font-bold text-indigo-600">{pred.predictedQty} <span className="text-xs text-slate-400 font-normal">units/week</span></p></div><div className={`p-2.5 rounded-lg ${pred.trend.includes('Rising') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}><TrendingUp size={24} /></div></div>))}
                         </div>
                     )}
-
                     <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-xs h-36 overflow-y-auto border border-slate-700 shadow-inner relative"><div className="flex items-center gap-2 mb-2 border-b border-slate-700 pb-1 sticky top-0 bg-slate-900 w-full"><Terminal size={14}/> SYSTEM LOGS [AUTO-PILOT ENABLED]:</div>{aiLogs.map((log, i) => (<p key={i} className={`mb-1 ${log.color}`}>{log.time} &gt; {log.msg}</p>))}</div>
-
                     {requests.length === 0 && <p className="text-center text-slate-400 mt-4">No pending requests.</p>}
-                    
                     {requests.map((req) => {
                         const score = calculatePriorityScore(req);
                         const hasIncident = req.incidents && req.incidents.length > 0;
@@ -415,11 +378,7 @@ const HospitalDashboard = () => {
                             <div className="flex items-start gap-4">
                                 <div className={`p-3 rounded-full ${req.urgency === 'Critical' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-600'}`}><AlertOctagon size={24} /></div>
                                 <div>
-                                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                                        {req.phc}
-                                        <span className={`text-[10px] px-2 py-0.5 rounded border ${score >= 0.8 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>Score: {score}</span>
-                                        {hasIncident && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 ml-2"><AlertTriangle size={10}/> ISSUE</span>}
-                                    </h3>
+                                    <h3 className="font-bold text-slate-800 flex items-center gap-2">{req.phc}<span className={`text-[10px] px-2 py-0.5 rounded border ${score >= 0.8 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>Score: {score}</span>{hasIncident && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 ml-2"><AlertTriangle size={10}/> ISSUE</span>}</h3>
                                     <button onClick={() => setViewItemList(req)} className="text-sm text-slate-600 hover:text-blue-600 hover:underline text-left mt-1 font-medium flex items-center gap-1"><ClipboardList size={14}/> {req.qty} items (Click to View List)</button>
                                     <div className="flex items-center gap-2 mt-1 text-xs text-slate-500"><Clock size={12}/> {new Date(req.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
                                     <button onClick={() => showCoordinates(req)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1"><Globe size={12} /> Loc ({req.coordinates ? 'GPS' : 'Static'})</button>
@@ -438,8 +397,6 @@ const HospitalDashboard = () => {
                     )})}
                 </div>
             )}
-
-            {/* REPORTS TAB */}
             {activeTab === 'reports' && (
                 <div className="max-w-5xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -453,9 +410,38 @@ const HospitalDashboard = () => {
                     </div>
                 </div>
             )}
-
-            {/* MAP & INVENTORY (Standard) */}
-            {activeTab === 'map' && ( <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] flex items-center justify-center text-white relative overflow-hidden">{activeMissions.length > 0 ? (<div className="w-full h-full relative"><div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div><svg className="absolute inset-0 w-full h-full pointer-events-none"><line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#475569" strokeWidth="4" strokeDasharray="8" /><line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#3b82f6" strokeWidth="4" strokeDasharray="1000" strokeDashoffset={1000 - (trackProgress * 10)} className="transition-all duration-300 ease-linear" /></svg><div className="absolute top-1/2 left-[10%] -translate-y-1/2 flex flex-col items-center z-10"><div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20"><Building2 size={24} className="text-slate-900" /></div><span className="text-white text-xs font-bold mt-3 bg-slate-800 px-2 py-1 rounded border border-slate-700">District Hospital</span></div><div className="absolute top-1/2 right-[10%] -translate-y-1/2 flex flex-col items-center z-10"><div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/50 animate-pulse border-4 border-slate-900"><MapPin size={24} className="text-white" /></div><span className="text-white text-xs font-bold mt-3 bg-blue-900 px-2 py-1 rounded border border-blue-700">Destination</span></div>{countdown > 0 ? (<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center"><div className="bg-black/80 backdrop-blur-md p-6 rounded-2xl border border-yellow-500 text-center shadow-2xl"><Timer className="w-10 h-10 text-yellow-500 mx-auto mb-2 animate-pulse" /><h2 className="text-4xl font-bold text-white font-mono">{countdown}s</h2><p className="text-yellow-400 text-xs font-bold uppercase tracking-widest mt-2">Preparing for Takeoff</p></div></div>) : (<div className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-linear z-20 flex flex-col items-center" style={{ left: `${10 + (trackProgress * 0.8)}%` }}><div className="bg-white p-2 rounded-full shadow-2xl relative"><Navigation size={32} className="text-red-500 rotate-90" fill="currentColor" /><div className="absolute -top-1 -left-1 w-full h-full border-2 border-slate-300 rounded-full animate-spin opacity-50"></div></div><div className="bg-black/80 text-white text-[10px] px-2 py-1 rounded-md mt-2 backdrop-blur-sm font-mono border border-slate-700">{Math.round(trackProgress)}%</div></div>)}<div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-6 py-3 rounded-xl border border-slate-700 text-center"><h3 className="text-lg font-bold">{countdown > 0 ? 'STANDBY' : 'ENROUTE'}</h3><div className="flex gap-4 mt-2 text-xs text-slate-400"><span>SPD: {droneStats.speed} km/h</span><span>ALT: {droneStats.altitude}m</span><span className="text-green-400">BAT: {droneStats.battery}%</span></div></div></div>) : (<div className="text-center text-slate-500"><MapIcon size={48} className="mx-auto mb-2"/><p>No Active Flights</p></div>)}</div> )}
+            {activeTab === 'map' && (
+                 <div className="w-full max-w-5xl mx-auto space-y-4">
+                    {/* HEADER */}
+                    <div className="flex justify-between items-center">
+                         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><div className="w-3 h-3 bg-red-500 rounded-full animate-ping"></div> Live Mission Control</h2>
+                         <button onClick={() => { setActiveTab('alerts'); fetchRequests(); }} className="text-sm text-blue-600 hover:underline">Close Tracking</button>
+                    </div>
+                    {/* REALISTIC FLIGHT TRACKER */}
+                    {activeMissions.length > 0 ? (
+                        <RealisticFlightTracker 
+                            origin={HOSPITAL_LOC} 
+                            destination={activeMissions[0].destination} 
+                            onDeliveryComplete={() => {
+                                const mission = activeMissions[0];
+                                updateStatusInDB(mission.id, 'Delivered'); 
+                                addLog(`✅ MISSION COMPLETE: Package Delivered to ${mission.phc}`, "text-green-400 font-bold border-l-4 border-green-500 pl-2");
+                                setTimeout(() => {
+                                    setActiveMissions(prev => prev.slice(1));
+                                    setActiveTab('alerts');
+                                    fetchRequests(); 
+                                }, 5000);
+                            }}
+                        />
+                    ) : (
+                        <div className="bg-slate-100 h-96 rounded-3xl flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-300">
+                            <MapIcon size={64} className="mb-4 opacity-50"/>
+                            <p className="font-bold">No Active Drones in Flight</p>
+                            <p className="text-xs">Dispatch an order to view live satellite telemetry.</p>
+                        </div>
+                    )}
+                </div>
+            )}
             {activeTab === 'inventory' && ( <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4">{inventory.map(item => (<div key={item.id} className="bg-white p-4 rounded-xl border text-center shadow-sm"><img src={item.img} className="h-24 w-full object-contain mb-2"/><h3 className="font-bold text-sm">{item.name}</h3><div className="flex justify-center gap-2 mt-2"><button onClick={() => updateStock(item.id, -1)} className="p-1 bg-gray-100 rounded"><Minus size={12}/></button><span className="font-bold">{item.stock}</span><button onClick={() => updateStock(item.id, 1)} className="p-1 bg-blue-100 text-blue-600 rounded"><Plus size={12}/></button></div></div>))}</div> )}
         </div>
       </main>

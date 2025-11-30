@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.7",
+    "@turf/turf": "^7.3.1",
     "chart.js": "^4.5.1",
     "leaflet": "^1.9.4",
     "lottie-react": "^2.4.1",
