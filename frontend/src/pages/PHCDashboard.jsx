@@ -4,7 +4,7 @@ import {
   Send, LogOut, AlertTriangle, CheckCircle2, 
   MapPin, History, Package, Navigation, 
   XCircle, FileText, Upload, User, Clock, Trash2,
-  Menu, X, RotateCcw, Eye, ShoppingCart, Search, Plus, Minus, ArrowLeft, Plane, Building2, Check, ShieldCheck, Loader2, ShieldAlert, MessageCircle, ClipboardList, Boxes
+  Menu, X, RotateCcw, Eye, ShoppingCart, Search, Plus, Minus, ArrowLeft, Plane, Building2, Check, ShieldCheck, Loader2, ShieldAlert, MessageCircle, Boxes
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
@@ -31,6 +31,7 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
+// ✅ MASTER LIST (Used for Mapping Images)
 const MEDICINE_DB = [
   { id: 6, name: 'Inj. Atropine', type: 'Ampoule', img: imgAtropine },
   { id: 7, name: 'Inj. Adrenaline', type: 'Ampoule', img: imgAdrenaline },
@@ -60,7 +61,7 @@ const PHCDashboard = () => {
   const [activeTab, setActiveTab] = useState('shop'); 
   const [showTracker, setShowTracker] = useState(false);
   const [orderHistory, setOrderHistory] = useState([]); 
-  const [phcInventory, setPhcInventory] = useState([]); // ✅ NEW: Local Stock
+  const [phcInventory, setPhcInventory] = useState([]); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [viewOrder, setViewOrder] = useState(null);
@@ -85,9 +86,8 @@ const PHCDashboard = () => {
   const activeChatRequest = orderHistory.find(r => r._id === activeChatId) || null;
 
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
-  const INV_URL = "https://arogyasparsh-backend.onrender.com/api/phc-inventory"; // ✅ NEW API
+  const INV_URL = "https://arogyasparsh-backend.onrender.com/api/phc-inventory";
 
-  // Fetch Orders & Inventory
   const fetchData = async () => {
     try {
       // Orders
@@ -98,10 +98,15 @@ const PHCDashboard = () => {
             setOrderHistory(data.filter(r => r.phc === user.name).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
         }
       }
-      // ✅ Inventory
+      // ✅ Inventory: Fetch & Map Images
       const invRes = await fetch(`${INV_URL}/${user.name}`);
       if (invRes.ok) {
-          setPhcInventory(await invRes.json());
+          const items = await invRes.json();
+          const mappedItems = items.map(item => {
+              const localMatch = MEDICINE_DB.find(dbItem => dbItem.id === item.id);
+              return { ...item, img: localMatch ? localMatch.img : '' }; // Use local image
+          });
+          setPhcInventory(mappedItems);
       }
     } catch (err) { console.error("Network Error"); }
   };
@@ -113,7 +118,6 @@ const PHCDashboard = () => {
     return () => { clearInterval(timer); clearInterval(poller); };
   }, []);
 
-  // ✅ UPDATE LOCAL STOCK
   const updateLocalStock = async (id, change) => {
       try {
           await fetch(`${INV_URL}/update`, {
@@ -121,7 +125,7 @@ const PHCDashboard = () => {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ phcName: user.name, itemId: id, change })
           });
-          fetchData(); // Refresh UI
+          fetchData();
       } catch (e) { alert("Failed to update stock"); }
   };
 
@@ -172,7 +176,7 @@ const PHCDashboard = () => {
         setProofFiles([...proofFiles, ...files]); setFraudStatus('safe'); setVerifying(false);
     }, 2000);
   };
-  const removeFile = (index) => { setProofFiles(proofFiles.filter((_, i) => i !== index)); if (proofFiles.length===1) setFraudStatus('idle'); };
+  const removeFile = (index) => { setProofFiles(proofFiles.filter((_, i) => i !== index)); if (proofFiles.length===0) setFraudStatus('idle'); };
 
   const handleSubmitOrder = async () => {
     if (proofFiles.length === 0) return alert("Upload Proof");
@@ -208,6 +212,8 @@ const PHCDashboard = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 relative">
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
+      
+      {/* ✅ AI COPILOT */}
       <AiCopilot contextData={{ orderHistory, cart, inventory: phcInventory }} />
 
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
@@ -253,14 +259,14 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* ✅ 2️⃣ NEW: INVENTORY TAB */}
+          {/* ✅ 2️⃣ NEW: INVENTORY TAB (With Real Images) */}
           {!showTracker && activeTab === 'inventory' && (
               <div className="max-w-6xl mx-auto">
                   <h2 className="text-xl font-bold mb-6 flex items-center gap-2"><Boxes className="text-blue-600"/> My Stock Register</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                       {phcInventory.map(item => (
                           <div key={item.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center text-center">
-                              <img src={item.img} className="h-24 w-full object-contain mb-3"/>
+                              <img src={item.img || logoMain} className="h-24 w-full object-contain mb-3"/>
                               <h3 className="font-bold text-slate-800 text-sm">{item.name}</h3>
                               <span className="text-xs text-slate-500 mb-3">Batch: {item.batch}</span>
                               <div className="flex items-center gap-3 bg-slate-50 p-1 rounded-xl">
@@ -336,7 +342,6 @@ const PHCDashboard = () => {
                                 <td className="p-4"><span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-bold">{order.status}</span></td>
                                 <td className="p-4 flex items-center gap-2">
                                     <button onClick={() => setActiveChatId(order._id)} className={`p-2 rounded-full relative ${order.chat?.length > 0 ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}><MessageCircle size={18}/></button>
-                                    {/* ✅ REPORT INCIDENT BUTTON */}
                                     <button onClick={() => { setTargetReportId(order._id); setShowReportModal(true); }} className="p-2 rounded-full bg-red-50 text-red-500 hover:bg-red-100"><AlertTriangle size={18}/></button>
                                     <button onClick={() => setViewOrder(order)} className="text-slate-500 hover:text-blue-600 p-2 rounded-full hover:bg-blue-50 transition-colors"><Eye size={18} /></button>
                                     {order.status === 'Dispatched' && <button onClick={startTracking} className="text-green-600 font-bold text-sm flex gap-1"><Navigation size={14}/> Track</button>}
@@ -368,7 +373,8 @@ const PHCDashboard = () => {
         </div>
       </main>
 
-      {/* CHAT MODAL */}
+      {/* MODALS */}
+      {/* Chat Modal */}
       {activeChatId && activeChatRequest && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[500px]">
@@ -395,7 +401,7 @@ const PHCDashboard = () => {
         </div>
       )}
 
-      {/* INCIDENT REPORT MODAL */}
+      {/* Incident Report Modal */}
       {showReportModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
              <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6">
