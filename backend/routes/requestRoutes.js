@@ -87,14 +87,4 @@ router.post("/:id/incident", async (req, res) => {
     }
 });
 
-// ✅ NEW: CLEAR ALL REQUESTS
-router.delete("/clear-all", async (req, res) => {
-    try {
-      await Request.deleteMany({});
-      res.status(200).json({ message: "All requests cleared!" });
-    } catch (err) {
-      res.status(500).json(err);
-    }
-});
-
-module.exports = router;//s
+module.exports = router;
