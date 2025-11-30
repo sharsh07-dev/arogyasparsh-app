@@ -4,7 +4,7 @@ const cors = require("cors");
 const connectDB = require("./config/db.js");
 const authRoutes = require("./routes/authRoutes");
 const requestRoutes = require("./routes/requestRoutes"); // <--- 1. IMPORT THIS
-
+const phcInventoryRoutes = require("./routes/phcInventoryRoutes");
 dotenv.config();
 connectDB();
 
@@ -23,7 +23,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/requests", requestRoutes); // <--- 2. USE THIS
-
+app.use("/api/phc-inventory", phcInventoryRoutes);
 const PORT = process.env.PORT || 5001;
 
 app.listen(PORT, () => {
