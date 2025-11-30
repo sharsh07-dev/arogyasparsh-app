@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Send, LogOut, AlertTriangle, CheckCircle2, 
@@ -55,7 +55,8 @@ const MEDICINE_DB = [
 
 const PHCDashboard = () => {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('userInfo')) || { name: 'Wagholi PHC' };
+  // ✅ Safety Check: Ensure user exists or default to generic
+  const user = JSON.parse(localStorage.getItem('userInfo')) || { name: 'Unknown PHC' };
   
   const [activeTab, setActiveTab] = useState('shop'); 
   const [showTracker, setShowTracker] = useState(false);
@@ -78,12 +79,15 @@ const PHCDashboard = () => {
   const [verifying, setVerifying] = useState(false);
   const [fraudStatus, setFraudStatus] = useState('idle');
 
-  // Chat & Incident State
-  const [activeChatRequest, setActiveChatRequest] = useState(null);
+  // ✅ NEW: Chat & Incident Reporting State
+  const [activeChatId, setActiveChatId] = useState(null);
   const [chatMessage, setChatMessage] = useState("");
   const [showReportModal, setShowReportModal] = useState(false);
-  const [reportData, setReportData] = useState({ type: 'Damage', details: '' });
+  const [reportData, setReportData] = useState({ type: 'Damaged', details: '' });
   const [targetReportId, setTargetReportId] = useState(null);
+
+  // Derived active chat request
+  const activeChatRequest = orderHistory.find(r => r._id === activeChatId) || null;
 
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
@@ -94,15 +98,11 @@ const PHCDashboard = () => {
       if (!res.ok) { setLoading(false); return; }
       const data = await res.json();
       if (Array.isArray(data)) {
+        // Filter for THIS user and Sort Newest First
         const myRequests = data
-            .filter(r => r.phc === user.name)
+            .filter(r => r.phc === user.name) 
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setOrderHistory(myRequests);
-        // Update active chat if open
-        if (activeChatRequest) {
-            const updated = myRequests.find(r => r._id === activeChatRequest._id);
-            if(updated) setActiveChatRequest(updated);
-        }
       }
     } catch (err) { console.error("Network Error"); }
     setLoading(false);
@@ -111,23 +111,25 @@ const PHCDashboard = () => {
   useEffect(() => {
     fetchRequests();
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
-    const poller = setInterval(fetchRequests, 5000); // Poll for messages
+    const poller = setInterval(fetchRequests, 3000); // Sync chat/status
     return () => { clearInterval(timer); clearInterval(poller); };
   }, []);
 
+  // ✅ SEND MESSAGE
   const sendMessage = async () => {
-      if (!chatMessage.trim() || !activeChatRequest) return;
+      if (!chatMessage.trim() || !activeChatId) return;
       try {
-          await fetch(`${API_URL}/${activeChatRequest._id}/chat`, {
+          await fetch(`${API_URL}/${activeChatId}/chat`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ sender: "PHC", message: chatMessage })
           });
           setChatMessage("");
           fetchRequests();
-      } catch (err) { alert("Failed to send"); }
+      } catch (err) { alert("Failed to send message"); }
   };
 
+  // ✅ SUBMIT INCIDENT REPORT
   const submitReport = async () => {
       if (!reportData.details || !targetReportId) return;
       try {
@@ -136,11 +138,11 @@ const PHCDashboard = () => {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(reportData)
           });
-          alert("Incident Reported Successfully");
+          alert("Incident Reported to Hospital HQ");
           setShowReportModal(false);
-          setReportData({ type: 'Damage', details: '' });
+          setReportData({ type: 'Damaged', details: '' });
           fetchRequests();
-      } catch (err) { alert("Failed to report"); }
+      } catch (err) { alert("Failed to report incident"); }
   };
 
   const addToCart = (item) => {
@@ -211,14 +213,19 @@ const PHCDashboard = () => {
     const totalQty = cart.reduce((acc, c) => acc + c.qty, 0);
 
     const formDataToSend = new FormData();
-    formDataToSend.append("phc", user.name);
+    // ✅ Fix: Ensure user name is always sent
+    formDataToSend.append("phc", user.name || "Unknown PHC");
     formDataToSend.append("item", itemSummary);
     formDataToSend.append("qty", totalQty);
     formDataToSend.append("urgency", urgency);
     formDataToSend.append("description", "Multi-item order via App");
     
+    // ✅ Fix: Send GPS or Default
     if (user.landingCoordinates) {
         formDataToSend.append("coordinates", JSON.stringify(user.landingCoordinates));
+    } else {
+        // Fallback to 0,0 if not set, hospital will use default
+        formDataToSend.append("coordinates", JSON.stringify({ lat: 0, lng: 0 }));
     }
 
     proofFiles.forEach((file) => {
@@ -232,17 +239,17 @@ const PHCDashboard = () => {
         });
 
         if (res.ok) {
-            alert("✅ Order Verified & Placed Successfully!");
+            alert("✅ Order Placed Successfully!");
             fetchRequests(); 
             setCart([]);
             setProofFiles([]);
             setFraudStatus('idle');
             setActiveTab('history');
         } else {
-            alert("Server busy. Try again.");
+            alert("Server busy. Please try again.");
         }
     } catch (err) {
-        alert("Network Error.");
+        alert("Network Error. Check internet connection.");
     }
     setLoading(false);
   };
@@ -269,6 +276,7 @@ const PHCDashboard = () => {
       
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
 
+      {/* ✅ AI COPILOT */}
       <AiCopilot contextData={{ orderHistory, cart }} />
 
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
@@ -360,65 +368,33 @@ const PHCDashboard = () => {
                                 <ShieldCheck className={fraudStatus === 'safe' ? "text-green-600" : "text-slate-400"} size={24} />
                                 <h3 className="font-bold text-lg text-slate-800">Order Verification</h3>
                             </div>
-
                             <div className="space-y-3 mb-6">
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Urgency Level</label>
                                 <select className="w-full p-2 border rounded-lg bg-slate-50 text-sm" value={urgency} onChange={(e) => setUrgency(e.target.value)}><option>Standard</option><option>High</option><option>Critical</option></select>
                             </div>
-
                             <div className="mb-6">
-                                <label className="block text-xs font-bold text-slate-700 mb-2">
-                                    Official Proof (Required) <span className="text-red-500">*</span>
-                                </label>
-                                
+                                <label className="block text-xs font-bold text-slate-700 mb-2">Official Proof (Required) <span className="text-red-500">*</span></label>
                                 {fraudStatus === 'scanning' ? (
-                                    <div className="w-full border-2 border-blue-200 bg-blue-50 rounded-xl p-6 flex flex-col items-center justify-center text-blue-600 animate-pulse">
-                                        <Loader2 size={24} className="animate-spin mb-2" />
-                                        <span className="text-xs font-bold">AI Scanning Document...</span>
-                                    </div>
+                                    <div className="w-full border-2 border-blue-200 bg-blue-50 rounded-xl p-6 flex flex-col items-center justify-center text-blue-600 animate-pulse"><Loader2 size={24} className="animate-spin mb-2" /><span className="text-xs font-bold">AI Scanning Document...</span></div>
                                 ) : (
                                     <label className={`cursor-pointer w-full border-2 border-dashed rounded-lg p-3 flex flex-col items-center justify-center transition-colors ${fraudStatus === 'safe' ? 'border-green-400 bg-green-50' : 'border-blue-200 hover:bg-blue-50'}`}>
                                         {fraudStatus === 'safe' ? <CheckCircle2 size={20} className="text-green-600 mb-1"/> : <Upload size={16} className="text-blue-500"/>}
-                                        <span className={`text-[10px] mt-1 font-bold ${fraudStatus === 'safe' ? 'text-green-700' : 'text-blue-600'}`}>
-                                            {fraudStatus === 'safe' ? "Verified & Attached" : "Upload for AI Scan"}
-                                        </span>
+                                        <span className={`text-[10px] mt-1 font-bold ${fraudStatus === 'safe' ? 'text-green-700' : 'text-blue-600'}`}>{fraudStatus === 'safe' ? "Verified & Attached" : "Upload for AI Scan"}</span>
                                         <input type="file" multiple className="hidden" onChange={handleFileChange}/>
                                     </label>
                                 )}
-
                                 {proofFiles.length > 0 && fraudStatus === 'safe' && (
-                                    <div className="mt-3 space-y-2">
-                                        {proofFiles.map((f, i) => (
-                                            <div key={i} className="flex items-center justify-between bg-green-100 p-2 rounded-lg text-xs text-green-800 border border-green-200">
-                                                <div className="flex items-center gap-2 overflow-hidden">
-                                                    <ShieldCheck size={12} className="text-green-600 shrink-0"/>
-                                                    <span className="truncate w-24 font-medium">{f.name}</span>
-                                                </div>
-                                                <button onClick={() => removeFile(i)} className="text-red-500 hover:text-red-700"><Trash2 size={14}/></button>
-                                            </div>
-                                        ))}
-                                    </div>
+                                    <div className="mt-3 space-y-2">{proofFiles.map((f, i) => (<div key={i} className="flex items-center justify-between bg-green-100 p-2 rounded-lg text-xs text-green-800 border border-green-200"><div className="flex items-center gap-2 overflow-hidden"><ShieldCheck size={12} className="text-green-600 shrink-0"/><span className="truncate w-24 font-medium">{f.name}</span></div><button onClick={() => removeFile(i)} className="text-red-500 hover:text-red-700"><Trash2 size={14}/></button></div>))}</div>
                                 )}
                             </div>
-
-                            <button 
-                                onClick={handleSubmitOrder} 
-                                disabled={cart.length === 0 || loading || fraudStatus !== 'safe'} 
-                                className={`w-full py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all ${
-                                    cart.length > 0 && fraudStatus === 'safe' 
-                                    ? 'bg-green-600 text-white hover:bg-green-700 hover:scale-[1.02]' 
-                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                }`}
-                            >
-                                {loading ? 'Processing...' : <><Send size={18} /> Request Drone</>}
-                            </button>
+                            <button onClick={handleSubmitOrder} disabled={cart.length === 0 || loading || fraudStatus !== 'safe'} className={`w-full py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all ${cart.length > 0 && fraudStatus === 'safe' ? 'bg-green-600 text-white hover:bg-green-700 hover:scale-[1.02]' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>{loading ? 'Processing...' : <><Send size={18} /> Request Drone</>}</button>
                         </div>
                     </div>
                 </div>
              </div>
           )}
 
-          {/* HISTORY VIEW */}
+          {/* 3️⃣ HISTORY VIEW */}
           {!showTracker && activeTab === 'history' && (
              <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl border overflow-hidden overflow-x-auto">
                 <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
@@ -426,16 +402,17 @@ const PHCDashboard = () => {
                     <button onClick={fetchRequests} className="flex items-center gap-2 text-sm text-blue-600 hover:bg-blue-50 px-3 py-1 rounded-lg transition-colors"><RotateCcw size={16} /> Refresh</button>
                 </div>
                 <table className="w-full text-left min-w-[600px]">
-                    <thead className="bg-slate-50 border-b"><tr><th className="p-4">Order ID</th><th className="p-4">Item</th><th className="p-4">Status</th><th className="p-4">Action</th></tr></thead>
+                    <thead className="bg-slate-50 border-b"><tr><th className="p-4">Date</th><th className="p-4">Order ID</th><th className="p-4">Item</th><th className="p-4">Status</th><th className="p-4">Action</th></tr></thead>
                     <tbody>
                         {orderHistory.map((order) => (
                             <tr key={order._id || order.id} className="hover:bg-slate-50 transition-colors">
+                                <td className="p-4 text-sm text-slate-500">{new Date(order.createdAt).toLocaleDateString()}</td>
                                 <td className="p-4 font-mono text-sm">{(order._id || order.id).slice(-6).toUpperCase()}</td>
                                 <td className="p-4 font-bold">{order.item}</td>
                                 <td className="p-4"><span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-bold">{order.status}</span></td>
                                 <td className="p-4 flex items-center gap-2">
                                     {/* ✅ CHAT BUTTON */}
-                                    <button onClick={() => setActiveChatRequest(order)} className={`p-2 rounded-full relative ${order.chat?.length > 0 ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}><MessageCircle size={18}/></button>
+                                    <button onClick={() => setActiveChatId(order._id)} className={`p-2 rounded-full relative ${order.chat?.length > 0 ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}><MessageCircle size={18}/></button>
                                     {/* ✅ INCIDENT BUTTON */}
                                     <button onClick={() => { setTargetReportId(order._id); setShowReportModal(true); }} className="p-2 rounded-full bg-red-50 text-red-500 hover:bg-red-100"><AlertTriangle size={18}/></button>
                                     <button onClick={() => setViewOrder(order)} className="text-slate-500 hover:text-blue-600 p-2 rounded-full hover:bg-blue-50 transition-colors"><Eye size={18} /></button>
@@ -448,30 +425,24 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* TRACKER VIEW (Kept Same) */}
+          {/* 4️⃣ TRACKING */}
           {showTracker && (
              <div className="max-w-4xl mx-auto space-y-6">
                 <div className="bg-slate-200 rounded-3xl h-64 md:h-80 relative overflow-hidden border-4 border-white shadow-2xl">
                     <div className="absolute inset-0 opacity-30 bg-[url('https://img.freepik.com/free-vector/grey-world-map_1053-431.jpg')] bg-cover bg-center grayscale"></div>
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none"><path d="M 100,160 Q 400,50 700,160" fill="none" stroke="#3b82f6" strokeWidth="3" strokeDasharray="10" className="drop-shadow-md" /></svg>
-                    <div className="absolute top-[160px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-red-600 drop-shadow-md" size={32} fill="#ef4444"/><span className="font-bold text-slate-700 text-xs mt-1">Hospital</span></div>
-                    <div className="absolute top-[160px] left-[700px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-orange-500 drop-shadow-md" size={32} fill="#f97316"/><span className="font-bold text-slate-700 text-xs mt-1">Wagholi PHC</span></div>
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none"><path d="M 100,160 Q 400,50 700,160" fill="none" stroke="#3b82f6" strokeWidth="3" strokeDasharray="10" /></svg>
+                    <div className="absolute top-[160px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-red-600" size={32} fill="#ef4444"/><span className="font-bold text-slate-700 text-xs mt-1">Hospital</span></div>
+                    <div className="absolute top-[160px] left-[700px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-orange-500" size={32} fill="#f97316"/><span className="font-bold text-slate-700 text-xs mt-1">PHC</span></div>
                     <div className="absolute top-0 left-0 transition-all duration-100 ease-linear z-20" style={{ left: `${100 + (trackProgress / 100) * 600}px`, top: `${160 - Math.sin((trackProgress / 100) * Math.PI) * 110}px`, transform: `translate(-50%, -50%) rotate(${90 + (trackProgress < 50 ? -20 : 20)}deg)` }}><Plane size={48} className="text-yellow-500 drop-shadow-xl" fill="gold" /></div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 rounded-3xl overflow-hidden shadow-2xl font-mono">
                     <div className="bg-slate-900 text-white border-r border-slate-700">
                         <div className="bg-blue-600 py-3 text-center"><h2 className="text-2xl font-bold uppercase tracking-widest">Departure</h2></div>
-                        <div className="p-6 space-y-4">
-                            <div className="flex justify-between border-b border-slate-700 pb-2"><span className="text-slate-400 text-xs uppercase">Time</span><div className="text-right"><p className="text-xs text-slate-400">SCH. {timeString}</p><p className="text-lg font-bold text-green-400">ACT. {timeString}</p></div></div>
-                            <div className="text-center py-2"><h3 className="text-xl font-bold text-blue-300">District Hospital (DH)</h3></div>
-                        </div>
+                        <div className="p-6 space-y-4"><div className="flex justify-between border-b border-slate-700 pb-2"><span className="text-slate-400 text-xs uppercase">Time</span><div className="text-right"><p className="text-xs text-slate-400">SCH. {timeString}</p><p className="text-lg font-bold text-green-400">ACT. {timeString}</p></div></div></div>
                     </div>
                     <div className="bg-slate-900 text-white">
                         <div className="bg-blue-600 py-3 text-center"><h2 className="text-2xl font-bold uppercase tracking-widest">Arrival</h2></div>
-                        <div className="p-6 space-y-4">
-                            <div className="flex justify-between border-b border-slate-700 pb-2"><span className="text-slate-400 text-xs uppercase">Time</span><div className="text-right"><p className="text-xs text-slate-400">SCH. {arrivalTime}</p><p className="text-lg font-bold text-yellow-400">ETA. {arrivalTime}</p></div></div>
-                            <div className="text-center py-2"><h3 className="text-xl font-bold text-blue-300">Wagholi PHC (WAG)</h3></div>
-                        </div>
+                        <div className="p-6 space-y-4"><div className="flex justify-between border-b border-slate-700 pb-2"><span className="text-slate-400 text-xs uppercase">Time</span><div className="text-right"><p className="text-xs text-slate-400">SCH. {arrivalTime}</p><p className="text-lg font-bold text-yellow-400">ETA. {arrivalTime}</p></div></div></div>
                     </div>
                 </div>
                 <div className="flex justify-center"><button onClick={() => setShowTracker(false)} className="text-slate-500 hover:text-red-500 text-sm flex items-center gap-2 transition-colors"><XCircle size={20} /> Close Flight View</button></div>
@@ -480,16 +451,17 @@ const PHCDashboard = () => {
         </div>
       </main>
 
-      {/* CHAT MODAL */}
-      {activeChatRequest && (
+      {/* MODALS */}
+      {/* Chat Modal */}
+      {activeChatId && activeChatRequest && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[500px]">
                 <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
                     <h3 className="font-bold flex items-center gap-2"><MessageCircle size={18}/> Chat with Hospital</h3>
-                    <button onClick={() => setActiveChatRequest(null)}><X size={20}/></button>
+                    <button onClick={() => setActiveChatId(null)}><X size={20}/></button>
                 </div>
                 <div className="flex-1 p-4 overflow-y-auto bg-slate-50 space-y-3">
-                    {activeChatRequest.chat?.length === 0 && <p className="text-center text-slate-400 text-sm mt-10">No messages yet. Start the conversation.</p>}
+                    {activeChatRequest.chat?.length === 0 && <p className="text-center text-slate-400 text-sm mt-10">No messages yet.</p>}
                     {activeChatRequest.chat?.map((c, i) => (
                         <div key={i} className={`flex ${c.sender === 'PHC' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`p-3 rounded-xl text-sm max-w-[80%] ${c.sender === 'PHC' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border border-slate-200 rounded-bl-none'}`}>
@@ -507,13 +479,13 @@ const PHCDashboard = () => {
         </div>
       )}
 
-      {/* INCIDENT REPORT MODAL */}
+      {/* Incident Report Modal */}
       {showReportModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
              <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6">
                  <h3 className="text-xl font-bold text-red-600 flex items-center gap-2 mb-4"><AlertTriangle/> Report Incident</h3>
                  <div className="space-y-4">
-                     <div><label className="block text-xs font-bold mb-1">Issue Type</label><select className="w-full border p-2 rounded-lg" value={reportData.type} onChange={(e)=>setReportData({...reportData, type: e.target.value})}><option>Damaged Kit</option><option>Wrong Medicine</option><option>Delay</option><option>Other</option></select></div>
+                     <div><label className="block text-xs font-bold mb-1">Issue Type</label><select className="w-full border p-2 rounded-lg" value={reportData.type} onChange={(e)=>setReportData({...reportData, type: e.target.value})}><option>Damaged</option><option>Wrong Item</option><option>Delay</option><option>Other</option></select></div>
                      <div><label className="block text-xs font-bold mb-1">Details</label><textarea className="w-full border p-2 rounded-lg h-24" placeholder="Describe the issue..." value={reportData.details} onChange={(e)=>setReportData({...reportData, details: e.target.value})}/></div>
                      <button onClick={submitReport} className="w-full bg-red-600 text-white py-3 rounded-xl font-bold">Submit Report</button>
                      <button onClick={() => setShowReportModal(false)} className="w-full text-slate-500 py-2 text-sm">Cancel</button>
