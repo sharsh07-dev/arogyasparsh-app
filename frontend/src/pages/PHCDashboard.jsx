@@ -4,7 +4,7 @@ import {
   Send, LogOut, AlertTriangle, CheckCircle2, 
   MapPin, History, Package, Navigation, 
   XCircle, FileText, Upload, User, Clock, Trash2,
-  Menu, X, RotateCcw, Eye, ShoppingCart, Search, Plus, Minus, ArrowLeft, Plane, Building2, Check, ShieldCheck, Loader2, ShieldAlert, MessageCircle, Boxes
+  Menu, X, RotateCcw, Eye, ShoppingCart, Search, Plus, Minus, ArrowLeft, Plane, Building2, Check, ShieldCheck, Loader2, ShieldAlert, MessageCircle, ClipboardList, Boxes
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
@@ -31,7 +31,6 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// ✅ MASTER LIST (Used for Mapping Images)
 const MEDICINE_DB = [
   { id: 6, name: 'Inj. Atropine', type: 'Ampoule', img: imgAtropine },
   { id: 7, name: 'Inj. Adrenaline', type: 'Ampoule', img: imgAdrenaline },
@@ -88,9 +87,11 @@ const PHCDashboard = () => {
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
   const INV_URL = "https://arogyasparsh-backend.onrender.com/api/phc-inventory";
 
-  const fetchData = async () => {
+  // ✅ FIXED: Function name matches the button call ('fetchRequests')
+  const fetchRequests = async () => {
+    setLoading(true);
     try {
-      // Orders
+      // 1. Fetch Orders
       const res = await fetch(API_URL);
       if (res.ok) {
         const data = await res.json();
@@ -98,23 +99,24 @@ const PHCDashboard = () => {
             setOrderHistory(data.filter(r => r.phc === user.name).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
         }
       }
-      // ✅ Inventory: Fetch & Map Images
+      // 2. Fetch Inventory
       const invRes = await fetch(`${INV_URL}/${user.name}`);
       if (invRes.ok) {
           const items = await invRes.json();
           const mappedItems = items.map(item => {
               const localMatch = MEDICINE_DB.find(dbItem => dbItem.id === item.id);
-              return { ...item, img: localMatch ? localMatch.img : '' }; // Use local image
+              return { ...item, img: localMatch ? localMatch.img : '' }; 
           });
           setPhcInventory(mappedItems);
       }
     } catch (err) { console.error("Network Error"); }
+    setLoading(false);
   };
 
   useEffect(() => {
-    fetchData();
+    fetchRequests();
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
-    const poller = setInterval(fetchData, 3000); 
+    const poller = setInterval(fetchRequests, 3000); 
     return () => { clearInterval(timer); clearInterval(poller); };
   }, []);
 
@@ -125,7 +127,7 @@ const PHCDashboard = () => {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ phcName: user.name, itemId: id, change })
           });
-          fetchData();
+          fetchRequests(); // ✅ Calls fixed function name
       } catch (e) { alert("Failed to update stock"); }
   };
 
@@ -138,7 +140,7 @@ const PHCDashboard = () => {
               body: JSON.stringify({ sender: "PHC", message: chatMessage })
           });
           setChatMessage("");
-          fetchData();
+          fetchRequests();
       } catch (err) { alert("Failed to send"); }
   };
 
@@ -153,7 +155,7 @@ const PHCDashboard = () => {
           alert("Incident Reported");
           setShowReportModal(false);
           setReportData({ type: 'Damaged', details: '' });
-          fetchData();
+          fetchRequests();
       } catch (err) { alert("Failed"); }
   };
 
@@ -194,7 +196,7 @@ const PHCDashboard = () => {
     proofFiles.forEach((file) => formDataToSend.append("proofFiles", file));
     try {
         const res = await fetch(API_URL, { method: "POST", body: formDataToSend });
-        if (res.ok) { alert("Order Placed!"); fetchData(); setCart([]); setProofFiles([]); setFraudStatus('idle'); setActiveTab('history'); }
+        if (res.ok) { alert("Order Placed!"); fetchRequests(); setCart([]); setProofFiles([]); setFraudStatus('idle'); setActiveTab('history'); }
     } catch (err) { alert("Error"); }
     setLoading(false);
   };
@@ -212,8 +214,6 @@ const PHCDashboard = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 relative">
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
-      
-      {/* ✅ AI COPILOT */}
       <AiCopilot contextData={{ orderHistory, cart, inventory: phcInventory }} />
 
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
@@ -259,7 +259,7 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* ✅ 2️⃣ NEW: INVENTORY TAB (With Real Images) */}
+          {/* 2️⃣ INVENTORY VIEW */}
           {!showTracker && activeTab === 'inventory' && (
               <div className="max-w-6xl mx-auto">
                   <h2 className="text-xl font-bold mb-6 flex items-center gap-2"><Boxes className="text-blue-600"/> My Stock Register</h2>
@@ -281,7 +281,7 @@ const PHCDashboard = () => {
               </div>
           )}
 
-          {/* 3️⃣ CART & CHECKOUT */}
+          {/* 3️⃣ CART VIEW */}
           {!showTracker && activeTab === 'cart' && (
              <div className="max-w-4xl mx-auto">
                 <button onClick={() => setActiveTab('shop')} className="flex items-center gap-2 text-slate-500 hover:text-blue-600 mb-4 font-medium"><ArrowLeft size={18}/> Back to Store</button>
@@ -324,11 +324,12 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* 4️⃣ HISTORY & TRACKING */}
+          {/* 4️⃣ HISTORY VIEW */}
           {!showTracker && activeTab === 'history' && (
              <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl border overflow-hidden overflow-x-auto">
                 <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
                     <h3 className="font-bold text-slate-700">Order History</h3>
+                    {/* ✅ FIXED: Button now calls 'fetchRequests' correctly */}
                     <button onClick={fetchRequests} className="flex items-center gap-2 text-sm text-blue-600 hover:bg-blue-50 px-3 py-1 rounded-lg transition-colors"><RotateCcw size={16} /> Refresh</button>
                 </div>
                 <table className="w-full text-left min-w-[600px]">
@@ -353,7 +354,7 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* 5️⃣ TRACKER VIEW (Standard) */}
+          {/* 5️⃣ TRACKER VIEW */}
           {showTracker && (
              <div className="max-w-4xl mx-auto space-y-6">
                 <div className="bg-slate-200 rounded-3xl h-64 md:h-80 relative overflow-hidden border-4 border-white shadow-2xl">
@@ -373,8 +374,7 @@ const PHCDashboard = () => {
         </div>
       </main>
 
-      {/* MODALS */}
-      {/* Chat Modal */}
+      {/* CHAT MODAL */}
       {activeChatId && activeChatRequest && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[500px]">
@@ -401,7 +401,7 @@ const PHCDashboard = () => {
         </div>
       )}
 
-      {/* Incident Report Modal */}
+      {/* INCIDENT REPORT MODAL */}
       {showReportModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
              <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6">
@@ -416,7 +416,7 @@ const PHCDashboard = () => {
         </div>
       )}
 
-      {/* ORDER DETAILS MODAL */}
+      {/* DETAILS MODAL */}
       {viewOrder && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
