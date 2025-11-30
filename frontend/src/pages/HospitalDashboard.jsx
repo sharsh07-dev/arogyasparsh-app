@@ -6,7 +6,7 @@ import {
   MapPin, CheckCircle2, Clock, AlertOctagon, 
   Battery, Signal, Plane, Plus, Minus, Search, 
   Map as MapIcon, VolumeX, Siren, X, Check, Menu,
-  Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2, Globe, Timer, Zap, Brain, Cpu, Terminal, TrendingUp, ClipboardList, Filter
+  Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2, Globe, Timer, Zap, Brain, Cpu, Terminal, TrendingUp, ClipboardList, Filter, MessageCircle, Send
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
@@ -88,11 +88,15 @@ const HospitalDashboard = () => {
   const [filteredPredictions, setFilteredPredictions] = useState([]); 
   const [selectedPhc, setSelectedPhc] = useState("All"); 
 
+  // ✅ CHAT STATE
+  const [activeChatRequest, setActiveChatRequest] = useState(null);
+  const [chatMessage, setChatMessage] = useState("");
+
   const [activeMissions, setActiveMissions] = useState(() => {
     return JSON.parse(localStorage.getItem('activeMissions')) || [];
   });
 
-  // PERSISTENT AI LOGS
+  // Persistent AI Logs
   const [aiLogs, setAiLogs] = useState(() => {
     try { return JSON.parse(localStorage.getItem('aiSystemLogs')) || []; } catch { return []; }
   });
@@ -109,8 +113,6 @@ const HospitalDashboard = () => {
   };
 
   const [processingQueue, setProcessingQueue] = useState([]);
-
-  // Simulation State
   const [trackProgress, setTrackProgress] = useState(0);
   const [countdown, setCountdown] = useState(0); 
   const [missionStatusText, setMissionStatusText] = useState('Standby');
@@ -123,6 +125,46 @@ const HospitalDashboard = () => {
   const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: "" });
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
+  // FETCH & CHAT SYNC LOGIC
+  const fetchRequests = async () => {
+    try {
+      const res = await fetch(API_URL);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setRequests(sortedData);
+
+        // ✅ FIX: Live Chat Update (Keep chat open and update messages)
+        if (activeChatRequest) {
+            const updatedChat = sortedData.find(r => r._id === activeChatRequest._id);
+            if (updatedChat) setActiveChatRequest(updatedChat);
+        }
+      }
+    } catch (err) { console.error("Network Error"); }
+  };
+
+  // Poll for updates every 3s (Crucial for Chat)
+  useEffect(() => {
+    fetchRequests();
+    const interval = setInterval(fetchRequests, 3000);
+    return () => clearInterval(interval);
+  }, [activeChatRequest]); // Re-run if active chat changes
+
+  // ✅ SEND MESSAGE FUNCTION
+  const sendMessage = async () => {
+    if (!chatMessage.trim() || !activeChatRequest) return;
+    try {
+        await fetch(`${API_URL}/${activeChatRequest._id}/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sender: "Hospital", message: chatMessage })
+        });
+        setChatMessage("");
+        fetchRequests(); // Instant refresh
+    } catch (err) { alert("Failed to send message"); }
+  };
+
   // FETCH AI PREDICTIONS
   const fetchPredictions = async () => {
     try {
@@ -133,7 +175,6 @@ const HospitalDashboard = () => {
             setFilteredPredictions(data.slice(0, 3));
         } else { throw new Error("No Data"); }
     } catch (err) {
-        console.log("AI Service Offline (Using Mock Data)");
         const mockData = [
             { phc: "PHC Chamorshi", name: "Inj. Atropine", predictedQty: 42, trend: "📈 Rising" },
             { phc: "PHC Belgaon", name: "IV Paracetamol", predictedQty: 15, trend: "📉 Stable" },
@@ -177,93 +218,60 @@ const HospitalDashboard = () => {
     return score.toFixed(2); 
   };
 
-  // ✅ UPDATED AUTO-PILOT LOOP (Only Approves, No Dispatch)
+  // AUTO-PILOT LOOP
   useEffect(() => {
     const aiLoop = setInterval(() => {
         requests.forEach(req => {
             if (req.status === 'Pending' && !processingQueue.includes(req._id)) {
-                
                 const score = calculatePriorityScore(req);
                 setProcessingQueue(prev => [...prev, req._id]);
 
                 if (req.urgency === 'Critical') {
-                    // 10 Seconds Approval
-                    const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL - PROCESSING (10s)`;
+                    const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL - IMMEDIATE LAUNCH`;
                     addLog(logMsg, "text-red-500 font-bold");
-                    
-                    setTimeout(() => {
-                        updateStatusInDB(req._id, 'Approved');
-                        addLog(`ID: ${req._id.slice(-4)} | ✅ APPROVED. WAITING FOR DISPATCH.`, "text-green-400");
-                    }, 10000); // 10s Wait
-                } 
-                else {
-                    // 20 Seconds Approval
+                    startApprovalProcess(req); 
+                } else {
                     addLog(`ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ QUEUED (20s Buffer)`, "text-yellow-400");
-                    
                     setTimeout(() => {
-                         updateStatusInDB(req._id, 'Approved');
-                         addLog(`ID: ${req._id.slice(-4)} | ✅ APPROVED. WAITING FOR DISPATCH.`, "text-green-300");
-                    }, 20000); // 20s Wait
+                         addLog(`ID: ${req._id.slice(-4)} | ✅ SAFETY CHECK PASSED`, "text-green-400");
+                         startApprovalProcess(req); 
+                    }, 15000);
                 }
             }
         });
     }, 3000); 
-
     return () => clearInterval(aiLoop);
   }, [requests, processingQueue]);
 
-  // ✅ MANUAL DISPATCH HANDLER (Triggers 15s Safety Check)
-  const handleDispatch = (req) => {
-    if(!confirm("Confirm Drone Dispatch?")) return;
-    
+  const startApprovalProcess = (req) => {
+      setTimeout(() => {
+          updateStatusInDB(req._id, 'Approved');
+          addLog(`ID: ${req._id.slice(-4)} | 📝 Request Approved by System`, "text-green-300");
+          // No auto dispatch
+      }, 4000);
+  };
+
+  const handleAutoDispatch = (req) => {
     if (activeMissions.find(m => m.id === req._id)) return;
 
-    addLog(`🚁 Safety Checks Initiated for ${req.phc} (15s)...`, "text-blue-400 font-bold");
-    
-    // Wait 15s for Safety Checks
+    updateStatusInDB(req._id, 'Dispatched');
+    addLog(`🚁 Drone Dispatched by Pilot Manohar Singh`, "text-blue-400 font-bold");
+
+    const destination = (req.coordinates && req.coordinates.lat) 
+        ? req.coordinates 
+        : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
+
+    const newMission = { 
+        id: req._id, phc: req.phc, destination: destination, 
+        startTime: Date.now(), delivered: false 
+    };
+
+    setActiveMissions(prev => [...prev, newMission]);
+
     setTimeout(() => {
-        updateStatusInDB(req._id, 'Dispatched');
-        addLog(`🚀 DRONE LAUNCHED TO ${req.phc}`, "text-green-400 font-bold");
-
-        const destination = (req.coordinates && req.coordinates.lat) 
-            ? req.coordinates 
-            : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
-
-        const newMission = { 
-            id: req._id, 
-            phc: req.phc, 
-            destination: destination, 
-            startTime: Date.now(), 
-            delivered: false 
-        };
-
-        setActiveMissions(prev => [...prev, newMission]);
-        setActiveTab('map'); // Show Map
-
-        setTimeout(() => {
-            addLog(`📦 Package Out for Delivery - Enroute to ${req.phc}`, "text-white");
-        }, 2000);
-
-    }, 15000); // 15s Delay
+        addLog(`📦 Package Out for Delivery - Enroute to ${req.phc}`, "text-white");
+    }, 2000);
   };
-
-  const fetchRequests = async () => {
-    try {
-      const res = await fetch(API_URL);
-      if (!res.ok) return;
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        setRequests(sortedData);
-      }
-    } catch (err) { console.error("Network Error"); }
-  };
-
-  useEffect(() => {
-    fetchRequests();
-    const interval = setInterval(fetchRequests, 3000);
-    return () => clearInterval(interval);
-  }, []); 
 
   // SIMULATION LOOP
   useEffect(() => {
@@ -275,16 +283,14 @@ const HospitalDashboard = () => {
       if(!mission) return;
       const now = Date.now();
       const elapsed = now - mission.startTime; 
-      
-      const FLIGHT_DURATION = 600000; // 10 Minutes
+      const FLIGHT_DURATION = 600000; 
 
       if (elapsed < 10000) {
         setCountdown(Math.ceil((10000 - elapsed) / 1000));
         setTrackProgress(0);
-        setMissionStatusText(`Ascending to Altitude`);
+        setMissionStatusText(`Pre-Flight Checks`);
         setDroneStats({ speed: 0, battery: 100, altitude: 0 });
-      } 
-      else if (elapsed < (FLIGHT_DURATION + 10000)) {
+      } else if (elapsed < (FLIGHT_DURATION + 10000)) {
         setCountdown(0);
         const percent = ((elapsed - 10000) / FLIGHT_DURATION) * 100;
         setTrackProgress(percent);
@@ -293,12 +299,10 @@ const HospitalDashboard = () => {
         if (percent < 5) { currentSpeed = percent * 12; currentAlt = percent * 24; } 
         else if (percent > 95) { currentSpeed = 60 - (percent-95)*12; currentAlt = 120 - (percent-95)*24; } 
         setDroneStats({ speed: Math.floor(currentSpeed), battery: Math.max(0, 100 - Math.floor(percent / 1.5)), altitude: Math.floor(currentAlt) });
-      }
-      else {
+      } else {
         setTrackProgress(100);
         setMissionStatusText('Delivered');
         setDroneStats({ speed: 0, battery: 30, altitude: 0 });
-
         if (!mission.delivered) {
            addLog(`✅ DELIVERY SUCCESSFUL at ${mission.phc}`, "text-blue-400 font-bold border-l-2 border-blue-500 pl-2");
            setRequests(prev => prev.map(r => r._id === mission.id ? { ...r, status: 'Delivered' } : r));
@@ -322,6 +326,8 @@ const HospitalDashboard = () => {
   };
 
   const updateStatusInDB = async (id, newStatus) => { try { await fetch(`${API_URL}/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }), }); fetchRequests(); } catch (err) {} };
+  const handleApprove = (id, urgency) => { updateStatusInDB(id, 'Approved'); };
+  const handleDispatch = (req) => { if(!confirm("Confirm Manual Dispatch?")) return; handleAutoDispatch(req, 0); };
   const handleReject = (id, urgency) => { if(!confirm("Reject this request?")) return; updateStatusInDB(id, 'Rejected'); };
   const updateStock = (id, change) => { setInventory(inventory.map(item => item.id === id ? { ...item, stock: Math.max(0, item.stock + change) } : item)); };
   const addNewItem = () => { if(!newItem.name) return alert("Fill details"); setInventory([...inventory, { id: Date.now(), ...newItem, stock: parseInt(newItem.stock), img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" }]); setShowAddModal(false); };
@@ -330,6 +336,7 @@ const HospitalDashboard = () => {
     <div className={`min-h-screen bg-slate-50 flex font-sans text-slate-800 relative`}>
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
       
+      {/* ✅ AI COPILOT */}
       <AiCopilot contextData={{ inventory, requests }} />
 
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
@@ -367,7 +374,7 @@ const HospitalDashboard = () => {
                                  <div className="flex items-center gap-2">
                                      <Filter size={14} className="text-slate-400"/>
                                      <select className="bg-white border border-slate-300 text-xs p-2 rounded-lg outline-none font-medium text-slate-600" onChange={(e) => setSelectedPhc(e.target.value)}>
-                                        <option value="All">All PHCs</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option><option value="PHC Belgaon">PHC Belgaon</option><option value="PHC Dhutergatta">PHC Dhutergatta</option><option value="PHC Gatta">PHC Gatta</option><option value="PHC Gaurkheda">PHC Gaurkheda</option><option value="PHC Murmadi">PHC Murmadi</option>
+                                        <option value="All">All PHCs</option><option value="Wagholi PHC">Wagholi PHC</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option>
                                      </select>
                                  </div>
                              </div>
@@ -396,17 +403,23 @@ const HospitalDashboard = () => {
                                 <div className={`p-3 rounded-full ${req.urgency === 'Critical' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-600'}`}><AlertOctagon size={24} /></div>
                                 <div>
                                     <h3 className="font-bold text-slate-800 flex items-center gap-2">{req.phc}<span className={`text-[10px] px-2 py-0.5 rounded border ${score >= 0.8 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>Score: {score}</span></h3>
+                                    
+                                    {/* ✅ CLICKABLE ITEM LIST */}
                                     <button onClick={() => setViewItemList(req)} className="text-sm text-slate-600 hover:text-blue-600 hover:underline text-left mt-1 font-medium flex items-center gap-1"><ClipboardList size={14}/> {req.qty} items (Click to View List)</button>
+
                                     <div className="flex items-center gap-2 mt-1 text-xs text-slate-500"><Clock size={12}/> {new Date(req.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
                                     <button onClick={() => showCoordinates(req)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1"><Globe size={12} /> Loc ({req.coordinates ? 'GPS' : 'Static'})</button>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
+                                {/* ✅ CHAT BUTTON */}
+                                <button onClick={() => setActiveChatRequest(req)} className={`p-2 rounded-full relative ${req.chat?.length > 0 ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}><MessageCircle size={18}/></button>
+                                
                                 <button onClick={() => setViewProof(req)} className="px-3 py-2 border rounded-lg text-slate-600 text-sm flex gap-2"><FileText size={16} /> Proof</button>
-                                {req.status === 'Pending' && (<div className="flex items-center gap-2 text-green-600 font-bold text-sm animate-pulse bg-green-50 px-3 py-2 rounded border border-green-200">{req.urgency === 'Critical' ? 'AI Processing...' : 'AI Queue...'}</div>)}
+                                {req.status === 'Pending' && (<div className="flex items-center gap-2 text-green-600 font-bold text-sm animate-pulse bg-green-50 px-3 py-2 rounded border border-green-200">{req.urgency === 'Critical' ? '🚀 LAUNCHING...' : '⏳ SAFETY CHECK (15s)'}</div>)}
                                 {req.status === 'Dispatched' && <span className="text-green-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> In-Flight</span>}
                                 {req.status === 'Delivered' && <span className="text-blue-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> Delivered</span>}
-                                {req.status === 'Pending' && score < 0.8 && (<button onClick={() => handleReject(req._id, req.urgency)} className="px-3 py-2 border text-red-600 text-sm rounded-lg">Reject</button>)}
+                                {req.status === 'Pending' && score < 0.8 && (<><button onClick={() => handleReject(req._id, req.urgency)} className="px-3 py-2 border text-red-600 text-sm rounded-lg">Reject</button><button onClick={() => handleApprove(req._id, req.urgency)} className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg">Approve</button></>)}
                                 {req.status === 'Approved' && (<button onClick={() => handleDispatch(req)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm animate-pulse">Dispatch</button>)}
                             </div>
                         </div>
@@ -419,6 +432,33 @@ const HospitalDashboard = () => {
             {activeTab === 'inventory' && ( <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4">{inventory.map(item => (<div key={item.id} className="bg-white p-4 rounded-xl border text-center shadow-sm"><img src={item.img} className="h-24 w-full object-contain mb-2"/><h3 className="font-bold text-sm">{item.name}</h3><div className="flex justify-center gap-2 mt-2"><button onClick={() => updateStock(item.id, -1)} className="p-1 bg-gray-100 rounded"><Minus size={12}/></button><span className="font-bold">{item.stock}</span><button onClick={() => updateStock(item.id, 1)} className="p-1 bg-blue-100 text-blue-600 rounded"><Plus size={12}/></button></div></div>))}</div> )}
         </div>
       </main>
+
+      {/* CHAT MODAL */}
+      {activeChatRequest && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[500px]">
+                <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
+                    <h3 className="font-bold flex items-center gap-2"><MessageCircle size={18}/> Chat with PHC</h3>
+                    <button onClick={() => setActiveChatRequest(null)}><X size={20}/></button>
+                </div>
+                <div className="flex-1 p-4 overflow-y-auto bg-slate-50 space-y-3">
+                    {activeChatRequest.chat?.length === 0 && <p className="text-center text-slate-400 text-sm mt-10">No messages yet. Start the conversation.</p>}
+                    {activeChatRequest.chat?.map((c, i) => (
+                        <div key={i} className={`flex ${c.sender === 'Hospital' ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`p-3 rounded-xl text-sm max-w-[80%] ${c.sender === 'Hospital' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border border-slate-200 rounded-bl-none'}`}>
+                                <p>{c.message}</p>
+                                <span className="text-[10px] opacity-70 block mt-1 text-right">{new Date(c.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <div className="p-3 bg-white border-t flex gap-2">
+                    <input className="flex-1 bg-slate-100 border-0 rounded-xl px-4 py-2 text-sm focus:outline-none" placeholder="Type message..." value={chatMessage} onChange={(e)=>setChatMessage(e.target.value)} onKeyPress={(e)=>e.key==='Enter' && sendMessage()}/>
+                    <button onClick={sendMessage} className="bg-blue-600 text-white p-2 rounded-xl hover:bg-blue-700"><Send size={18}/></button>
+                </div>
+            </div>
+        </div>
+      )}
 
       {viewItemList && (<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"><div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"><div className="bg-blue-600 p-4 flex justify-between items-center text-white"><h3 className="font-bold flex items-center gap-2"><ClipboardList size={18} /> Packing List</h3><button onClick={() => setViewItemList(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button></div><div className="p-6 max-h-96 overflow-y-auto bg-slate-50"><div className="space-y-3">{viewItemList.item.split(', ').map((itm, idx) => (<div key={idx} className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm"><span className="font-bold text-slate-800">{itm}</span><span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-bold">Pack This</span></div>))}</div></div><div className="p-4 bg-white text-right border-t border-slate-200"><button onClick={() => setViewItemList(null)} className="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-bold text-sm shadow-md">Done Packing</button></div></div></div>)}
       {viewProof && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-4 rounded shadow-lg w-96"><img src={viewProof.proofFiles[0]} className="w-full"/><button onClick={()=>setViewProof(null)} className="mt-2 w-full bg-gray-200 p-2 rounded">Close</button></div></div>}
