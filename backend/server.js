@@ -23,7 +23,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/requests", requestRoutes); // <--- 2. USE THIS
-app.use("/api/phc-inventory", phcInventoryRoutes);
+app.use("/api/phc-inventory", phcInventoryRoutes);//
 const PORT = process.env.PORT || 5001;
 
 app.listen(PORT, () => {
