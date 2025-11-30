@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
-// ✅ IMPORT AI COPILOT
+// IMPORT AI COPILOT
 import AiCopilot from '../components/AiCopilot';
 
 // IMAGES
@@ -34,8 +34,9 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// ✅ 1. CORRECTED COORDINATES (8 PHCs ONLY)
+// FALLBACK COORDINATES
 const PHC_COORDINATES = {
+  "Wagholi PHC": { lat: 18.5808, lng: 73.9787 },
   "PHC Chamorshi": { lat: 19.9280, lng: 79.9050 },
   "PHC Gadhchiroli": { lat: 20.1849, lng: 79.9948 },
   "PHC Panera": { lat: 19.9500, lng: 79.8500 },
@@ -108,6 +109,8 @@ const HospitalDashboard = () => {
   };
 
   const [processingQueue, setProcessingQueue] = useState([]);
+
+  // Simulation State
   const [trackProgress, setTrackProgress] = useState(0);
   const [countdown, setCountdown] = useState(0); 
   const [missionStatusText, setMissionStatusText] = useState('Standby');
@@ -131,7 +134,6 @@ const HospitalDashboard = () => {
         } else { throw new Error("No Data"); }
     } catch (err) {
         console.log("AI Service Offline (Using Mock Data)");
-        // ✅ CORRECTED MOCK DATA (Your 8 PHCs)
         const mockData = [
             { phc: "PHC Chamorshi", name: "Inj. Atropine", predictedQty: 42, trend: "📈 Rising" },
             { phc: "PHC Belgaon", name: "IV Paracetamol", predictedQty: 15, trend: "📉 Stable" },
@@ -144,7 +146,7 @@ const HospitalDashboard = () => {
   };
   useEffect(() => { fetchPredictions(); }, []);
 
-  // ✅ CORRECTED FILTER (8 PHCs Only)
+  // FILTER LOGIC
   useEffect(() => {
       if (selectedPhc === "All") {
           setFilteredPredictions(predictions.slice(0, 3));
@@ -175,7 +177,7 @@ const HospitalDashboard = () => {
     return score.toFixed(2); 
   };
 
-  // AUTO-PILOT LOOP
+  // ✅ MODIFIED: AUTO-PILOT APPROVAL ONLY
   useEffect(() => {
     const aiLoop = setInterval(() => {
         requests.forEach(req => {
@@ -183,9 +185,9 @@ const HospitalDashboard = () => {
                 const score = calculatePriorityScore(req);
                 setProcessingQueue(prev => [...prev, req._id]);
 
+                // AUTOMATIC APPROVAL ONLY (No Auto Dispatch)
                 if (req.urgency === 'Critical') {
-                    const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL - IMMEDIATE LAUNCH`;
-                    addLog(logMsg, "text-red-500 font-bold");
+                    addLog(`ID: ${req._id.slice(-4)} | CRITICAL - AUTO-APPROVING`, "text-red-500 font-bold");
                     startApprovalProcess(req); 
                 } else {
                     addLog(`ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ QUEUED (15s Buffer)`, "text-yellow-400");
@@ -203,31 +205,35 @@ const HospitalDashboard = () => {
   const startApprovalProcess = (req) => {
       setTimeout(() => {
           updateStatusInDB(req._id, 'Approved');
-          addLog(`ID: ${req._id.slice(-4)} | 📝 Request Approved by System`, "text-green-300");
-          setTimeout(() => { handleAutoDispatch(req); }, 12000);
+          addLog(`ID: ${req._id.slice(-4)} | 📝 Approved. Waiting for Packing & Dispatch.`, "text-green-300");
+          // 🛑 STOP HERE. Do not auto-dispatch. Wait for manual click.
       }, 4000);
   };
 
-  const handleAutoDispatch = (req) => {
+  // ✅ MANUAL DISPATCH HANDLER (Triggers 15s Safety Check)
+  const handleDispatch = (req) => {
+    if(!confirm("Confirm Manual Dispatch?")) return;
+    
     if (activeMissions.find(m => m.id === req._id)) return;
 
     updateStatusInDB(req._id, 'Dispatched');
-    addLog(`🚁 Drone Dispatched by Pilot Manohar Singh`, "text-blue-400 font-bold");
-
+    addLog(`🚁 Dispatch Initiated by Operator for ${req.phc}`, "text-blue-400 font-bold");
+    
+    // Create mission immediately so simulation loop picks it up
     const destination = (req.coordinates && req.coordinates.lat) 
         ? req.coordinates 
         : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
 
     const newMission = { 
-        id: req._id, phc: req.phc, destination: destination, 
-        startTime: Date.now(), delivered: false 
+        id: req._id, 
+        phc: req.phc, 
+        destination: destination, 
+        startTime: Date.now(), // Flight starts logic now
+        delivered: false 
     };
 
     setActiveMissions(prev => [...prev, newMission]);
-
-    setTimeout(() => {
-        addLog(`📦 Package Out for Delivery - Enroute to ${req.phc}`, "text-white");
-    }, 2000);
+    setActiveTab('map'); // Show tracking
   };
 
   const fetchRequests = async () => {
@@ -248,7 +254,7 @@ const HospitalDashboard = () => {
     return () => clearInterval(interval);
   }, []); 
 
-  // SIMULATION LOOP
+  // ✅ SIMULATION LOOP (15s Pre-Flight + 10m Flight)
   useEffect(() => {
     localStorage.setItem('activeMissions', JSON.stringify(activeMissions));
     if (activeTab !== 'map' || activeMissions.length === 0) return;
@@ -258,23 +264,33 @@ const HospitalDashboard = () => {
       if(!mission) return;
       const now = Date.now();
       const elapsed = now - mission.startTime; 
-      const FLIGHT_DURATION = 600000; 
+      
+      const SAFETY_CHECK_DURATION = 15000; // 15 Seconds
+      const FLIGHT_DURATION = 600000; // 10 Minutes
 
-      if (elapsed < 10000) {
-        setCountdown(Math.ceil((10000 - elapsed) / 1000));
+      // Phase 1: Safety Checks (0 - 15s)
+      if (elapsed < SAFETY_CHECK_DURATION) {
+        setCountdown(Math.ceil((SAFETY_CHECK_DURATION - elapsed) / 1000));
         setTrackProgress(0);
-        setMissionStatusText(`Pre-Flight Checks`);
+        setMissionStatusText(`System Safety Checks...`);
         setDroneStats({ speed: 0, battery: 100, altitude: 0 });
-      } else if (elapsed < (FLIGHT_DURATION + 10000)) {
+      } 
+      // Phase 2: Flight (15s - 10m 15s)
+      else if (elapsed < (FLIGHT_DURATION + SAFETY_CHECK_DURATION)) {
         setCountdown(0);
-        const percent = ((elapsed - 10000) / FLIGHT_DURATION) * 100;
+        const flightTime = elapsed - SAFETY_CHECK_DURATION;
+        const percent = (flightTime / FLIGHT_DURATION) * 100;
         setTrackProgress(percent);
         setMissionStatusText('In-Flight');
+        
         let currentSpeed = 60; let currentAlt = 120;
         if (percent < 5) { currentSpeed = percent * 12; currentAlt = percent * 24; } 
         else if (percent > 95) { currentSpeed = 60 - (percent-95)*12; currentAlt = 120 - (percent-95)*24; } 
+
         setDroneStats({ speed: Math.floor(currentSpeed), battery: Math.max(0, 100 - Math.floor(percent / 1.5)), altitude: Math.floor(currentAlt) });
-      } else {
+      }
+      // Phase 3: Delivered
+      else {
         setTrackProgress(100);
         setMissionStatusText('Delivered');
         setDroneStats({ speed: 0, battery: 30, altitude: 0 });
@@ -302,16 +318,13 @@ const HospitalDashboard = () => {
 
   const updateStatusInDB = async (id, newStatus) => { try { await fetch(`${API_URL}/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }), }); fetchRequests(); } catch (err) {} };
   const handleApprove = (id, urgency) => { updateStatusInDB(id, 'Approved'); };
-  const handleDispatch = (req) => { if(!confirm("Confirm Manual Dispatch?")) return; handleAutoDispatch(req, 0); };
   const handleReject = (id, urgency) => { if(!confirm("Reject this request?")) return; updateStatusInDB(id, 'Rejected'); };
   const updateStock = (id, change) => { setInventory(inventory.map(item => item.id === id ? { ...item, stock: Math.max(0, item.stock + change) } : item)); };
   const addNewItem = () => { if(!newItem.name) return alert("Fill details"); setInventory([...inventory, { id: Date.now(), ...newItem, stock: parseInt(newItem.stock), img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" }]); setShowAddModal(false); };
 
   return (
     <div className={`min-h-screen bg-slate-50 flex font-sans text-slate-800 relative`}>
-      
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
-      
       <AiCopilot contextData={{ inventory, requests }} />
 
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
@@ -349,15 +362,8 @@ const HospitalDashboard = () => {
                                  <div className="flex items-center gap-2">
                                      <Filter size={14} className="text-slate-400"/>
                                      <select className="bg-white border border-slate-300 text-xs p-2 rounded-lg outline-none font-medium text-slate-600" onChange={(e) => setSelectedPhc(e.target.value)}>
-                                        <option value="All">All PHCs</option>
-                                        <option value="PHC Chamorshi">PHC Chamorshi</option>
-                                        <option value="PHC Gadhchiroli">PHC Gadhchiroli</option>
-                                        <option value="PHC Panera">PHC Panera</option>
-                                        <option value="PHC Belgaon">PHC Belgaon</option>
-                                        <option value="PHC Dhutergatta">PHC Dhutergatta</option>
-                                        <option value="PHC Gatta">PHC Gatta</option>
-                                        <option value="PHC Gaurkheda">PHC Gaurkheda</option>
-                                        <option value="PHC Murmadi">PHC Murmadi</option>
+                                        <option value="All">All PHCs</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option>
+                                        <option value="PHC Belgaon">PHC Belgaon</option><option value="PHC Dhutergatta">PHC Dhutergatta</option><option value="PHC Gatta">PHC Gatta</option><option value="PHC Gaurkheda">PHC Gaurkheda</option><option value="PHC Murmadi">PHC Murmadi</option>
                                      </select>
                                  </div>
                              </div>
@@ -386,9 +392,7 @@ const HospitalDashboard = () => {
                                 <div className={`p-3 rounded-full ${req.urgency === 'Critical' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-600'}`}><AlertOctagon size={24} /></div>
                                 <div>
                                     <h3 className="font-bold text-slate-800 flex items-center gap-2">{req.phc}<span className={`text-[10px] px-2 py-0.5 rounded border ${score >= 0.8 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>Score: {score}</span></h3>
-                                    
                                     <button onClick={() => setViewItemList(req)} className="text-sm text-slate-600 hover:text-blue-600 hover:underline text-left mt-1 font-medium flex items-center gap-1"><ClipboardList size={14}/> {req.qty} items (Click to View List)</button>
-
                                     <div className="flex items-center gap-2 mt-1 text-xs text-slate-500"><Clock size={12}/> {new Date(req.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
                                     <button onClick={() => showCoordinates(req)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1"><Globe size={12} /> Loc ({req.coordinates ? 'GPS' : 'Static'})</button>
                                 </div>
@@ -398,8 +402,19 @@ const HospitalDashboard = () => {
                                 {req.status === 'Pending' && (<div className="flex items-center gap-2 text-green-600 font-bold text-sm animate-pulse bg-green-50 px-3 py-2 rounded border border-green-200">{req.urgency === 'Critical' ? '🚀 LAUNCHING...' : '⏳ SAFETY CHECK (15s)'}</div>)}
                                 {req.status === 'Dispatched' && <span className="text-green-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> In-Flight</span>}
                                 {req.status === 'Delivered' && <span className="text-blue-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> Delivered</span>}
-                                {req.status === 'Pending' && score < 0.8 && (<><button onClick={() => handleReject(req._id, req.urgency)} className="px-3 py-2 border text-red-600 text-sm rounded-lg">Reject</button><button onClick={() => handleApprove(req._id, req.urgency)} className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg">Approve</button></>)}
-                                {req.status === 'Approved' && (<button onClick={() => handleDispatch(req)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm animate-pulse">Dispatch</button>)}
+                                
+                                {/* ✅ MANUAL BUTTONS: REJECT & APPROVE (Visible for Pending) */}
+                                {req.status === 'Pending' && (
+                                    <>
+                                        <button onClick={() => handleReject(req._id, req.urgency)} className="px-3 py-2 border text-red-600 text-sm rounded-lg">Reject</button>
+                                        <button onClick={() => handleApprove(req._id, req.urgency)} className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg">Approve</button>
+                                    </>
+                                )}
+                                
+                                {/* ✅ DISPATCH BUTTON (Only Visible if Approved) */}
+                                {req.status === 'Approved' && (
+                                    <button onClick={() => handleDispatch(req)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm animate-pulse">Dispatch</button>
+                                )}
                             </div>
                         </div>
                     )})}
