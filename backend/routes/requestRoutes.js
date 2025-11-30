@@ -57,7 +57,7 @@ router.put("/:id", async (req, res) => {
     }
 });
 
-// ✅ NEW: SEND CHAT MESSAGE
+// CHAT
 router.post("/:id/chat", async (req, res) => {
     try {
         const { sender, message } = req.body;
@@ -72,7 +72,7 @@ router.post("/:id/chat", async (req, res) => {
     }
 });
 
-// ✅ NEW: REPORT INCIDENT
+// INCIDENT
 router.post("/:id/incident", async (req, res) => {
     try {
         const { type, details } = req.body;
@@ -87,11 +87,11 @@ router.post("/:id/incident", async (req, res) => {
     }
 });
 
-// DELETE ALL
+// ✅ NEW: CLEAR ALL REQUESTS
 router.delete("/clear-all", async (req, res) => {
     try {
       await Request.deleteMany({});
-      res.status(200).json({ message: "Cleared" });
+      res.status(200).json({ message: "All requests cleared!" });
     } catch (err) {
       res.status(500).json(err);
     }

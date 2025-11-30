@@ -130,7 +130,14 @@ const PHCDashboard = () => {
           fetchRequests(); // ✅ Calls fixed function name
       } catch (e) { alert("Failed to update stock"); }
   };
-
+const handleClearAll = async () => {
+      if(!confirm("⚠️ Clear all history?")) return;
+      try {
+          await fetch(`${API_URL}/clear-all`, { method: "DELETE" });
+          alert("History Cleared");
+          fetchRequests();
+      } catch (e) { alert("Error"); }
+};
   const sendMessage = async () => {
       if (!chatMessage.trim() || !activeChatId) return;
       try {
@@ -324,14 +331,16 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* 4️⃣ HISTORY VIEW */}
-          {!showTracker && activeTab === 'history' && (
-             <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl border overflow-hidden overflow-x-auto">
-                <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
-                    <h3 className="font-bold text-slate-700">Order History</h3>
-                    {/* ✅ FIXED: Button now calls 'fetchRequests' correctly */}
-                    <button onClick={fetchRequests} className="flex items-center gap-2 text-sm text-blue-600 hover:bg-blue-50 px-3 py-1 rounded-lg transition-colors"><RotateCcw size={16} /> Refresh</button>
-                </div>
+        {/* 4️⃣ HISTORY VIEW */}
+{!showTracker && activeTab === 'history' && (
+   <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl border overflow-hidden overflow-x-auto">
+      <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
+          <h3 className="font-bold text-slate-700">Order History</h3>
+          <div className="flex gap-2">
+              <button onClick={handleClearAll} className="flex items-center gap-2 text-sm text-red-600 hover:bg-red-50 px-3 py-1 rounded-lg transition-colors"><Trash2 size={16} /> Clear History</button>
+              <button onClick={fetchRequests} className="flex items-center gap-2 text-sm text-blue-600 hover:bg-blue-50 px-3 py-1 rounded-lg transition-colors"><RotateCcw size={16} /> Refresh</button>
+          </div>
+      </div>
                 <table className="w-full text-left min-w-[600px]">
                     <thead className="bg-slate-50 border-b"><tr><th className="p-4">Date & Time</th><th className="p-4">Order ID</th><th className="p-4">Item</th><th className="p-4">Status</th><th className="p-4">Action</th></tr></thead>
                     <tbody>
