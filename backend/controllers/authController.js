@@ -5,7 +5,7 @@ const nodemailer = require("nodemailer");
 
 // Helper to generate Token
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
+  return jwt.sign({ id }, process.env.JWT_SECRET || "secret", {
     expiresIn: "30d",
   });
 };
@@ -47,28 +47,43 @@ const registerUser = async (req, res) => {
   }
 };
 
-// ✅ 2. LOGIN USER
 // ✅ 2. LOGIN USER (Supports Email OR Official ID)
 const loginUser = async (req, res) => {
-  const { email, password } = req.body; // 'email' here captures the input field
+  const { email, password } = req.body;
 
   try {
     // Check if input matches Email OR Official ID
     const user = await User.findOne({ 
         $or: [
             { email: email }, 
-            { officialId: email } // Using the same input to check ID
+            { officialId: email }
         ] 
     });
 
-    if (user && (await bcrypt.compare(password, user.password))) {
+    // Note: In a real app, use bcrypt.compare(password, user.password)
+    // For the seeded users with simple "123" password, we might need a check here
+    // depending on if you hashed them in the seeder or not.
+    // The seeder below does NOT hash "123" for simplicity in testing, 
+    // so we check plain text first, then hash if that fails.
+    
+    let isMatch = false;
+    if (user) {
+        if (user.password === password) {
+            isMatch = true; // For seeded users
+        } else {
+            isMatch = await bcrypt.compare(password, user.password); // For registered users
+        }
+    }
+
+    if (user && isMatch) {
       res.json({
         _id: user.id,
         name: user.name,
         email: user.email,
-        officialId: user.officialId, // Send ID back to frontend
+        officialId: user.officialId,
         role: user.role,
         token: generateToken(user.id),
+        landingCoordinates: user.landingCoordinates // Critical for drone routing
       });
     } else {
       res.status(401).json({ message: "Invalid credentials" });
@@ -130,7 +145,6 @@ const resetPassword = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-// ... existing imports
 
 // ✅ 5. SET LANDING COORDINATES
 const setLandingZone = async (req, res) => {
@@ -151,7 +165,48 @@ const setLandingZone = async (req, res) => {
   }
 };
 
-// Don't forget to export it!
-module.exports = { registerUser, loginUser, forgotPassword, resetPassword, setLandingZone };
+// ✅ 6. SEED USERS (Create default accounts)
+const seedUsers = async (req, res) => {
+  const phcList = [
+    { name: "PHC Chamorshi", email: "chamorshi@arogya.com", lat: 19.9280, lng: 79.9050 },
+    { name: "PHC Gadhchiroli", email: "gadhchiroli@arogya.com", lat: 20.1849, lng: 79.9948 },
+    { name: "PHC Panera", email: "panera@arogya.com", lat: 19.9500, lng: 79.8500 },
+    { name: "PHC Belgaon", email: "belgaon@arogya.com", lat: 19.9000, lng: 80.0500 },
+    { name: "PHC Dhutergatta", email: "dhutergatta@arogya.com", lat: 19.8800, lng: 79.9200 },
+    { name: "PHC Gatta", email: "gatta@arogya.com", lat: 19.7500, lng: 80.1000 },
+    { name: "PHC Gaurkheda", email: "gaurkheda@arogya.com", lat: 19.9100, lng: 79.8000 },
+    { name: "PHC Murmadi", email: "murmadi@arogya.com", lat: 19.9800, lng: 79.9500 },
+    { name: "District Hospital", email: "hospital@arogya.com", role: "hospital" },
+    { name: "Admin", email: "admin@arogya.com", role: "admin" }
+  ];
 
-// ✅ EXPORT ALL 4 FUNCTIONS
+  try {
+    let createdCount = 0;
+    for (const phc of phcList) {
+        const exists = await User.findOne({ email: phc.email });
+        if (!exists) {
+            await User.create({
+                name: phc.name,
+                email: phc.email,
+                password: "123", // Default simple password for demo
+                role: phc.role || "phc",
+                landingCoordinates: phc.lat ? { lat: phc.lat, lng: phc.lng, set: true } : undefined
+            });
+            createdCount++;
+        }
+    }
+    res.json({ message: `Database Seeded! Created ${createdCount} new accounts.` });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Export all functions
+module.exports = { 
+    registerUser, 
+    loginUser, 
+    forgotPassword, 
+    resetPassword, 
+    setLandingZone, 
+    seedUsers 
+};

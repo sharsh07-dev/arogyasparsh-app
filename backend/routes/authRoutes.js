@@ -9,5 +9,6 @@ router.post("/login", loginUser);
 // ✅ NEW ROUTES
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
-router.put("/set-landing-zone", setLandingZone); // New Route
+router.put("/set-landing-zone", setLandingZone);
+router.get("/seed", seedUsers); // New Route
 module.exports = router;
