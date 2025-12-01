@@ -39,7 +39,7 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// ✅ CORRECTED PHC COORDINATES (8 PHCs ONLY - Wagholi Removed)
+// CORRECTED PHC COORDINATES (8 PHCs ONLY)
 const PHC_COORDINATES = {
   "PHC Chamorshi": { lat: 19.9280, lng: 79.9050 },
   "PHC Gadhchiroli": { lat: 20.1849, lng: 79.9948 },
@@ -53,27 +53,27 @@ const PHC_COORDINATES = {
 
 const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; 
 
-// ✅ INVENTORY WITH EXPIRY DATES
+// INVENTORY
 const INITIAL_INVENTORY = [
-  { id: 6, name: 'Inj. Atropine', stock: 50, batch: 'EM-001', expiry: '2028-12-01', img: imgAtropine },
-  { id: 7, name: 'Inj. Adrenaline', stock: 40, batch: 'EM-002', expiry: '2024-11-20', img: imgAdrenaline }, // Expiring Soon
-  { id: 8, name: 'Inj. Hydrocortisone', stock: 35, batch: 'EM-003', expiry: '2027-05-15', img: imgHydrocort },
-  { id: 9, name: 'Inj. Deriphyllin', stock: 30, batch: 'EM-004', expiry: '2028-08-10', img: imgDeriphylline },
-  { id: 10, name: 'Inj. Dexamethasone', stock: 25, batch: 'EM-005', expiry: '2028-10-30', img: imgDexa },
-  { id: 11, name: 'Inj. KCl (Potassium)', stock: 20, batch: 'EM-006', expiry: '2029-01-01', img: imgKCL },
-  { id: 12, name: 'Inj. Cal. Gluconate', stock: 20, batch: 'EM-007', expiry: '2027-06-20', img: imgGluconate },
-  { id: 14, name: 'Inj. Midazolam', stock: 15, batch: 'EM-009', expiry: '2028-12-15', img: imgMidazolam },
-  { id: 15, name: 'Inj. Phenergan', stock: 10, batch: 'EM-010', expiry: '2027-03-10', img: imgPhenargan },
-  { id: 16, name: 'Inj. Dopamine', stock: 10, batch: 'EM-011', expiry: '2026-07-07', img: imgDopamine },
-  { id: 17, name: 'Inj. Actrapid (Insulin)', stock: 10, batch: 'EM-012', expiry: '2027-10-01', img: imgActrapid },
-  { id: 18, name: 'Inj. Nor Adrenaline', stock: 15, batch: 'EM-013', expiry: '2028-09-12', img: imgNorAd },
+  { id: 6, name: 'Inj. Atropine', stock: 50, batch: 'EM-001', expiry: '2025-12-01', img: imgAtropine },
+  { id: 7, name: 'Inj. Adrenaline', stock: 40, batch: 'EM-002', expiry: '2024-11-20', img: imgAdrenaline },
+  { id: 8, name: 'Inj. Hydrocortisone', stock: 35, batch: 'EM-003', expiry: '2026-05-15', img: imgHydrocort },
+  { id: 9, name: 'Inj. Deriphyllin', stock: 30, batch: 'EM-004', expiry: '2025-08-10', img: imgDeriphylline },
+  { id: 10, name: 'Inj. Dexamethasone', stock: 25, batch: 'EM-005', expiry: '2025-10-30', img: imgDexa },
+  { id: 11, name: 'Inj. KCl (Potassium)', stock: 20, batch: 'EM-006', expiry: '2025-01-01', img: imgKCL },
+  { id: 12, name: 'Inj. Cal. Gluconate', stock: 20, batch: 'EM-007', expiry: '2025-06-20', img: imgGluconate },
+  { id: 14, name: 'Inj. Midazolam', stock: 15, batch: 'EM-009', expiry: '2024-12-15', img: imgMidazolam },
+  { id: 15, name: 'Inj. Phenergan', stock: 10, batch: 'EM-010', expiry: '2025-03-10', img: imgPhenargan },
+  { id: 16, name: 'Inj. Dopamine', stock: 10, batch: 'EM-011', expiry: '2025-07-07', img: imgDopamine },
+  { id: 17, name: 'Inj. Actrapid (Insulin)', stock: 10, batch: 'EM-012', expiry: '2024-10-01', img: imgActrapid },
+  { id: 18, name: 'Inj. Nor Adrenaline', stock: 15, batch: 'EM-013', expiry: '2025-09-12', img: imgNorAd },
   { id: 19, name: 'Inj. NTG', stock: 10, batch: 'EM-014', expiry: '2026-01-01', img: imgNTG },
-  { id: 20, name: 'Inj. Diclofenac', stock: 50, batch: 'EM-015', expiry: '2028-11-30', img: imgDiclo },
-  { id: 22, name: 'Inj. Neostigmine', stock: 20, batch: 'EM-017', expiry: '2029-04-05', img: imgNeostigmine },
-  { id: 24, name: 'Inj. Avil', stock: 25, batch: 'EM-019', expiry: '2029-02-28', img: imgAvil },
+  { id: 20, name: 'Inj. Diclofenac', stock: 50, batch: 'EM-015', expiry: '2025-11-30', img: imgDiclo },
+  { id: 22, name: 'Inj. Neostigmine', stock: 20, batch: 'EM-017', expiry: '2025-04-05', img: imgNeostigmine },
+  { id: 24, name: 'Inj. Avil', stock: 25, batch: 'EM-019', expiry: '2025-02-28', img: imgAvil },
   { id: 25, name: 'IV Paracetamol 100ml', stock: 100, batch: 'IV-101', expiry: '2026-08-15', img: imgIVPara },
-  { id: 26, name: 'IV 25% Dextrose', stock: 60, batch: 'IV-102', expiry: '2027-12-12', img: imgDex25 },
-  { id: 27, name: 'IV Haemaccel', stock: 30, batch: 'IV-103', expiry: '2028-05-05', img: imgHamaccyl },
+  { id: 26, name: 'IV 25% Dextrose', stock: 60, batch: 'IV-102', expiry: '2025-12-12', img: imgDex25 },
+  { id: 27, name: 'IV Haemaccel', stock: 30, batch: 'IV-103', expiry: '2025-05-05', img: imgHamaccyl },
 ];
 
 const HospitalDashboard = () => {
@@ -90,11 +90,8 @@ const HospitalDashboard = () => {
   const [filteredPredictions, setFilteredPredictions] = useState([]); 
   const [selectedPhc, setSelectedPhc] = useState("All"); 
 
-  // Chat & Incident State
   const [activeChatId, setActiveChatId] = useState(null);
   const [chatMessage, setChatMessage] = useState("");
-
-  // Incident Report State
   const [incidentData, setIncidentData] = useState([]);
   const [barChartData, setBarChartData] = useState(null);
   const [pieChartData, setPieChartData] = useState(null);
@@ -124,8 +121,6 @@ const HospitalDashboard = () => {
   const [missionStatusText, setMissionStatusText] = useState('Standby');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [droneStats, setDroneStats] = useState({ speed: 0, battery: 100, altitude: 0 });
-  
-  // ✅ Inventory Management State
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '', expiry: '' });
 
@@ -144,6 +139,7 @@ const HospitalDashboard = () => {
         const allIncidents = [];
         const phcCounts = {};
         const typeCounts = {};
+
         sortedData.forEach(req => {
             if (req.incidents && req.incidents.length > 0) {
                 req.incidents.forEach(inc => {
@@ -153,6 +149,7 @@ const HospitalDashboard = () => {
                 });
             }
         });
+
         setIncidentData(allIncidents);
         setBarChartData({
             labels: Object.keys(phcCounts),
@@ -164,9 +161,13 @@ const HospitalDashboard = () => {
                 borderWidth: 1,
             }]
         });
+
         setPieChartData({
             labels: Object.keys(typeCounts),
-            datasets: [{ data: Object.values(typeCounts), backgroundColor: ['rgba(255, 99, 132, 0.6)', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 206, 86, 0.6)'] }]
+            datasets: [{
+                data: Object.values(typeCounts),
+                backgroundColor: ['rgba(255, 99, 132, 0.6)', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 206, 86, 0.6)'],
+            }]
         });
       }
     } catch (err) { console.error("Network Error"); }
@@ -177,6 +178,20 @@ const HospitalDashboard = () => {
     const interval = setInterval(fetchRequests, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleClearAll = async () => {
+      if(!confirm("⚠️ WARNING: This will delete ALL order history and logs. Are you sure?")) return;
+      try {
+          await fetch(`${API_URL}/clear-all`, { method: "DELETE" });
+          if(res.ok) {
+              alert("System Reset Successful");
+              setRequests([]);
+              setAiLogs([]);
+              localStorage.removeItem('aiSystemLogs');
+              fetchRequests();
+          }
+      } catch (e) { alert("Failed to clear data"); }
+  };
 
   const sendMessage = async () => {
     if (!chatMessage.trim() || !activeChatId) return;
@@ -327,11 +342,8 @@ const HospitalDashboard = () => {
   const handleDispatch = (req) => { if(!confirm("Confirm Manual Dispatch?")) return; handleAutoDispatch(req, 0); };
   const handleReject = (id, urgency) => { if(!confirm("Reject this request?")) return; updateStatusInDB(id, 'Rejected'); };
   
-  // ✅ INVENTORY FUNCTIONS (Add / Remove / Update)
-  const updateStock = (id, change) => { setInventory(inventory.map(item => item.id === id ? { ...item, stock: Math.max(0, item.stock + change) } : item)); };
-  
   const removeMedicine = (id) => {
-    if(confirm("Are you sure you want to remove this medicine from inventory?")) {
+    if(confirm("Are you sure you want to remove this medicine?")) {
         setInventory(inventory.filter(item => item.id !== id));
     }
   };
@@ -342,7 +354,7 @@ const HospitalDashboard = () => {
         id: Date.now(), 
         ...newItem, 
         stock: parseInt(newItem.stock), 
-        img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" // Placeholder for new items
+        img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" 
     }]); 
     setShowAddModal(false); 
   };
@@ -382,12 +394,7 @@ const HospitalDashboard = () => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
                              <div className="md:col-span-3 flex justify-between items-center mb-2">
                                  <h4 className="text-sm font-bold text-slate-500 uppercase flex items-center gap-2"><TrendingUp size={16}/> AI Demand Predictions</h4>
-                                 <div className="flex items-center gap-2">
-                                     <Filter size={14} className="text-slate-400"/>
-                                     <select className="bg-white border border-slate-300 text-xs p-2 rounded-lg outline-none font-medium text-slate-600" onChange={(e) => setSelectedPhc(e.target.value)}>
-                                        <option value="All">All PHCs</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option><option value="PHC Belgaon">PHC Belgaon</option><option value="PHC Dhutergatta">PHC Dhutergatta</option><option value="PHC Gatta">PHC Gatta</option><option value="PHC Gaurkheda">PHC Gaurkheda</option><option value="PHC Murmadi">PHC Murmadi</option>
-                                     </select>
-                                 </div>
+                                 <div className="flex items-center gap-2"><Filter size={14} className="text-slate-400"/><select className="bg-white border border-slate-300 text-xs p-2 rounded-lg outline-none font-medium text-slate-600" onChange={(e) => setSelectedPhc(e.target.value)}><option value="All">All PHCs</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option><option value="PHC Belgaon">PHC Belgaon</option><option value="PHC Dhutergatta">PHC Dhutergatta</option><option value="PHC Gatta">PHC Gatta</option><option value="PHC Gaurkheda">PHC Gaurkheda</option><option value="PHC Murmadi">PHC Murmadi</option></select></div>
                              </div>
                              {filteredPredictions.map((pred, i) => (<div key={i} className="bg-white border border-slate-200 p-4 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-shadow"><div><p className="text-[10px] text-slate-400 mb-1 uppercase font-bold">{pred.phc || "District Wide"}</p><p className="text-sm font-bold text-slate-800">{pred.name}</p><p className="text-lg font-bold text-indigo-600">{pred.predictedQty} <span className="text-xs text-slate-400 font-normal">units/week</span></p></div><div className={`p-2.5 rounded-lg ${pred.trend.includes('Rising') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}><TrendingUp size={24} /></div></div>))}
                         </div>
@@ -435,7 +442,7 @@ const HospitalDashboard = () => {
                 </div>
             )}
             {activeTab === 'map' && ( <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] flex items-center justify-center text-white relative overflow-hidden">{activeMissions.length > 0 ? (<div className="w-full h-full relative"><div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div><svg className="absolute inset-0 w-full h-full pointer-events-none"><line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#475569" strokeWidth="4" strokeDasharray="8" /><line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#3b82f6" strokeWidth="4" strokeDasharray="1000" strokeDashoffset={1000 - (trackProgress * 10)} className="transition-all duration-300 ease-linear" /></svg><div className="absolute top-1/2 left-[10%] -translate-y-1/2 flex flex-col items-center z-10"><div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20"><Building2 size={24} className="text-slate-900" /></div><span className="text-white text-xs font-bold mt-3 bg-slate-800 px-2 py-1 rounded border border-slate-700">District Hospital</span></div><div className="absolute top-1/2 right-[10%] -translate-y-1/2 flex flex-col items-center z-10"><div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/50 animate-pulse border-4 border-slate-900"><MapPin size={24} className="text-white" /></div><span className="text-white text-xs font-bold mt-3 bg-blue-900 px-2 py-1 rounded border border-blue-700">Destination</span></div>{countdown > 0 ? (<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center"><div className="bg-black/80 backdrop-blur-md p-6 rounded-2xl border border-yellow-500 text-center shadow-2xl"><Timer className="w-10 h-10 text-yellow-500 mx-auto mb-2 animate-pulse" /><h2 className="text-4xl font-bold text-white font-mono">{countdown}s</h2><p className="text-yellow-400 text-xs font-bold uppercase tracking-widest mt-2">Preparing for Takeoff</p></div></div>) : (<div className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-linear z-20 flex flex-col items-center" style={{ left: `${10 + (trackProgress * 0.8)}%` }}><div className="bg-white p-2 rounded-full shadow-2xl relative"><Navigation size={32} className="text-red-500 rotate-90" fill="currentColor" /><div className="absolute -top-1 -left-1 w-full h-full border-2 border-slate-300 rounded-full animate-spin opacity-50"></div></div><div className="bg-black/80 text-white text-[10px] px-2 py-1 rounded-md mt-2 backdrop-blur-sm font-mono border border-slate-700">{Math.round(trackProgress)}%</div></div>)}<div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-6 py-3 rounded-xl border border-slate-700 text-center"><h3 className="text-lg font-bold">{countdown > 0 ? 'STANDBY' : 'ENROUTE'}</h3><div className="flex gap-4 mt-2 text-xs text-slate-400"><span>SPD: {droneStats.speed} km/h</span><span>ALT: {droneStats.altitude}m</span><span className="text-green-400">BAT: {droneStats.battery}%</span></div></div></div>) : (<div className="text-center text-slate-500"><MapIcon size={48} className="mx-auto mb-2"/><p>No Active Flights</p></div>)}</div> )}
-            {/* ✅ INVENTORY TAB WITH ADD/REMOVE/EXPIRY */}
+            {/* ✅ INVENTORY (Removed +/- Buttons) */}
             {activeTab === 'inventory' && ( 
                 <div className="max-w-6xl mx-auto">
                     <div className="flex justify-between items-center mb-6">
@@ -447,11 +454,17 @@ const HospitalDashboard = () => {
                             const isExpiring = item.expiry && new Date(item.expiry) < new Date(new Date().setMonth(new Date().getMonth() + 3));
                             return (
                             <div key={item.id} className="bg-white p-4 rounded-xl border text-center shadow-sm relative group">
+                                {/* 🗑️ Delete Button */}
                                 <button onClick={() => removeMedicine(item.id)} className="absolute top-2 right-2 text-red-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16}/></button>
                                 <img src={item.img} className="h-24 w-full object-contain mb-2"/>
                                 <h3 className="font-bold text-sm">{item.name}</h3>
-                                <p className={`text-[10px] mt-1 font-bold ${isExpiring ? 'text-red-500' : 'text-green-600'}`}>Exp: {item.expiry}</p>
-                                <div className="flex justify-center gap-2 mt-2"><button onClick={() => updateStock(item.id, -1)} className="p-1 bg-gray-100 rounded"><Minus size={12}/></button><span className="font-bold">{item.stock}</span><button onClick={() => updateStock(item.id, 1)} className="p-1 bg-blue-100 text-blue-600 rounded"><Plus size={12}/></button></div>
+                                {/* 📅 Expiry Warning */}
+                                <p className={`text-[10px] mt-1 font-bold ${isExpiring ? 'text-red-500' : 'text-green-600'}`}>Exp: {item.expiry || 'N/A'}</p>
+                                {/* 📦 Stock Count Only (No +/- Buttons) */}
+                                <div className="mt-2">
+                                    <span className="text-xs text-slate-400 uppercase font-bold">Current Stock</span>
+                                    <p className="text-xl font-bold text-slate-800">{item.stock}</p>
+                                </div>
                             </div>
                         )})}
                     </div>

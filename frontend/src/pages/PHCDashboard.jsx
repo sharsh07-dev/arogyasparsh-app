@@ -4,7 +4,7 @@ import {
   Send, LogOut, AlertTriangle, CheckCircle2, 
   MapPin, History, Package, Navigation, 
   XCircle, FileText, Upload, User, Clock, Trash2,
-  Menu, X, RotateCcw, Eye, ShoppingCart, Search, Plus, Minus, ArrowLeft, Plane, Building2, Check, ShieldCheck, Loader2, ShieldAlert, MessageCircle, ClipboardList, Boxes
+  Menu, X, RotateCcw, Eye, ShoppingCart, Search, Plus, Minus, ArrowLeft, Plane, Building2, Check, ShieldCheck, Loader2, ShieldAlert, MessageCircle, ClipboardList, Boxes, Calendar
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
@@ -81,17 +81,18 @@ const PHCDashboard = () => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportData, setReportData] = useState({ type: 'Damaged', details: '' });
   const [targetReportId, setTargetReportId] = useState(null);
+  
+  // ✅ NEW: Inventory Management States
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '', expiry: '' });
 
   const activeChatRequest = orderHistory.find(r => r._id === activeChatId) || null;
 
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
   const INV_URL = "https://arogyasparsh-backend.onrender.com/api/phc-inventory";
 
-  // ✅ FIXED: Function name matches the button call ('fetchRequests')
-  const fetchRequests = async () => {
-    setLoading(true);
+  const fetchData = async () => {
     try {
-      // 1. Fetch Orders
       const res = await fetch(API_URL);
       if (res.ok) {
         const data = await res.json();
@@ -99,7 +100,6 @@ const PHCDashboard = () => {
             setOrderHistory(data.filter(r => r.phc === user.name).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
         }
       }
-      // 2. Fetch Inventory
       const invRes = await fetch(`${INV_URL}/${user.name}`);
       if (invRes.ok) {
           const items = await invRes.json();
@@ -110,16 +110,25 @@ const PHCDashboard = () => {
           setPhcInventory(mappedItems);
       }
     } catch (err) { console.error("Network Error"); }
-    setLoading(false);
   };
 
   useEffect(() => {
-    fetchRequests();
+    fetchData();
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
-    const poller = setInterval(fetchRequests, 3000); 
+    const poller = setInterval(fetchData, 3000); 
     return () => { clearInterval(timer); clearInterval(poller); };
   }, []);
 
+  const handleClearHistory = async () => {
+      if(!confirm("⚠️ Are you sure you want to clear ALL order history?")) return;
+      try {
+          await fetch(`${API_URL}/clear-all`, { method: "DELETE" });
+          alert("History Cleared");
+          fetchData();
+      } catch (e) { alert("Failed to clear"); }
+  };
+
+  // ✅ INVENTORY: UPDATE, REMOVE, ADD
   const updateLocalStock = async (id, change) => {
       try {
           await fetch(`${INV_URL}/update`, {
@@ -127,8 +136,27 @@ const PHCDashboard = () => {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ phcName: user.name, itemId: id, change })
           });
-          fetchRequests(); // ✅ Calls fixed function name
+          fetchData();
       } catch (e) { alert("Failed to update stock"); }
+  };
+
+  const removeMedicine = (id) => {
+    if(confirm("Remove this medicine from inventory?")) {
+        setPhcInventory(phcInventory.filter(item => item.id !== id));
+        // Note: To make this persistent, you'd need a DELETE endpoint in backend, 
+        // but for now we update local view to simulate management.
+    }
+  };
+
+  const addNewItem = () => { 
+    if(!newItem.name) return alert("Fill details"); 
+    setPhcInventory([...phcInventory, { 
+        id: Date.now(), 
+        ...newItem, 
+        stock: parseInt(newItem.stock), 
+        img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" 
+    }]); 
+    setShowAddModal(false); 
   };
 
   const sendMessage = async () => {
@@ -140,7 +168,7 @@ const PHCDashboard = () => {
               body: JSON.stringify({ sender: "PHC", message: chatMessage })
           });
           setChatMessage("");
-          fetchRequests();
+          fetchData();
       } catch (err) { alert("Failed to send"); }
   };
 
@@ -155,7 +183,7 @@ const PHCDashboard = () => {
           alert("Incident Reported");
           setShowReportModal(false);
           setReportData({ type: 'Damaged', details: '' });
-          fetchRequests();
+          fetchData();
       } catch (err) { alert("Failed"); }
   };
 
@@ -196,7 +224,7 @@ const PHCDashboard = () => {
     proofFiles.forEach((file) => formDataToSend.append("proofFiles", file));
     try {
         const res = await fetch(API_URL, { method: "POST", body: formDataToSend });
-        if (res.ok) { alert("Order Placed!"); fetchRequests(); setCart([]); setProofFiles([]); setFraudStatus('idle'); setActiveTab('history'); }
+        if (res.ok) { alert("Order Placed!"); fetchData(); setCart([]); setProofFiles([]); setFraudStatus('idle'); setActiveTab('history'); }
     } catch (err) { alert("Error"); }
     setLoading(false);
   };
@@ -259,29 +287,36 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* 2️⃣ INVENTORY VIEW */}
+          {/* ✅ 2️⃣ INVENTORY VIEW (Added Expiry, Delete, Add Buttons) */}
           {!showTracker && activeTab === 'inventory' && (
               <div className="max-w-6xl mx-auto">
-                  <h2 className="text-xl font-bold mb-6 flex items-center gap-2"><Boxes className="text-blue-600"/> My Stock Register</h2>
+                  <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-xl font-bold flex items-center gap-2"><Boxes className="text-blue-600"/> My Stock Register</h2>
+                      <button onClick={()=>setShowAddModal(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 flex gap-2 items-center"><Plus size={16}/> Add Medicine</button>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                      {phcInventory.map(item => (
-                          <div key={item.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center text-center">
+                      {phcInventory.map(item => {
+                          const isExpiring = item.expiry && new Date(item.expiry) < new Date(new Date().setMonth(new Date().getMonth() + 3));
+                          return (
+                          <div key={item.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center text-center relative group">
+                              <button onClick={() => removeMedicine(item.id)} className="absolute top-2 right-2 text-red-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16}/></button>
                               <img src={item.img || logoMain} className="h-24 w-full object-contain mb-3"/>
                               <h3 className="font-bold text-slate-800 text-sm">{item.name}</h3>
-                              <span className="text-xs text-slate-500 mb-3">Batch: {item.batch}</span>
+                              <span className="text-xs text-slate-500 mb-1">Batch: {item.batch}</span>
+                              <p className={`text-[10px] font-bold mb-3 ${isExpiring ? 'text-red-500' : 'text-green-600'}`}>Exp: {item.expiry || 'N/A'}</p>
                               <div className="flex items-center gap-3 bg-slate-50 p-1 rounded-xl">
                                   <button onClick={() => updateLocalStock(item.id, -1)} className="p-2 bg-white rounded-lg shadow-sm hover:bg-red-50 text-red-600"><Minus size={16}/></button>
                                   <span className="font-bold text-lg w-8">{item.stock}</span>
                                   <button onClick={() => updateLocalStock(item.id, 1)} className="p-2 bg-white rounded-lg shadow-sm hover:bg-green-50 text-green-600"><Plus size={16}/></button>
                               </div>
                           </div>
-                      ))}
+                      )})}
                       {phcInventory.length === 0 && <p className="col-span-4 text-center text-slate-400 py-10">Loading inventory...</p>}
                   </div>
               </div>
           )}
 
-          {/* 3️⃣ CART VIEW */}
+          {/* 3️⃣ CART & CHECKOUT */}
           {!showTracker && activeTab === 'cart' && (
              <div className="max-w-4xl mx-auto">
                 <button onClick={() => setActiveTab('shop')} className="flex items-center gap-2 text-slate-500 hover:text-blue-600 mb-4 font-medium"><ArrowLeft size={18}/> Back to Store</button>
@@ -324,13 +359,15 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* 4️⃣ HISTORY VIEW */}
+          {/* 4️⃣ HISTORY & TRACKING */}
           {!showTracker && activeTab === 'history' && (
              <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl border overflow-hidden overflow-x-auto">
                 <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
                     <h3 className="font-bold text-slate-700">Order History</h3>
-                    {/* ✅ FIXED: Button now calls 'fetchRequests' correctly */}
-                    <button onClick={fetchRequests} className="flex items-center gap-2 text-sm text-blue-600 hover:bg-blue-50 px-3 py-1 rounded-lg transition-colors"><RotateCcw size={16} /> Refresh</button>
+                    <div className="flex gap-2">
+                        <button onClick={handleClearHistory} className="flex items-center gap-2 text-sm text-red-600 hover:bg-red-50 px-3 py-1 rounded-lg transition-colors"><Trash2 size={16} /> Clear</button>
+                        <button onClick={fetchRequests} className="flex items-center gap-2 text-sm text-blue-600 hover:bg-blue-50 px-3 py-1 rounded-lg transition-colors"><RotateCcw size={16} /> Refresh</button>
+                    </div>
                 </div>
                 <table className="w-full text-left min-w-[600px]">
                     <thead className="bg-slate-50 border-b"><tr><th className="p-4">Date & Time</th><th className="p-4">Order ID</th><th className="p-4">Item</th><th className="p-4">Status</th><th className="p-4">Action</th></tr></thead>
@@ -379,11 +416,11 @@ const PHCDashboard = () => {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[500px]">
                 <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
-                    <h3 className="font-bold flex items-center gap-2"><MessageCircle size={18}/> Hospital Support</h3>
+                    <h3 className="font-bold flex items-center gap-2"><MessageCircle size={18}/> Chat with Hospital</h3>
                     <button onClick={() => setActiveChatId(null)}><X size={20}/></button>
                 </div>
                 <div className="flex-1 p-4 overflow-y-auto bg-slate-50 space-y-3">
-                    {activeChatRequest.chat?.length === 0 && <p className="text-center text-slate-400 text-sm mt-10">No messages yet.</p>}
+                    {activeChatRequest.chat?.length === 0 && <p className="text-center text-slate-400 text-sm mt-10">No messages yet. Start the conversation.</p>}
                     {activeChatRequest.chat?.map((c, i) => (
                         <div key={i} className={`flex ${c.sender === 'PHC' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`p-3 rounded-xl text-sm max-w-[80%] ${c.sender === 'PHC' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border border-slate-200 rounded-bl-none'}`}>
@@ -416,7 +453,7 @@ const PHCDashboard = () => {
         </div>
       )}
 
-      {/* DETAILS MODAL */}
+      {/* ORDER DETAILS MODAL */}
       {viewOrder && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
@@ -430,6 +467,24 @@ const PHCDashboard = () => {
                     <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Time</span><span className="font-medium">{new Date(viewOrder.createdAt || Date.now()).toLocaleString()}</span></div>
                     <div><span className="text-slate-500 block mb-1">Reason</span><div className="bg-slate-50 p-3 rounded-lg text-slate-700 border border-slate-200 italic">{viewOrder.description || "Multi-item order."}</div></div>
                 </div>
+            </div>
+        </div>
+      )}
+
+      {/* ✅ ADD MEDICINE MODAL */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-0 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100">
+                <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center"><div><h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Package className="text-blue-600" size={20}/> Add New Medicine</h3></div><button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button></div>
+                <div className="p-6 space-y-5">
+                    <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Name</label><input className="w-full p-3 border rounded-xl" placeholder="Medicine Name" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} /></div>
+                    <div className="grid grid-cols-2 gap-5">
+                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Batch</label><input className="w-full p-3 border rounded-xl" placeholder="Batch ID" value={newItem.batch} onChange={e => setNewItem({...newItem, batch: e.target.value})} /></div>
+                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Stock</label><input className="w-full p-3 border rounded-xl" type="number" value={newItem.stock} onChange={e => setNewItem({...newItem, stock: e.target.value})} /></div>
+                    </div>
+                    <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Expiry Date</label><input className="w-full p-3 border rounded-xl" type="date" value={newItem.expiry} onChange={e => setNewItem({...newItem, expiry: e.target.value})} /></div>
+                </div>
+                <div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3"><button onClick={() => setShowAddModal(false)} className="px-5 py-2 text-slate-600">Cancel</button><button onClick={addNewItem} className="px-6 py-2 bg-blue-600 text-white rounded-xl">Save</button></div>
             </div>
         </div>
       )}
