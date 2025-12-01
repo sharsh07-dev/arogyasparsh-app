@@ -13,7 +13,7 @@ import AiCopilot from '../components/AiCopilot';
 // IMAGES
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
-import imgDopamine from '../assets/medicines/Dopamine_med.jpg'; 
+import imgDopamine from '../assets/medicines/Dopamine.png'; 
 import imgAvil from '../assets/medicines/Avil.webp';
 import imgAdrenaline from '../assets/medicines/Adranaline.webp';
 import imgDexa from '../assets/medicines/Dexa.jpg';
@@ -82,7 +82,7 @@ const PHCDashboard = () => {
   const [reportData, setReportData] = useState({ type: 'Damaged', details: '' });
   const [targetReportId, setTargetReportId] = useState(null);
   
-  // ✅ NEW: Inventory Management States
+  // Inventory Management State
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '', expiry: '' });
 
@@ -93,6 +93,7 @@ const PHCDashboard = () => {
 
   const fetchData = async () => {
     try {
+      // Orders
       const res = await fetch(API_URL);
       if (res.ok) {
         const data = await res.json();
@@ -100,6 +101,7 @@ const PHCDashboard = () => {
             setOrderHistory(data.filter(r => r.phc === user.name).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
         }
       }
+      // Inventory
       const invRes = await fetch(`${INV_URL}/${user.name}`);
       if (invRes.ok) {
           const items = await invRes.json();
@@ -128,7 +130,7 @@ const PHCDashboard = () => {
       } catch (e) { alert("Failed to clear"); }
   };
 
-  // ✅ INVENTORY: UPDATE, REMOVE, ADD
+  // Only used for adding new items now, not +/- buttons
   const updateLocalStock = async (id, change) => {
       try {
           await fetch(`${INV_URL}/update`, {
@@ -141,10 +143,8 @@ const PHCDashboard = () => {
   };
 
   const removeMedicine = (id) => {
-    if(confirm("Remove this medicine from inventory?")) {
+    if(confirm("Remove this medicine from inventory view?")) {
         setPhcInventory(phcInventory.filter(item => item.id !== id));
-        // Note: To make this persistent, you'd need a DELETE endpoint in backend, 
-        // but for now we update local view to simulate management.
     }
   };
 
@@ -287,7 +287,7 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* ✅ 2️⃣ INVENTORY VIEW (Added Expiry, Delete, Add Buttons) */}
+          {/* ✅ 2️⃣ INVENTORY VIEW (NO BUTTONS, STATIC STOCK) */}
           {!showTracker && activeTab === 'inventory' && (
               <div className="max-w-6xl mx-auto">
                   <div className="flex justify-between items-center mb-6">
@@ -304,10 +304,11 @@ const PHCDashboard = () => {
                               <h3 className="font-bold text-slate-800 text-sm">{item.name}</h3>
                               <span className="text-xs text-slate-500 mb-1">Batch: {item.batch}</span>
                               <p className={`text-[10px] font-bold mb-3 ${isExpiring ? 'text-red-500' : 'text-green-600'}`}>Exp: {item.expiry || 'N/A'}</p>
-                              <div className="flex items-center gap-3 bg-slate-50 p-1 rounded-xl">
-                                  <button onClick={() => updateLocalStock(item.id, -1)} className="p-2 bg-white rounded-lg shadow-sm hover:bg-red-50 text-red-600"><Minus size={16}/></button>
-                                  <span className="font-bold text-lg w-8">{item.stock}</span>
-                                  <button onClick={() => updateLocalStock(item.id, 1)} className="p-2 bg-white rounded-lg shadow-sm hover:bg-green-50 text-green-600"><Plus size={16}/></button>
+                              
+                              {/* ✅ STATIC STOCK DISPLAY (Buttons Removed) */}
+                              <div className="mt-2">
+                                  <span className="text-xs text-slate-400 uppercase font-bold">Current Stock</span>
+                                  <p className="text-xl font-bold text-slate-800">{item.stock}</p>
                               </div>
                           </div>
                       )})}
@@ -471,11 +472,11 @@ const PHCDashboard = () => {
         </div>
       )}
 
-      {/* ✅ ADD MEDICINE MODAL */}
+      {/* ADD MEDICINE MODAL */}
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white p-0 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100">
-                <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center"><div><h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Package className="text-blue-600" size={20}/> Add New Medicine</h3></div><button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button></div>
+                <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center"><div><h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Package className="text-blue-600" size={20}/> Add New Medicine</h3></div><button onClick={() => setShowAddModal(false)}><X size={20} /></button></div>
                 <div className="p-6 space-y-5">
                     <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Name</label><input className="w-full p-3 border rounded-xl" placeholder="Medicine Name" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} /></div>
                     <div className="grid grid-cols-2 gap-5">
