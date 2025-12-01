@@ -1,15 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-// ✅ Import the Realistic Tracker
-import RealisticFlightTracker from '../components/RealisticFlightTracker'; 
-
+import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
 import { 
   Activity, Users, Package, Navigation, LogOut, 
   MapPin, CheckCircle2, Clock, AlertOctagon, 
   Battery, Signal, Plane, Plus, Minus, Search, 
   Map as MapIcon, VolumeX, Siren, X, Check, Menu,
   Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2, Globe, Timer, Zap, Brain, Cpu, Terminal, 
-  TrendingUp, ClipboardList, Filter, MessageCircle, Send, AlertTriangle, ShieldAlert, BarChart3
+  TrendingUp, ClipboardList, Filter, MessageCircle, Send, AlertTriangle, ShieldAlert, BarChart3, Calendar
 } from 'lucide-react';
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
@@ -41,7 +39,7 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// FALLBACK COORDINATES (8 PHCs)
+// ✅ CORRECTED PHC COORDINATES (8 PHCs ONLY - Wagholi Removed)
 const PHC_COORDINATES = {
   "PHC Chamorshi": { lat: 19.9280, lng: 79.9050 },
   "PHC Gadhchiroli": { lat: 20.1849, lng: 79.9948 },
@@ -55,27 +53,27 @@ const PHC_COORDINATES = {
 
 const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; 
 
-// INVENTORY
+// ✅ INVENTORY WITH EXPIRY DATES
 const INITIAL_INVENTORY = [
-  { id: 6, name: 'Inj. Atropine', stock: 50, batch: 'EM-001', img: imgAtropine },
-  { id: 7, name: 'Inj. Adrenaline', stock: 40, batch: 'EM-002', img: imgAdrenaline },
-  { id: 8, name: 'Inj. Hydrocortisone', stock: 35, batch: 'EM-003', img: imgHydrocort },
-  { id: 9, name: 'Inj. Deriphyllin', stock: 30, batch: 'EM-004', img: imgDeriphylline },
-  { id: 10, name: 'Inj. Dexamethasone', stock: 25, batch: 'EM-005', img: imgDexa },
-  { id: 11, name: 'Inj. KCl (Potassium)', stock: 20, batch: 'EM-006', img: imgKCL },
-  { id: 12, name: 'Inj. Cal. Gluconate', stock: 20, batch: 'EM-007', img: imgGluconate },
-  { id: 14, name: 'Inj. Midazolam', stock: 15, batch: 'EM-009', img: imgMidazolam },
-  { id: 15, name: 'Inj. Phenergan', stock: 10, batch: 'EM-010', img: imgPhenargan },
-  { id: 16, name: 'Inj. Dopamine', stock: 10, batch: 'EM-011', img: imgDopamine },
-  { id: 17, name: 'Inj. Actrapid (Insulin)', stock: 10, batch: 'EM-012', img: imgActrapid },
-  { id: 18, name: 'Inj. Nor Adrenaline', stock: 15, batch: 'EM-013', img: imgNorAd },
-  { id: 19, name: 'Inj. NTG', stock: 10, batch: 'EM-014', img: imgNTG },
-  { id: 20, name: 'Inj. Diclofenac', stock: 50, batch: 'EM-015', img: imgDiclo },
-  { id: 22, name: 'Inj. Neostigmine', stock: 20, batch: 'EM-017', img: imgNeostigmine },
-  { id: 24, name: 'Inj. Avil', stock: 25, batch: 'EM-019', img: imgAvil },
-  { id: 25, name: 'IV Paracetamol 100ml', stock: 100, batch: 'IV-101', img: imgIVPara },
-  { id: 26, name: 'IV 25% Dextrose', stock: 60, batch: 'IV-102', img: imgDex25 },
-  { id: 27, name: 'IV Haemaccel', stock: 30, batch: 'IV-103', img: imgHamaccyl },
+  { id: 6, name: 'Inj. Atropine', stock: 50, batch: 'EM-001', expiry: '2025-12-01', img: imgAtropine },
+  { id: 7, name: 'Inj. Adrenaline', stock: 40, batch: 'EM-002', expiry: '2024-11-20', img: imgAdrenaline }, // Expiring Soon
+  { id: 8, name: 'Inj. Hydrocortisone', stock: 35, batch: 'EM-003', expiry: '2026-05-15', img: imgHydrocort },
+  { id: 9, name: 'Inj. Deriphyllin', stock: 30, batch: 'EM-004', expiry: '2025-08-10', img: imgDeriphylline },
+  { id: 10, name: 'Inj. Dexamethasone', stock: 25, batch: 'EM-005', expiry: '2025-10-30', img: imgDexa },
+  { id: 11, name: 'Inj. KCl (Potassium)', stock: 20, batch: 'EM-006', expiry: '2025-01-01', img: imgKCL },
+  { id: 12, name: 'Inj. Cal. Gluconate', stock: 20, batch: 'EM-007', expiry: '2025-06-20', img: imgGluconate },
+  { id: 14, name: 'Inj. Midazolam', stock: 15, batch: 'EM-009', expiry: '2024-12-15', img: imgMidazolam },
+  { id: 15, name: 'Inj. Phenergan', stock: 10, batch: 'EM-010', expiry: '2025-03-10', img: imgPhenargan },
+  { id: 16, name: 'Inj. Dopamine', stock: 10, batch: 'EM-011', expiry: '2025-07-07', img: imgDopamine },
+  { id: 17, name: 'Inj. Actrapid (Insulin)', stock: 10, batch: 'EM-012', expiry: '2024-10-01', img: imgActrapid },
+  { id: 18, name: 'Inj. Nor Adrenaline', stock: 15, batch: 'EM-013', expiry: '2025-09-12', img: imgNorAd },
+  { id: 19, name: 'Inj. NTG', stock: 10, batch: 'EM-014', expiry: '2026-01-01', img: imgNTG },
+  { id: 20, name: 'Inj. Diclofenac', stock: 50, batch: 'EM-015', expiry: '2025-11-30', img: imgDiclo },
+  { id: 22, name: 'Inj. Neostigmine', stock: 20, batch: 'EM-017', expiry: '2025-04-05', img: imgNeostigmine },
+  { id: 24, name: 'Inj. Avil', stock: 25, batch: 'EM-019', expiry: '2025-02-28', img: imgAvil },
+  { id: 25, name: 'IV Paracetamol 100ml', stock: 100, batch: 'IV-101', expiry: '2026-08-15', img: imgIVPara },
+  { id: 26, name: 'IV 25% Dextrose', stock: 60, batch: 'IV-102', expiry: '2025-12-12', img: imgDex25 },
+  { id: 27, name: 'IV Haemaccel', stock: 30, batch: 'IV-103', expiry: '2025-05-05', img: imgHamaccyl },
 ];
 
 const HospitalDashboard = () => {
@@ -86,8 +84,6 @@ const HospitalDashboard = () => {
   const [requests, setRequests] = useState([]); 
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
-  // Feature States
   const [viewProof, setViewProof] = useState(null);
   const [viewItemList, setViewItemList] = useState(null);
   const [predictions, setPredictions] = useState([]); 
@@ -98,12 +94,11 @@ const HospitalDashboard = () => {
   const [activeChatId, setActiveChatId] = useState(null);
   const [chatMessage, setChatMessage] = useState("");
 
-  // Incident Data
+  // Incident Report State
   const [incidentData, setIncidentData] = useState([]);
   const [barChartData, setBarChartData] = useState(null);
   const [pieChartData, setPieChartData] = useState(null);
 
-  // Derive active chat
   const activeChatRequest = requests.find(r => r._id === activeChatId) || null;
 
   const [activeMissions, setActiveMissions] = useState(() => {
@@ -111,10 +106,10 @@ const HospitalDashboard = () => {
   });
 
   const [aiLogs, setAiLogs] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('aiSystemLogs')) || []; } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('hospitalLogs_v1')) || []; } catch { return []; }
   });
   
-  useEffect(() => { localStorage.setItem('aiSystemLogs', JSON.stringify(aiLogs)); }, [aiLogs]);
+  useEffect(() => { localStorage.setItem('hospitalLogs_v1', JSON.stringify(aiLogs)); }, [aiLogs]);
 
   const addLog = (msg, color) => {
     setAiLogs(prev => {
@@ -124,13 +119,19 @@ const HospitalDashboard = () => {
   };
 
   const [processingQueue, setProcessingQueue] = useState([]);
-  // Removed internal simulation state in favor of RealisticFlightTracker state
+  const [trackProgress, setTrackProgress] = useState(0);
+  const [countdown, setCountdown] = useState(0); 
+  const [missionStatusText, setMissionStatusText] = useState('Standby');
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [droneStats, setDroneStats] = useState({ speed: 0, battery: 100, altitude: 0 });
+  
+  // ✅ Inventory Management State
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '' });
+  const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '', expiry: '' });
 
+  const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: "" });
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
-  // FETCH REQUESTS & PROCESS INCIDENTS
   const fetchRequests = async () => {
     try {
       const res = await fetch(API_URL);
@@ -140,11 +141,9 @@ const HospitalDashboard = () => {
         const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setRequests(sortedData);
 
-        // Incident Processing
         const allIncidents = [];
         const phcCounts = {};
         const typeCounts = {};
-
         sortedData.forEach(req => {
             if (req.incidents && req.incidents.length > 0) {
                 req.incidents.forEach(inc => {
@@ -154,7 +153,6 @@ const HospitalDashboard = () => {
                 });
             }
         });
-
         setIncidentData(allIncidents);
         setBarChartData({
             labels: Object.keys(phcCounts),
@@ -166,13 +164,9 @@ const HospitalDashboard = () => {
                 borderWidth: 1,
             }]
         });
-
         setPieChartData({
             labels: Object.keys(typeCounts),
-            datasets: [{
-                data: Object.values(typeCounts),
-                backgroundColor: ['rgba(255, 99, 132, 0.6)', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 206, 86, 0.6)'],
-            }]
+            datasets: [{ data: Object.values(typeCounts), backgroundColor: ['rgba(255, 99, 132, 0.6)', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 206, 86, 0.6)'] }]
         });
       }
     } catch (err) { console.error("Network Error"); }
@@ -184,22 +178,6 @@ const HospitalDashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // CLEAR DATA
-  const handleClearAll = async () => {
-      if(!confirm("⚠️ WARNING: This will delete ALL order history and logs. Are you sure?")) return;
-      try {
-          await fetch(`${API_URL}/clear-all`, { method: "DELETE" });
-          if(res.ok) {
-              alert("System Reset Successful");
-              setRequests([]);
-              setAiLogs([]);
-              localStorage.removeItem('aiSystemLogs');
-              fetchRequests();
-          }
-      } catch (e) { alert("Failed to clear data"); }
-  };
-
-  // SEND MESSAGE
   const sendMessage = async () => {
     if (!chatMessage.trim() || !activeChatId) return;
     try {
@@ -213,7 +191,6 @@ const HospitalDashboard = () => {
     } catch (err) { alert("Failed to send message"); }
   };
 
-  // FETCH AI PREDICTIONS
   const fetchPredictions = async () => {
     try {
         const res = await fetch("https://arogyasparsh-backend.onrender.com/api/analytics/predict"); 
@@ -243,7 +220,6 @@ const HospitalDashboard = () => {
       }
   }, [selectedPhc, predictions]);
 
-  // AI SCORING
   const calculatePriorityScore = (req) => {
     let score = 0.0;
     let dist = 10; 
@@ -258,7 +234,6 @@ const HospitalDashboard = () => {
     return score.toFixed(2); 
   };
 
-  // AUTO-PILOT LOOP
   useEffect(() => {
     const aiLoop = setInterval(() => {
         requests.forEach(req => {
@@ -269,7 +244,6 @@ const HospitalDashboard = () => {
                 if (req.urgency === 'Critical') {
                     const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL - PROCESSING (10s)`;
                     addLog(logMsg, "text-red-500 font-bold");
-                    
                     setTimeout(() => {
                         updateStatusInDB(req._id, 'Approved');
                         addLog(`ID: ${req._id.slice(-4)} | ✅ APPROVED. WAITING FOR DISPATCH.`, "text-green-400");
@@ -294,18 +268,48 @@ const HospitalDashboard = () => {
     const destination = (req.coordinates && req.coordinates.lat) ? req.coordinates : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
     const newMission = { id: req._id, phc: req.phc, destination: destination, startTime: Date.now(), delivered: false };
     setActiveMissions(prev => [...prev, newMission]);
-    
-    // Switch to Map View
-    setActiveTab('map');
-    
     setTimeout(() => { addLog(`📦 Package Out for Delivery - Enroute to ${req.phc}`, "text-white"); }, 2000);
   };
 
-  // Persist Missions
   useEffect(() => {
     localStorage.setItem('activeMissions', JSON.stringify(activeMissions));
-  }, [activeMissions]);
+    if (activeTab !== 'map' || activeMissions.length === 0) return;
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    const interval = setInterval(() => {
+      const mission = activeMissions[0];
+      if(!mission) return;
+      const now = Date.now();
+      const elapsed = now - mission.startTime; 
+      const FLIGHT_DURATION = 600000; 
 
+      if (elapsed < 10000) {
+        setCountdown(Math.ceil((10000 - elapsed) / 1000));
+        setTrackProgress(0);
+        setMissionStatusText(`Pre-Flight Checks`);
+        setDroneStats({ speed: 0, battery: 100, altitude: 0 });
+      } else if (elapsed < (FLIGHT_DURATION + 10000)) {
+        setCountdown(0);
+        const percent = ((elapsed - 10000) / FLIGHT_DURATION) * 100;
+        setTrackProgress(percent);
+        setMissionStatusText('In-Flight');
+        let currentSpeed = 60; let currentAlt = 120;
+        if (percent < 5) { currentSpeed = percent * 12; currentAlt = percent * 24; } 
+        else if (percent > 95) { currentSpeed = 60 - (percent-95)*12; currentAlt = 120 - (percent-95)*24; } 
+        setDroneStats({ speed: Math.floor(currentSpeed), battery: Math.max(0, 100 - Math.floor(percent / 1.5)), altitude: Math.floor(currentAlt) });
+      } else {
+        setTrackProgress(100);
+        setMissionStatusText('Delivered');
+        setDroneStats({ speed: 0, battery: 30, altitude: 0 });
+        if (!mission.delivered) {
+           addLog(`✅ DELIVERY SUCCESSFUL at ${mission.phc}`, "text-blue-400 font-bold border-l-2 border-blue-500 pl-2");
+           setRequests(prev => prev.map(r => r._id === mission.id ? { ...r, status: 'Delivered' } : r));
+           updateStatusInDB(mission.id, 'Delivered');
+           setTimeout(() => { setActiveMissions(prev => prev.filter(m => m.id !== mission.id)); }, 5000);
+        }
+      }
+    }, 100);
+    return () => { clearInterval(interval); clearInterval(timer); };
+  }, [activeTab, activeMissions]);
 
   const handleLogout = () => { localStorage.removeItem('userInfo'); navigate('/login'); };
   
@@ -320,10 +324,28 @@ const HospitalDashboard = () => {
 
   const updateStatusInDB = async (id, newStatus) => { try { await fetch(`${API_URL}/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }), }); fetchRequests(); } catch (err) {} };
   const handleApprove = (id, urgency) => { updateStatusInDB(id, 'Approved'); };
-  const handleDispatch = (req) => { if(!confirm("Confirm Manual Dispatch?")) return; handleAutoDispatch(req); };
+  const handleDispatch = (req) => { if(!confirm("Confirm Manual Dispatch?")) return; handleAutoDispatch(req, 0); };
   const handleReject = (id, urgency) => { if(!confirm("Reject this request?")) return; updateStatusInDB(id, 'Rejected'); };
+  
+  // ✅ INVENTORY FUNCTIONS (Add / Remove / Update)
   const updateStock = (id, change) => { setInventory(inventory.map(item => item.id === id ? { ...item, stock: Math.max(0, item.stock + change) } : item)); };
-  const addNewItem = () => { if(!newItem.name) return alert("Fill details"); setInventory([...inventory, { id: Date.now(), ...newItem, stock: parseInt(newItem.stock), img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" }]); setShowAddModal(false); };
+  
+  const removeMedicine = (id) => {
+    if(confirm("Are you sure you want to remove this medicine from inventory?")) {
+        setInventory(inventory.filter(item => item.id !== id));
+    }
+  };
+
+  const addNewItem = () => { 
+    if(!newItem.name) return alert("Fill details"); 
+    setInventory([...inventory, { 
+        id: Date.now(), 
+        ...newItem, 
+        stock: parseInt(newItem.stock), 
+        img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" // Placeholder for new items
+    }]); 
+    setShowAddModal(false); 
+  };
 
   return (
     <div className={`min-h-screen bg-slate-50 flex font-sans text-slate-800 relative`}>
@@ -350,10 +372,7 @@ const HospitalDashboard = () => {
             <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-600"><Menu size={24} /></button>
             <h1 className="text-lg md:text-2xl font-bold text-slate-800">{activeTab === 'alerts' ? 'Autonomous Command Center' : activeTab === 'reports' ? 'Incident Analytics' : (activeTab === 'map' ? 'Global Tracking' : 'Inventory')}</h1>
           </div>
-          <div className="flex items-center gap-3">
-             <button onClick={handleClearAll} className="bg-red-50 text-red-600 px-3 py-1 rounded-lg text-xs font-bold border border-red-200 hover:bg-red-100 transition-colors flex items-center gap-1"><Trash2 size={14}/> Reset System</button>
-             <div className="bg-blue-50 px-3 py-1 rounded-full text-xs font-semibold text-blue-700 flex items-center gap-2"><Cpu size={14} /> AI Active</div>
-          </div>
+          <div className="bg-blue-50 px-3 py-1 rounded-full text-xs font-semibold text-blue-700 flex items-center gap-2"><Cpu size={14} /> AI Active</div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 relative">
@@ -363,7 +382,12 @@ const HospitalDashboard = () => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
                              <div className="md:col-span-3 flex justify-between items-center mb-2">
                                  <h4 className="text-sm font-bold text-slate-500 uppercase flex items-center gap-2"><TrendingUp size={16}/> AI Demand Predictions</h4>
-                                 <div className="flex items-center gap-2"><Filter size={14} className="text-slate-400"/><select className="bg-white border border-slate-300 text-xs p-2 rounded-lg outline-none font-medium text-slate-600" onChange={(e) => setSelectedPhc(e.target.value)}><option value="All">All PHCs</option><option value="Wagholi PHC">Wagholi PHC</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option></select></div>
+                                 <div className="flex items-center gap-2">
+                                     <Filter size={14} className="text-slate-400"/>
+                                     <select className="bg-white border border-slate-300 text-xs p-2 rounded-lg outline-none font-medium text-slate-600" onChange={(e) => setSelectedPhc(e.target.value)}>
+                                        <option value="All">All PHCs</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option><option value="PHC Belgaon">PHC Belgaon</option><option value="PHC Dhutergatta">PHC Dhutergatta</option><option value="PHC Gatta">PHC Gatta</option><option value="PHC Gaurkheda">PHC Gaurkheda</option><option value="PHC Murmadi">PHC Murmadi</option>
+                                     </select>
+                                 </div>
                              </div>
                              {filteredPredictions.map((pred, i) => (<div key={i} className="bg-white border border-slate-200 p-4 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-shadow"><div><p className="text-[10px] text-slate-400 mb-1 uppercase font-bold">{pred.phc || "District Wide"}</p><p className="text-sm font-bold text-slate-800">{pred.name}</p><p className="text-lg font-bold text-indigo-600">{pred.predictedQty} <span className="text-xs text-slate-400 font-normal">units/week</span></p></div><div className={`p-2.5 rounded-lg ${pred.trend.includes('Rising') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}><TrendingUp size={24} /></div></div>))}
                         </div>
@@ -410,72 +434,51 @@ const HospitalDashboard = () => {
                     </div>
                 </div>
             )}
-            {activeTab === 'map' && (
-                 <div className="w-full max-w-5xl mx-auto space-y-4">
-                    {/* HEADER */}
-                    <div className="flex justify-between items-center">
-                         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><div className="w-3 h-3 bg-red-500 rounded-full animate-ping"></div> Live Mission Control</h2>
-                         <button onClick={() => { setActiveTab('alerts'); fetchRequests(); }} className="text-sm text-blue-600 hover:underline">Close Tracking</button>
+            {activeTab === 'map' && ( <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] flex items-center justify-center text-white relative overflow-hidden">{activeMissions.length > 0 ? (<div className="w-full h-full relative"><div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div><svg className="absolute inset-0 w-full h-full pointer-events-none"><line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#475569" strokeWidth="4" strokeDasharray="8" /><line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#3b82f6" strokeWidth="4" strokeDasharray="1000" strokeDashoffset={1000 - (trackProgress * 10)} className="transition-all duration-300 ease-linear" /></svg><div className="absolute top-1/2 left-[10%] -translate-y-1/2 flex flex-col items-center z-10"><div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20"><Building2 size={24} className="text-slate-900" /></div><span className="text-white text-xs font-bold mt-3 bg-slate-800 px-2 py-1 rounded border border-slate-700">District Hospital</span></div><div className="absolute top-1/2 right-[10%] -translate-y-1/2 flex flex-col items-center z-10"><div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/50 animate-pulse border-4 border-slate-900"><MapPin size={24} className="text-white" /></div><span className="text-white text-xs font-bold mt-3 bg-blue-900 px-2 py-1 rounded border border-blue-700">Destination</span></div>{countdown > 0 ? (<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center"><div className="bg-black/80 backdrop-blur-md p-6 rounded-2xl border border-yellow-500 text-center shadow-2xl"><Timer className="w-10 h-10 text-yellow-500 mx-auto mb-2 animate-pulse" /><h2 className="text-4xl font-bold text-white font-mono">{countdown}s</h2><p className="text-yellow-400 text-xs font-bold uppercase tracking-widest mt-2">Preparing for Takeoff</p></div></div>) : (<div className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-linear z-20 flex flex-col items-center" style={{ left: `${10 + (trackProgress * 0.8)}%` }}><div className="bg-white p-2 rounded-full shadow-2xl relative"><Navigation size={32} className="text-red-500 rotate-90" fill="currentColor" /><div className="absolute -top-1 -left-1 w-full h-full border-2 border-slate-300 rounded-full animate-spin opacity-50"></div></div><div className="bg-black/80 text-white text-[10px] px-2 py-1 rounded-md mt-2 backdrop-blur-sm font-mono border border-slate-700">{Math.round(trackProgress)}%</div></div>)}<div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-6 py-3 rounded-xl border border-slate-700 text-center"><h3 className="text-lg font-bold">{countdown > 0 ? 'STANDBY' : 'ENROUTE'}</h3><div className="flex gap-4 mt-2 text-xs text-slate-400"><span>SPD: {droneStats.speed} km/h</span><span>ALT: {droneStats.altitude}m</span><span className="text-green-400">BAT: {droneStats.battery}%</span></div></div></div>) : (<div className="text-center text-slate-500"><MapIcon size={48} className="mx-auto mb-2"/><p>No Active Flights</p></div>)}</div> )}
+            {/* ✅ INVENTORY TAB WITH ADD/REMOVE/EXPIRY */}
+            {activeTab === 'inventory' && ( 
+                <div className="max-w-6xl mx-auto">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold">Hospital Inventory</h2>
+                        <button onClick={()=>setShowAddModal(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 flex gap-2 items-center"><Plus size={16}/> Add Medicine</button>
                     </div>
-                    {/* REALISTIC FLIGHT TRACKER */}
-                    {activeMissions.length > 0 ? (
-                        <RealisticFlightTracker 
-                            origin={HOSPITAL_LOC} 
-                            destination={activeMissions[0].destination} 
-                            onDeliveryComplete={() => {
-                                const mission = activeMissions[0];
-                                updateStatusInDB(mission.id, 'Delivered'); 
-                                addLog(`✅ MISSION COMPLETE: Package Delivered to ${mission.phc}`, "text-green-400 font-bold border-l-4 border-green-500 pl-2");
-                                setTimeout(() => {
-                                    setActiveMissions(prev => prev.slice(1));
-                                    setActiveTab('alerts');
-                                    fetchRequests(); 
-                                }, 5000);
-                            }}
-                        />
-                    ) : (
-                        <div className="bg-slate-100 h-96 rounded-3xl flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-300">
-                            <MapIcon size={64} className="mb-4 opacity-50"/>
-                            <p className="font-bold">No Active Drones in Flight</p>
-                            <p className="text-xs">Dispatch an order to view live satellite telemetry.</p>
-                        </div>
-                    )}
-                </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {inventory.map(item => {
+                            const isExpiring = item.expiry && new Date(item.expiry) < new Date(new Date().setMonth(new Date().getMonth() + 3));
+                            return (
+                            <div key={item.id} className="bg-white p-4 rounded-xl border text-center shadow-sm relative group">
+                                <button onClick={() => removeMedicine(item.id)} className="absolute top-2 right-2 text-red-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16}/></button>
+                                <img src={item.img} className="h-24 w-full object-contain mb-2"/>
+                                <h3 className="font-bold text-sm">{item.name}</h3>
+                                <p className={`text-[10px] mt-1 font-bold ${isExpiring ? 'text-red-500' : 'text-green-600'}`}>Exp: {item.expiry}</p>
+                                <div className="flex justify-center gap-2 mt-2"><button onClick={() => updateStock(item.id, -1)} className="p-1 bg-gray-100 rounded"><Minus size={12}/></button><span className="font-bold">{item.stock}</span><button onClick={() => updateStock(item.id, 1)} className="p-1 bg-blue-100 text-blue-600 rounded"><Plus size={12}/></button></div>
+                            </div>
+                        )})}
+                    </div>
+                </div> 
             )}
-            {activeTab === 'inventory' && ( <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4">{inventory.map(item => (<div key={item.id} className="bg-white p-4 rounded-xl border text-center shadow-sm"><img src={item.img} className="h-24 w-full object-contain mb-2"/><h3 className="font-bold text-sm">{item.name}</h3><div className="flex justify-center gap-2 mt-2"><button onClick={() => updateStock(item.id, -1)} className="p-1 bg-gray-100 rounded"><Minus size={12}/></button><span className="font-bold">{item.stock}</span><button onClick={() => updateStock(item.id, 1)} className="p-1 bg-blue-100 text-blue-600 rounded"><Plus size={12}/></button></div></div>))}</div> )}
         </div>
       </main>
 
-      {/* CHAT MODAL */}
-      {activeChatId && activeChatRequest && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[500px]">
-                <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
-                    <h3 className="font-bold flex items-center gap-2"><MessageCircle size={18}/> Chat with PHC</h3>
-                    <button onClick={() => setActiveChatId(null)}><X size={20}/></button>
+      {activeChatId && activeChatRequest && (<div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"><div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[500px]"><div className="bg-blue-600 p-4 flex justify-between items-center text-white"><h3 className="font-bold flex items-center gap-2"><MessageCircle size={18}/> Chat with PHC</h3><button onClick={() => setActiveChatId(null)}><X size={20}/></button></div><div className="flex-1 p-4 overflow-y-auto bg-slate-50 space-y-3">{activeChatRequest.chat?.map((c, i) => (<div key={i} className={`flex ${c.sender === 'Hospital' ? 'justify-end' : 'justify-start'}`}><div className={`p-3 rounded-xl text-sm max-w-[80%] ${c.sender === 'Hospital' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border border-slate-200 rounded-bl-none'}`}><p>{c.message}</p><span className="text-[10px] opacity-70 block mt-1 text-right">{new Date(c.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div></div>))}</div><div className="p-3 bg-white border-t flex gap-2"><input className="flex-1 bg-slate-100 border-0 rounded-xl px-4 py-2 text-sm focus:outline-none" placeholder="Type message..." value={chatMessage} onChange={(e)=>setChatMessage(e.target.value)} onKeyPress={(e)=>e.key==='Enter' && sendMessage()}/><button onClick={sendMessage} className="bg-blue-600 text-white p-2 rounded-xl hover:bg-blue-700"><Send size={18}/></button></div></div></div>)}
+      {viewItemList && (<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"><div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"><div className="bg-blue-600 p-4 flex justify-between items-center text-white"><h3 className="font-bold flex items-center gap-2"><ClipboardList size={18} /> Packing List</h3><button onClick={() => setViewItemList(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button></div><div className="p-6 max-h-96 overflow-y-auto bg-slate-50"><div className="space-y-3">{viewItemList.item.split(', ').map((itm, idx) => (<div key={idx} className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm"><span className="font-bold text-slate-800">{itm}</span><span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-bold">Pack This</span></div>))}</div></div><div className="p-4 bg-white text-right border-t border-slate-200"><button onClick={() => setViewItemList(null)} className="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-bold text-sm shadow-md">Done Packing</button></div></div></div>)}
+      {viewProof && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-4 rounded shadow-lg w-96"><img src={viewProof.proofFiles[0]} className="w-full"/><button onClick={()=>setViewProof(null)} className="mt-2 w-full bg-gray-200 p-2 rounded">Close</button></div></div>}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-0 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100">
+                <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center"><div><h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Package className="text-blue-600" size={20}/> Add New Medicine</h3></div><button onClick={() => setShowAddModal(false)}><X size={20} /></button></div>
+                <div className="p-6 space-y-5">
+                    <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Name</label><input className="w-full p-3 border rounded-xl" placeholder="Medicine Name" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} /></div>
+                    <div className="grid grid-cols-2 gap-5">
+                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Batch</label><input className="w-full p-3 border rounded-xl" placeholder="Batch ID" value={newItem.batch} onChange={e => setNewItem({...newItem, batch: e.target.value})} /></div>
+                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Stock</label><input className="w-full p-3 border rounded-xl" type="number" value={newItem.stock} onChange={e => setNewItem({...newItem, stock: e.target.value})} /></div>
+                    </div>
+                    <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Expiry Date</label><input className="w-full p-3 border rounded-xl" type="date" value={newItem.expiry} onChange={e => setNewItem({...newItem, expiry: e.target.value})} /></div>
                 </div>
-                <div className="flex-1 p-4 overflow-y-auto bg-slate-50 space-y-3">
-                    {activeChatRequest.chat?.length === 0 && <p className="text-center text-slate-400 text-sm mt-10">No messages yet. Start the conversation.</p>}
-                    {activeChatRequest.chat?.map((c, i) => (
-                        <div key={i} className={`flex ${c.sender === 'Hospital' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`p-3 rounded-xl text-sm max-w-[80%] ${c.sender === 'Hospital' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border border-slate-200 rounded-bl-none'}`}>
-                                <p>{c.message}</p>
-                                <span className="text-[10px] opacity-70 block mt-1 text-right">{new Date(c.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-                <div className="p-3 bg-white border-t flex gap-2">
-                    <input className="flex-1 bg-slate-100 border-0 rounded-xl px-4 py-2 text-sm focus:outline-none" placeholder="Type message..." value={chatMessage} onChange={(e)=>setChatMessage(e.target.value)} onKeyPress={(e)=>e.key==='Enter' && sendMessage()}/>
-                    <button onClick={sendMessage} className="bg-blue-600 text-white p-2 rounded-xl hover:bg-blue-700"><Send size={18}/></button>
-                </div>
+                <div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3"><button onClick={() => setShowAddModal(false)} className="px-5 py-2 text-slate-600">Cancel</button><button onClick={addNewItem} className="px-6 py-2 bg-blue-600 text-white rounded-xl">Save</button></div>
             </div>
         </div>
       )}
-
-      {viewItemList && (<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"><div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"><div className="bg-blue-600 p-4 flex justify-between items-center text-white"><h3 className="font-bold flex items-center gap-2"><ClipboardList size={18} /> Packing List</h3><button onClick={() => setViewItemList(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button></div><div className="p-6 max-h-96 overflow-y-auto bg-slate-50"><div className="space-y-3">{viewItemList.item.split(', ').map((itm, idx) => (<div key={idx} className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm"><span className="font-bold text-slate-800">{itm}</span><span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-bold">Pack This</span></div>))}</div></div><div className="p-4 bg-white text-right border-t border-slate-200"><button onClick={() => setViewItemList(null)} className="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-bold text-sm shadow-md">Done Packing</button></div></div></div>)}
-      {viewProof && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-4 rounded shadow-lg w-96"><img src={viewProof.proofFiles[0]} className="w-full"/><button onClick={()=>setViewProof(null)} className="mt-2 w-full bg-gray-200 p-2 rounded">Close</button></div></div>}
-      {showAddModal && (<div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-0 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100"><div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center"><div><h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Package className="text-blue-600" size={20}/> Add New Medicine</h3><p className="text-xs text-slate-500 mt-0.5">Enter stock details below</p></div><button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1 rounded-full transition-colors"><X size={20} /></button></div><div className="p-6 space-y-5"><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Medicine Name</label><div className="relative"><Pill className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium placeholder:text-slate-400" placeholder="e.g., Paracetamol 500mg" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} /></div></div><div className="grid grid-cols-2 gap-5"><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Batch ID</label><div className="relative"><QrCode className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium" placeholder="B-1023" value={newItem.batch} onChange={e => setNewItem({...newItem, batch: e.target.value})} /></div></div><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Initial Stock</label><div className="relative"><Layers className="absolute left-3 top-3.5 text-slate-400" size={18} /><input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-700 font-medium" type="number" placeholder="0" value={newItem.stock} onChange={e => setNewItem({...newItem, stock: e.target.value})} /></div></div></div></div><div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3"><button onClick={() => setShowAddModal(false)} className="px-5 py-2.5 text-slate-600 font-medium hover:bg-white hover:text-slate-800 border border-transparent hover:border-slate-200 rounded-xl transition-all">Cancel</button><button onClick={addNewItem} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all transform active:scale-95"><Save size={18} /> Save Item</button></div></div></div>)}
     </div>
   );
 };
