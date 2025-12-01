@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Settings, LogOut, Download, Filter, 
   TrendingUp, AlertTriangle, Package, MapPin, Calendar, 
-  Search, Plus, Trash2, Edit, Cpu, Menu, X, FileText, DollarSign, BarChart3, Network, ChevronRight, ArrowLeft, Building2, Activity, CheckCircle2, Clock
+  Search, Plus, Trash2, Edit, Cpu, Menu, X, FileText, DollarSign, BarChart3, Network, ChevronRight, ArrowLeft, Building2, Activity, CheckCircle2, Clock, FolderTree
 } from 'lucide-react';
 import { 
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, 
@@ -17,26 +17,50 @@ import AiCopilot from '../components/AiCopilot';
 // Register ChartJS
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, ArcElement, Filler);
 
-// ✅ 8 PHCs + 1 Sub-District
-const CHAMORSHI_PHCS = [
-    "PHC Chamorshi", "PHC Gadhchiroli", "PHC Panera", "PHC Belgaon", 
-    "PHC Dhutergatta", "PHC Gatta", "PHC Gaurkheda", "PHC Murmadi"
+// ✅ DATA STRUCTURE: SUB-DISTRICTS & PHCS
+const INITIAL_HIERARCHY = [
+    { 
+        id: 'SD-001', 
+        name: 'Chamorshi', 
+        hq: 'Taluka Hospital', 
+        phcs: [
+            "PHC Chamorshi", "PHC Gadhchiroli", "PHC Panera", "PHC Belgaon", 
+            "PHC Dhutergatta", "PHC Gatta", "PHC Gaurkheda", "PHC Murmadi"
+        ]
+    }
+    // You can add more sub-districts here later
 ];
+
+// ESTIMATED PRICE MAP
+const PRICE_MAP = {
+  "Inj. Atropine": 15, "Inj. Adrenaline": 25, "Inj. Hydrocortisone": 40,
+  "Inj. Deriphyllin": 30, "Inj. Dexamethasone": 20, "Inj. KCl (Potassium)": 18,
+  "Inj. Cal. Gluconate": 55, "Inj. Midazolam": 120, "Inj. Phenergan": 35,
+  "Inj. Dopamine": 90, "Inj. Actrapid (Insulin)": 250, "Inj. Nor Adrenaline": 110,
+  "Inj. NTG": 85, "Inj. Diclofenac": 10, "Inj. Neostigmine": 45,
+  "Inj. Avil": 12, "IV Paracetamol 100ml": 150, "IV 25% Dextrose": 60, "IV Haemaccel": 450
+};
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('userInfo')) || { name: 'Super Admin' };
 
-  const [activeTab, setActiveTab] = useState('analytics');
+  const [activeTab, setActiveTab] = useState('network'); // Default to Network View
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [requests, setRequests] = useState([]);
   
-  // VIEW STATE: 'global' -> 'phc_list' -> 'phc_detail'
-  const [viewState, setViewState] = useState('global'); 
+  // HIERARCHY STATE
+  const [hierarchy, setHierarchy] = useState(INITIAL_HIERARCHY);
+  const [viewLevel, setViewLevel] = useState('global'); // 'global' | 'subdistrict' | 'phc'
+  const [selectedSubDistrict, setSelectedSubDistrict] = useState(null);
   const [selectedPhc, setSelectedPhc] = useState(null);
 
-  // Data for specific views
-  const [phcStats, setPhcStats] = useState({});
+  // Modal State
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newItemName, setNewItemName] = useState("");
+
+  // Filters
+  const [timeFilter, setTimeFilter] = useState('30');
   
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
@@ -52,42 +76,118 @@ const AdminDashboard = () => {
       } catch (err) { console.error("Error fetching data"); }
     };
     fetchData();
-    const interval = setInterval(fetchData, 5000); // Real-time updates
-    return () => clearInterval(interval);
   }, []);
 
-  // 2. PROCESS DATA FOR SELECTED VIEW
-  const getAnalytics = (filterPhc = null) => {
+  // 2. ANALYTICS ENGINE (DYNAMIC)
+  const getAnalytics = () => {
       let data = requests;
-      if (filterPhc) {
-          data = requests.filter(r => r.phc === filterPhc);
+      
+      // Filter based on View Level
+      if (viewLevel === 'subdistrict' && selectedSubDistrict) {
+          data = data.filter(r => selectedSubDistrict.phcs.includes(r.phc));
+      } else if (viewLevel === 'phc' && selectedPhc) {
+          data = data.filter(r => r.phc === selectedPhc);
       }
+      
+      // Apply Time Filter
+      const today = new Date();
+      const cutoff = new Date(today.setDate(today.getDate() - parseInt(timeFilter)));
+      data = data.filter(r => new Date(r.createdAt) >= cutoff);
 
+      // Calculate Stats
       const totalOrders = data.length;
       const critical = data.filter(r => r.urgency === 'Critical').length;
       const delivered = data.filter(r => r.status === 'Delivered').length;
       
-      // Top Medicines
+      // Value
+      const totalVal = data.reduce((acc, r) => {
+          const match = r.item.match(/(\d+)x\s+(.+)/);
+          const name = match ? match[2].trim() : r.item;
+          const qty = match ? parseInt(match[1]) : r.qty;
+          return acc + ((PRICE_MAP[name] || 0) * qty);
+      }, 0);
+
+      // Charts: Trends
+      const dates = {};
+      data.forEach(r => {
+          const d = new Date(r.createdAt).toLocaleDateString('en-GB');
+          dates[d] = (dates[d] || 0) + 1;
+      });
+
+      // Charts: Top Items
       const itemCounts = {};
       data.forEach(r => {
           const match = r.item.match(/(\d+)x\s+(.+)/);
           const name = match ? match[2].trim() : r.item;
-          const qty = match ? parseInt(match[1]) : r.qty;
-          itemCounts[name] = (itemCounts[name] || 0) + qty;
+          itemCounts[name] = (itemCounts[name] || 0) + (match ? parseInt(match[1]) : r.qty);
       });
       const topItems = Object.entries(itemCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
 
-      return { totalOrders, critical, delivered, topItems, rawData: data };
+      // Charts: PHC Ranking (Only for Global/Subdistrict views)
+      const phcStats = {};
+      data.forEach(r => { if (!phcStats[r.phc]) phcStats[r.phc] = 0; phcStats[r.phc]++; });
+
+      return {
+          totalOrders, critical, delivered, totalVal, data,
+          charts: {
+              trends: { labels: Object.keys(dates), datasets: [{ label: 'Orders', data: Object.values(dates), borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)', fill: true, tension: 0.4 }] },
+              topItems: { labels: topItems.map(i => i[0]), datasets: [{ label: 'Quantity', data: topItems.map(i => i[1]), backgroundColor: '#10b981', borderRadius: 4 }] },
+              phcRanking: { labels: Object.keys(phcStats), datasets: [{ label: 'Requests', data: Object.values(phcStats), backgroundColor: '#f59e0b' }] }
+          }
+      };
+  };
+
+  // Action Handlers
+  const handleAdd = () => {
+      if(!newItemName) return;
+      if (viewLevel === 'global') {
+          // Add Sub-District
+          setHierarchy([...hierarchy, { id: `SD-${Date.now()}`, name: newItemName, hq: 'New HQ', phcs: [] }]);
+      } else if (viewLevel === 'subdistrict' && selectedSubDistrict) {
+          // Add PHC to Sub-District
+          const updated = hierarchy.map(sd => {
+              if(sd.id === selectedSubDistrict.id) {
+                  return { ...sd, phcs: [...sd.phcs, newItemName] };
+              }
+              return sd;
+          });
+          setHierarchy(updated);
+          // Update current selection
+          setSelectedSubDistrict({ ...selectedSubDistrict, phcs: [...selectedSubDistrict.phcs, newItemName] });
+      }
+      setNewItemName(""); setShowAddModal(false);
+  };
+
+  const handleDeleteSubDistrict = (id) => {
+      if(confirm("Delete this Sub-District and all its data?")) {
+          setHierarchy(hierarchy.filter(sd => sd.id !== id));
+      }
+  };
+
+  const handleDeletePHC = (phcName) => {
+      if(confirm("Remove this PHC from the network?")) {
+          const updated = hierarchy.map(sd => {
+              if(sd.id === selectedSubDistrict.id) {
+                  return { ...sd, phcs: sd.phcs.filter(p => p !== phcName) };
+              }
+              return sd;
+          });
+          setHierarchy(updated);
+          setSelectedSubDistrict({ ...selectedSubDistrict, phcs: selectedSubDistrict.phcs.filter(p => p !== phcName) });
+      }
   };
 
   const handleLogout = () => { localStorage.removeItem('userInfo'); navigate('/login'); };
 
-  // ✅ RENDER COMPONENT
+  // Get Current Stats
+  const stats = getAnalytics();
+
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 relative">
       
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
-      <AiCopilot contextData={{ requests, viewState, selectedPhc }} />
+      
+      <AiCopilot contextData={{ requests, viewLevel, selectedSubDistrict, selectedPhc }} />
 
       {/* SIDEBAR */}
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
@@ -96,8 +196,8 @@ const AdminDashboard = () => {
           <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400"><X size={24} /></button>
         </div>
         <nav className="flex-1 px-4 space-y-2 mt-4">
-          <button onClick={() => {setViewState('global'); setActiveTab('analytics');}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${viewState === 'global' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><LayoutDashboard size={18} /> Global Overview</button>
-          <button onClick={() => {setViewState('phc_list'); setActiveTab('network');}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${viewState.includes('phc') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><Network size={18} /> Manage Network</button>
+          <button onClick={() => { setViewLevel('global'); setActiveTab('network'); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'network' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><FolderTree size={18} /> Network Hierarchy</button>
+          <button onClick={() => setActiveTab('analytics')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'analytics' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><BarChart3 size={18} /> Analytics Suite</button>
         </nav>
         <div className="p-4 border-t border-slate-800"><button onClick={handleLogout} className="w-full flex items-center gap-2 text-red-400 hover:bg-slate-800 p-3 rounded-xl"><LogOut size={16} /> Logout</button></div>
       </aside>
@@ -107,86 +207,75 @@ const AdminDashboard = () => {
           <div className="flex items-center gap-3">
             <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-600"><Menu size={24} /></button>
             <div>
-                <h1 className="text-lg md:text-2xl font-bold text-slate-800">
-                    {viewState === 'global' && 'Chamorshi Sub-District HQ'}
-                    {viewState === 'phc_list' && 'Network Management'}
-                    {viewState === 'phc_detail' && `Analytics: ${selectedPhc}`}
+                <h1 className="text-lg md:text-2xl font-bold text-slate-800 flex items-center gap-2">
+                    {viewLevel !== 'global' && <button onClick={() => {
+                        if (viewLevel === 'phc') setViewLevel('subdistrict');
+                        else setViewLevel('global');
+                    }} className="hover:bg-slate-100 p-1 rounded-full"><ArrowLeft size={20}/></button>}
+                    {viewLevel === 'global' ? 'District Command Center' : viewLevel === 'subdistrict' ? `${selectedSubDistrict.name} Sub-District` : selectedPhc}
                 </h1>
-                <p className="text-xs text-slate-500">Real-Time Logistics Data</p>
+                <p className="text-xs text-slate-500">{viewLevel === 'global' ? 'Managing All Sub-Districts' : viewLevel === 'subdistrict' ? `Managing ${selectedSubDistrict.phcs.length} PHCs` : 'PHC Performance View'}</p>
             </div>
           </div>
-          <div className="bg-purple-50 px-3 py-1 rounded-full text-xs font-semibold text-purple-700 flex items-center gap-2 border border-purple-100"><Cpu size={14} /> Admin AI</div>
+          <div className="flex items-center gap-3">
+              <div className="bg-purple-50 px-3 py-1 rounded-full text-xs font-semibold text-purple-700 flex items-center gap-2 border border-purple-100"><Cpu size={14} /> Admin AI</div>
+          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50">
             
-            {/* 1. GLOBAL VIEW (ALL DATA) */}
-            {viewState === 'global' && (
-                <div className="max-w-7xl mx-auto space-y-6">
-                    {/* KPIS */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h3 className="text-3xl font-bold text-slate-800">{requests.length}</h3><p className="text-sm text-slate-500">Total Network Orders</p></div>
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h3 className="text-3xl font-bold text-red-600">{requests.filter(r=>r.urgency==='Critical').length}</h3><p className="text-sm text-slate-500">Critical Alerts</p></div>
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h3 className="text-3xl font-bold text-blue-600">8</h3><p className="text-sm text-slate-500">Active PHCs</p></div>
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h3 className="text-3xl font-bold text-green-600">100%</h3><p className="text-sm text-slate-500">Uptime</p></div>
+            {/* 🌐 LEVEL 1: GLOBAL NETWORK VIEW (Sub-Districts) */}
+            {activeTab === 'network' && viewLevel === 'global' && (
+                <div className="max-w-7xl mx-auto">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold text-slate-800">Active Sub-Districts</h2>
+                        <button onClick={() => setShowAddModal(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold hover:bg-blue-700"><Plus size={16}/> Add Sub-District</button>
                     </div>
-                    
-                    {/* SUB DISTRICT MAP */}
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                        <h3 className="font-bold text-lg mb-4">Chamorshi Network Overview</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            {CHAMORSHI_PHCS.map(phc => {
-                                const stats = requests.filter(r => r.phc === phc).length;
-                                return (
-                                    <div key={phc} onClick={() => { setSelectedPhc(phc); setViewState('phc_detail'); }} className="p-4 border rounded-xl hover:shadow-md cursor-pointer transition-all bg-slate-50 hover:bg-blue-50 hover:border-blue-200">
-                                        <div className="flex justify-between items-center">
-                                            <h4 className="font-bold text-slate-700">{phc}</h4>
-                                            <ChevronRight size={16} className="text-slate-400"/>
-                                        </div>
-                                        <div className="mt-2 flex gap-3 text-xs text-slate-500">
-                                            <span>📦 {stats} Orders</span>
-                                            <span className="text-green-600 font-bold">● Online</span>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {hierarchy.map(sd => (
+                            <div key={sd.id} onClick={() => { setSelectedSubDistrict(sd); setViewLevel('subdistrict'); }} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all cursor-pointer group relative overflow-hidden">
+                                <div className="flex items-center gap-4 mb-4">
+                                    <div className="p-3 bg-blue-50 rounded-xl text-blue-600"><Building2 size={24}/></div>
+                                    <div><h3 className="text-lg font-bold text-slate-800">{sd.name}</h3><p className="text-xs text-slate-500">{sd.hq}</p></div>
+                                </div>
+                                <div className="flex items-center justify-between text-sm text-slate-600 bg-slate-50 p-3 rounded-lg group-hover:bg-blue-50 transition-colors">
+                                    <span>{sd.phcs.length} PHCs Connected</span>
+                                    <div className="flex items-center gap-1 text-blue-600 text-xs font-bold">Manage <ChevronRight size={14}/></div>
+                                </div>
+                                <button onClick={(e) => { e.stopPropagation(); handleDeleteSubDistrict(sd.id); }} className="absolute top-4 right-4 text-slate-300 hover:text-red-500"><Trash2 size={16}/></button>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}
 
-            {/* 2. PHC LIST MANAGEMENT */}
-            {viewState === 'phc_list' && (
+            {/* 🏥 LEVEL 2: SUB-DISTRICT VIEW (PHC List) */}
+            {activeTab === 'network' && viewLevel === 'subdistrict' && (
                 <div className="max-w-7xl mx-auto">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold text-slate-800">Connected PHCs in {selectedSubDistrict.name}</h2>
+                        <button onClick={() => setShowAddModal(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold hover:bg-blue-700"><Plus size={16}/> Add PHC</button>
+                    </div>
+                    
+                    {/* INLINE ANALYTICS FOR SUB-DISTRICT */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                         <div className="bg-white p-4 rounded-xl border shadow-sm"><p className="text-xs text-slate-500">Total Requests</p><p className="text-2xl font-bold">{stats.totalOrders}</p></div>
+                         <div className="bg-white p-4 rounded-xl border shadow-sm"><p className="text-xs text-slate-500">Total Value</p><p className="text-2xl font-bold text-green-600">₹{stats.totalVal.toLocaleString()}</p></div>
+                         <div className="bg-white p-4 rounded-xl border shadow-sm"><p className="text-xs text-slate-500">Critical Alerts</p><p className="text-2xl font-bold text-red-600">{stats.critical}</p></div>
+                    </div>
+
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="p-6 border-b flex justify-between items-center bg-slate-50">
-                            <h3 className="font-bold text-lg text-slate-800">Manage PHC Nodes</h3>
-                            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-blue-700"><Plus size={16}/> Add New PHC</button>
-                        </div>
                         <table className="w-full text-left">
-                            <thead className="bg-white border-b">
-                                <tr>
-                                    <th className="p-4 text-xs font-bold text-slate-500 uppercase">PHC Name</th>
-                                    <th className="p-4 text-xs font-bold text-slate-500 uppercase">Status</th>
-                                    <th className="p-4 text-xs font-bold text-slate-500 uppercase">Orders</th>
-                                    <th className="p-4 text-xs font-bold text-slate-500 uppercase text-right">Actions</th>
-                                </tr>
-                            </thead>
+                            <thead className="bg-slate-50 border-b"><tr><th className="p-4 text-xs font-bold text-slate-500 uppercase">PHC Name</th><th className="p-4 text-xs font-bold text-slate-500 uppercase">Status</th><th className="p-4 text-xs font-bold text-slate-500 uppercase">Orders</th><th className="p-4 text-xs font-bold text-slate-500 uppercase text-right">Actions</th></tr></thead>
                             <tbody className="divide-y divide-slate-100">
-                                {CHAMORSHI_PHCS.map((phc, i) => {
+                                {selectedSubDistrict.phcs.map((phc, i) => {
                                     const count = requests.filter(r => r.phc === phc).length;
                                     return (
-                                    <tr key={i} className="hover:bg-slate-50 cursor-pointer" onClick={() => { setSelectedPhc(phc); setViewState('phc_detail'); }}>
-                                        <td className="p-4 font-bold text-slate-800 flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">{phc.charAt(4)}</div>
-                                            {phc}
-                                        </td>
-                                        <td className="p-4"><span className="px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">Active</span></td>
+                                    <tr key={i} className="hover:bg-slate-50 cursor-pointer" onClick={() => { setSelectedPhc(phc); setViewLevel('phc'); }}>
+                                        <td className="p-4 font-bold text-slate-800 flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">{i+1}</div>{phc}</td>
+                                        <td className="p-4"><span className="px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">Online</span></td>
                                         <td className="p-4 text-sm text-slate-600">{count} Requests</td>
-                                        <td className="p-4 flex gap-2 justify-end" onClick={(e) => e.stopPropagation()}>
-                                            <button className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg"><Edit size={16}/></button>
-                                            <button className="p-2 hover:bg-red-50 text-red-600 rounded-lg"><Trash2 size={16}/></button>
-                                        </td>
+                                        <td className="p-4 flex gap-2 justify-end" onClick={(e) => e.stopPropagation()}><button onClick={() => handleDeletePHC(phc)} className="p-2 hover:bg-red-50 text-red-600 rounded-lg"><Trash2 size={16}/></button></td>
                                     </tr>
                                 )})}
                             </tbody>
@@ -195,68 +284,64 @@ const AdminDashboard = () => {
                 </div>
             )}
 
-            {/* 3. PHC DETAIL ANALYTICS (Drill Down) */}
-            {viewState === 'phc_detail' && selectedPhc && (() => {
-                const stats = getAnalytics(selectedPhc);
-                return (
+            {/* 📊 LEVEL 3: PHC DETAIL VIEW (Or Analytics Tab) */}
+            {(activeTab === 'analytics' || viewLevel === 'phc') && stats.charts.trends && (
                 <div className="max-w-7xl mx-auto space-y-6">
-                    <button onClick={() => setViewState('phc_list')} className="flex items-center gap-2 text-slate-500 hover:text-blue-600 font-medium mb-2"><ArrowLeft size={18}/> Back to Network List</button>
-                    
-                    {/* HEADER STATS */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                            <h3 className="text-slate-500 text-xs font-bold uppercase mb-2">Total Orders</h3>
-                            <p className="text-3xl font-bold text-slate-800">{stats.totalOrders}</p>
+                    {/* FILTERS */}
+                    <div className="flex flex-wrap items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2 text-slate-500"><Filter size={18} /><span className="text-sm font-bold">Time Range:</span></div>
+                            <select className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-medium outline-none" value={timeFilter} onChange={(e)=>setTimeFilter(e.target.value)}><option value="7">Last 7 Days</option><option value="30">Last 30 Days</option><option value="90">Last Quarter</option></select>
                         </div>
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                            <h3 className="text-slate-500 text-xs font-bold uppercase mb-2">Critical Emergencies</h3>
-                            <p className="text-3xl font-bold text-red-600">{stats.critical}</p>
-                        </div>
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                            <h3 className="text-slate-500 text-xs font-bold uppercase mb-2">Successful Deliveries</h3>
-                            <p className="text-3xl font-bold text-green-600">{stats.delivered}</p>
-                        </div>
+                        <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Real-Time Data</div>
                     </div>
 
-                    {/* GRAPHS ROW */}
+                    {/* CHARTS */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* TOP MEDICINES */}
                         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                            <h3 className="font-bold text-slate-800 mb-6">Top 5 Requested Medicines</h3>
-                            <div className="h-64">
-                                <Bar 
-                                    indexAxis="y"
-                                    data={{
-                                        labels: stats.topItems.map(i => i[0]),
-                                        datasets: [{ label: 'Qty', data: stats.topItems.map(i => i[1]), backgroundColor: '#3b82f6', borderRadius: 4 }]
-                                    }} 
-                                    options={{ maintainAspectRatio: false }} 
-                                />
-                            </div>
+                            <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2"><TrendingUp size={18}/> Order Trends</h3>
+                            <div className="h-64"><Line data={stats.charts.trends} options={{ maintainAspectRatio: false, plugins: { legend: { display: false } } }} /></div>
                         </div>
-
-                        {/* RECENT LOGS */}
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                            <h3 className="font-bold text-slate-800 mb-4">Recent Activity Log</h3>
-                            <div className="space-y-3 h-64 overflow-y-auto pr-2">
-                                {stats.rawData.slice(0, 10).map(r => (
-                                    <div key={r._id} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
-                                        <div>
-                                            <p className="text-xs font-bold text-slate-700">{r.item}</p>
-                                            <p className="text-[10px] text-slate-400">{new Date(r.createdAt).toLocaleString()}</p>
-                                        </div>
-                                        <span className={`text-[10px] font-bold px-2 py-1 rounded ${r.status === 'Delivered' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{r.status}</span>
-                                    </div>
-                                ))}
-                                {stats.rawData.length === 0 && <p className="text-center text-slate-400 text-sm">No data available for this PHC.</p>}
-                            </div>
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                            <h3 className="font-bold text-slate-800 mb-6">Top 5 Medicines</h3>
+                            <div className="h-64"><Bar indexAxis="y" data={stats.charts.topItems} options={{ maintainAspectRatio: false }} /></div>
                         </div>
                     </div>
+
+                    {viewLevel !== 'phc' && (
+                         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                            <h3 className="font-bold text-slate-800 mb-6">PHC Activity Share</h3>
+                            <div className="h-64 flex justify-center"><Doughnut data={stats.charts.phcRanking} options={{ maintainAspectRatio: false }} /></div>
+                        </div>
+                    )}
+                    
+                    {/* DETAILED LOG FOR PHC LEVEL */}
+                    {viewLevel === 'phc' && (
+                        <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                            <div className="p-4 border-b bg-slate-50 font-bold text-slate-700">Order History for {selectedPhc}</div>
+                            {stats.data.slice(0, 10).map(r => (
+                                <div key={r._id} className="p-4 border-b last:border-0 flex justify-between items-center hover:bg-slate-50">
+                                    <div><p className="text-sm font-bold text-slate-800">{r.item}</p><p className="text-xs text-slate-500">{new Date(r.createdAt).toLocaleString()}</p></div>
+                                    <span className={`px-2 py-1 rounded text-xs font-bold ${r.status === 'Delivered' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{r.status}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
-                );
-            })()}
+            )}
         </div>
       </main>
+
+      {/* ADD MODAL */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white p-6 rounded-2xl w-full max-w-md shadow-2xl">
+                <h3 className="text-xl font-bold mb-4">{viewLevel === 'global' ? 'Add Sub-District' : 'Add PHC'}</h3>
+                <input className="w-full p-3 border rounded-xl mb-4 outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter Name" value={newItemName} onChange={(e)=>setNewItemName(e.target.value)} />
+                <div className="flex justify-end gap-3"><button onClick={()=>setShowAddModal(false)} className="px-4 py-2 text-slate-500">Cancel</button><button onClick={handleAdd} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold">Add</button></div>
+            </div>
+        </div>
+      )}
     </div>
   );
 };
