@@ -13,7 +13,7 @@ import AiCopilot from '../components/AiCopilot';
 // IMAGES
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
-import imgDopamine from '../assets/medicines/Dopamine.png'; 
+import imgDopamine from '../assets/medicines/Dopamine_med.jpg'; 
 import imgAvil from '../assets/medicines/Avil.webp';
 import imgAdrenaline from '../assets/medicines/Adranaline.webp';
 import imgDexa from '../assets/medicines/Dexa.jpg';
@@ -287,7 +287,7 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* ✅ 2️⃣ INVENTORY VIEW (NO BUTTONS, STATIC STOCK) */}
+          {/* ✅ 2️⃣ INVENTORY VIEW (Read-Only Stock, Added Expiry) */}
           {!showTracker && activeTab === 'inventory' && (
               <div className="max-w-6xl mx-auto">
                   <div className="flex justify-between items-center mb-6">
@@ -303,12 +303,14 @@ const PHCDashboard = () => {
                               <img src={item.img || logoMain} className="h-24 w-full object-contain mb-3"/>
                               <h3 className="font-bold text-slate-800 text-sm">{item.name}</h3>
                               <span className="text-xs text-slate-500 mb-1">Batch: {item.batch}</span>
-                              <p className={`text-[10px] font-bold mb-3 ${isExpiring ? 'text-red-500' : 'text-green-600'}`}>Exp: {item.expiry || 'N/A'}</p>
                               
-                              {/* ✅ STATIC STOCK DISPLAY (Buttons Removed) */}
-                              <div className="mt-2">
-                                  <span className="text-xs text-slate-400 uppercase font-bold">Current Stock</span>
-                                  <p className="text-xl font-bold text-slate-800">{item.stock}</p>
+                              {/* ✅ EXPIRY DATE */}
+                              <p className={`text-[10px] font-bold mb-2 ${isExpiring ? 'text-red-500' : 'text-green-600'}`}>Exp: {item.expiry || 'N/A'}</p>
+                              
+                              {/* ✅ STATIC STOCK (No Buttons) */}
+                              <div className="w-full bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                  <span className="text-xs text-slate-400 uppercase font-bold block mb-1">Current Stock</span>
+                                  <span className="text-xl font-bold text-slate-800">{item.stock}</span>
                               </div>
                           </div>
                       )})}
@@ -367,7 +369,7 @@ const PHCDashboard = () => {
                     <h3 className="font-bold text-slate-700">Order History</h3>
                     <div className="flex gap-2">
                         <button onClick={handleClearHistory} className="flex items-center gap-2 text-sm text-red-600 hover:bg-red-50 px-3 py-1 rounded-lg transition-colors"><Trash2 size={16} /> Clear</button>
-                        <button onClick={fetchRequests} className="flex items-center gap-2 text-sm text-blue-600 hover:bg-blue-50 px-3 py-1 rounded-lg transition-colors"><RotateCcw size={16} /> Refresh</button>
+                        <button onClick={fetchData} className="flex items-center gap-2 text-sm text-blue-600 hover:bg-blue-50 px-3 py-1 rounded-lg transition-colors"><RotateCcw size={16} /> Refresh</button>
                     </div>
                 </div>
                 <table className="w-full text-left min-w-[600px]">
@@ -454,7 +456,7 @@ const PHCDashboard = () => {
         </div>
       )}
 
-      {/* ORDER DETAILS MODAL */}
+      {/* DETAILS MODAL */}
       {viewOrder && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
