@@ -7,7 +7,7 @@ import {
   Battery, Signal, Plane, Plus, Minus, Search, 
   Map as MapIcon, VolumeX, Siren, X, Check, Menu,
   Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2, Globe, Timer, Zap, Brain, Cpu, Terminal, 
-  TrendingUp, ClipboardList, Filter, MessageCircle, Send, AlertTriangle, ShieldAlert, BarChart3, Calendar
+  TrendingUp, ClipboardList, Filter, MessageCircle, Send, AlertTriangle, ShieldAlert, BarChart3, Calendar, LayoutDashboard
 } from 'lucide-react';
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
@@ -17,6 +17,27 @@ import AiCopilot from '../components/AiCopilot';
 
 // Register ChartJS
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
+
+// IMAGES
+import imgAtropine from '../assets/medicines/Atropine.jpg';
+import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
+import imgDopamine from '../assets/medicines/Dopamine_med.jpg'; 
+import imgAvil from '../assets/medicines/Avil.webp';
+import imgAdrenaline from '../assets/medicines/Adranaline.webp';
+import imgDexa from '../assets/medicines/Dexa.jpg';
+import imgDiclo from '../assets/medicines/Diclo.jpg';
+import imgDex25 from '../assets/medicines/Dex25.jpg';
+import imgDeriphylline from '../assets/medicines/Deriphylline.webp';
+import imgHamaccyl from '../assets/medicines/Hamaccyl.webp';
+import imgHydrocort from '../assets/medicines/Hydrocort.webp';
+import imgNTG from '../assets/medicines/Inj_Nitroglycerine.webp';
+import imgIVPara from '../assets/medicines/IV_Paracetamol.webp';
+import imgMidazolam from '../assets/medicines/Midazolam.jpg';
+import imgNeostigmine from '../assets/medicines/Neostigmine.webp';
+import imgNorAd from '../assets/medicines/Nor_adrenaline.webp';
+import imgPhenargan from '../assets/medicines/Phenargan.webp';
+import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
+import imgGluconate from '../assets/medicines/gluconate.png';
 
 // PHC COORDINATES (8 PHCs)
 const PHC_COORDINATES = {
@@ -32,26 +53,46 @@ const PHC_COORDINATES = {
 
 const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; 
 
+// INVENTORY
+const INITIAL_INVENTORY = [
+  { id: 6, name: 'Inj. Atropine', stock: 50, batch: 'EM-001', expiry: '2025-12-01', img: imgAtropine },
+  { id: 7, name: 'Inj. Adrenaline', stock: 40, batch: 'EM-002', expiry: '2024-11-20', img: imgAdrenaline },
+  { id: 8, name: 'Inj. Hydrocortisone', stock: 35, batch: 'EM-003', expiry: '2026-05-15', img: imgHydrocort },
+  { id: 9, name: 'Inj. Deriphyllin', stock: 30, batch: 'EM-004', expiry: '2025-08-10', img: imgDeriphylline },
+  { id: 10, name: 'Inj. Dexamethasone', stock: 25, batch: 'EM-005', expiry: '2025-10-30', img: imgDexa },
+  { id: 11, name: 'Inj. KCl (Potassium)', stock: 20, batch: 'EM-006', expiry: '2025-01-01', img: imgKCL },
+  { id: 12, name: 'Inj. Cal. Gluconate', stock: 20, batch: 'EM-007', expiry: '2025-06-20', img: imgGluconate },
+  { id: 14, name: 'Inj. Midazolam', stock: 15, batch: 'EM-009', expiry: '2024-12-15', img: imgMidazolam },
+  { id: 15, name: 'Inj. Phenergan', stock: 10, batch: 'EM-010', expiry: '2025-03-10', img: imgPhenargan },
+  { id: 16, name: 'Inj. Dopamine', stock: 10, batch: 'EM-011', expiry: '2025-07-07', img: imgDopamine },
+  { id: 17, name: 'Inj. Actrapid (Insulin)', stock: 10, batch: 'EM-012', expiry: '2024-10-01', img: imgActrapid },
+  { id: 18, name: 'Inj. Nor Adrenaline', stock: 15, batch: 'EM-013', expiry: '2025-09-12', img: imgNorAd },
+  { id: 19, name: 'Inj. NTG', stock: 10, batch: 'EM-014', expiry: '2026-01-01', img: imgNTG },
+  { id: 20, name: 'Inj. Diclofenac', stock: 50, batch: 'EM-015', expiry: '2025-11-30', img: imgDiclo },
+  { id: 22, name: 'Inj. Neostigmine', stock: 20, batch: 'EM-017', expiry: '2025-04-05', img: imgNeostigmine },
+  { id: 24, name: 'Inj. Avil', stock: 25, batch: 'EM-019', expiry: '2025-02-28', img: imgAvil },
+  { id: 25, name: 'IV Paracetamol 100ml', stock: 100, batch: 'IV-101', expiry: '2026-08-15', img: imgIVPara },
+  { id: 26, name: 'IV 25% Dextrose', stock: 60, batch: 'IV-102', expiry: '2025-12-12', img: imgDex25 },
+  { id: 27, name: 'IV Haemaccel', stock: 30, batch: 'IV-103', expiry: '2025-05-05', img: imgHamaccyl },
+];
+
 const HospitalDashboard = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('userInfo')) || { name: 'District Hospital' };
   
   const [activeTab, setActiveTab] = useState('alerts');
   const [requests, setRequests] = useState([]); 
-  
-  // ✅ 1. INITIALIZE EMPTY INVENTORY
-  const [inventory, setInventory] = useState([]); 
-  
+  const [inventory, setInventory] = useState(INITIAL_INVENTORY);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Features
   const [viewProof, setViewProof] = useState(null);
   const [viewItemList, setViewItemList] = useState(null);
-  
-  // AI Forecast States
   const [predictions, setPredictions] = useState([]); 
   const [filteredPredictions, setFilteredPredictions] = useState([]); 
   const [selectedPhc, setSelectedPhc] = useState("All"); 
 
-  // Chat & Incident States
+  // Chat & Incidents
   const [activeChatId, setActiveChatId] = useState(null);
   const [chatMessage, setChatMessage] = useState("");
   const [incidentData, setIncidentData] = useState([]);
@@ -83,66 +124,50 @@ const HospitalDashboard = () => {
   const [missionStatusText, setMissionStatusText] = useState('Standby');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [droneStats, setDroneStats] = useState({ speed: 0, battery: 100, altitude: 0 });
-  
-  // Inventory Management State
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '', expiry: '' });
 
   const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: "" });
-  
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
-  // ✅ NEW INVENTORY API URL
-  const INV_URL = "https://arogyasparsh-backend.onrender.com/api/hospital-inventory";
 
-  // ✅ 2. UPDATED FETCH FUNCTION (Gets Requests + Real Inventory)
-  const fetchData = async () => {
+  // FETCH REQUESTS
+  const fetchRequests = async () => {
     try {
-      // A. Fetch Requests
       const res = await fetch(API_URL);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-          setRequests(sortedData);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setRequests(sortedData);
 
-          // Process Incidents (for Charts)
-          const allIncidents = [];
-          const phcCounts = {};
-          const typeCounts = {};
-          sortedData.forEach(req => {
-              if (req.incidents && req.incidents.length > 0) {
-                  req.incidents.forEach(inc => {
-                      allIncidents.push({ ...inc, phc: req.phc, item: req.item, orderId: req._id });
-                      phcCounts[req.phc] = (phcCounts[req.phc] || 0) + 1;
-                      typeCounts[inc.type] = (typeCounts[inc.type] || 0) + 1;
-                  });
-              }
-          });
-          setIncidentData(allIncidents);
-          setBarChartData({
-              labels: Object.keys(phcCounts),
-              datasets: [{ label: 'Incidents Reported', data: Object.values(phcCounts), backgroundColor: 'rgba(239, 68, 68, 0.6)', borderColor: 'rgba(239, 68, 68, 1)', borderWidth: 1 }]
-          });
-          setPieChartData({
-              labels: Object.keys(typeCounts),
-              datasets: [{ data: Object.values(typeCounts), backgroundColor: ['rgba(255, 99, 132, 0.6)', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 206, 86, 0.6)'] }]
-          });
-        }
+        const allIncidents = [];
+        const phcCounts = {};
+        const typeCounts = {};
+        sortedData.forEach(req => {
+            if (req.incidents && req.incidents.length > 0) {
+                req.incidents.forEach(inc => {
+                    allIncidents.push({ ...inc, phc: req.phc, item: req.item, orderId: req._id });
+                    phcCounts[req.phc] = (phcCounts[req.phc] || 0) + 1;
+                    typeCounts[inc.type] = (typeCounts[inc.type] || 0) + 1;
+                });
+            }
+        });
+        setIncidentData(allIncidents);
+        setBarChartData({
+            labels: Object.keys(phcCounts),
+            datasets: [{ label: 'Incidents Reported', data: Object.values(phcCounts), backgroundColor: 'rgba(239, 68, 68, 0.6)', borderColor: 'rgba(239, 68, 68, 1)', borderWidth: 1 }]
+        });
+        setPieChartData({
+            labels: Object.keys(typeCounts),
+            datasets: [{ data: Object.values(typeCounts), backgroundColor: ['rgba(255, 99, 132, 0.6)', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 206, 86, 0.6)'] }]
+        });
       }
-
-      // B. Fetch Inventory from DB
-      const invRes = await fetch(INV_URL);
-      if (invRes.ok) {
-          const invData = await invRes.json();
-          setInventory(invData);
-      }
-
     } catch (err) { console.error("Network Error"); }
   };
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 3000);
+    fetchRequests();
+    const interval = setInterval(fetchRequests, 3000);
     return () => clearInterval(interval);
   }, []);
 
@@ -155,7 +180,7 @@ const HospitalDashboard = () => {
             body: JSON.stringify({ sender: "Hospital", message: chatMessage })
         });
         setChatMessage("");
-        fetchData(); 
+        fetchRequests(); 
     } catch (err) { alert("Failed to send message"); }
   };
 
@@ -290,40 +315,13 @@ const HospitalDashboard = () => {
       }
   };
 
-  const updateStatusInDB = async (id, newStatus) => { try { await fetch(`${API_URL}/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }), }); fetchData(); } catch (err) {} };
+  const updateStatusInDB = async (id, newStatus) => { try { await fetch(`${API_URL}/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }), }); fetchRequests(); } catch (err) {} };
   const handleApprove = (id, urgency) => { updateStatusInDB(id, 'Approved'); };
   const handleDispatch = (req) => { if(!confirm("Confirm Manual Dispatch?")) return; handleAutoDispatch(req, 0); };
   const handleReject = (id, urgency) => { if(!confirm("Reject this request?")) return; updateStatusInDB(id, 'Rejected'); };
-  
-  // ✅ 3. UPDATED STOCK FUNCTIONS (Calls API)
-  const updateStock = async (id, change) => { 
-      try {
-          await fetch(`${INV_URL}/update`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ itemId: id, change })
-          });
-          fetchData(); // Refresh UI
-      } catch (e) { alert("Failed to update stock"); }
-  };
-
-  const removeMedicine = (id) => {
-    if(confirm("Remove this medicine from inventory?")) {
-        // For now, simulating removal locally, in production add DELETE API
-        setInventory(inventory.filter(item => item.id !== id));
-    }
-  };
-
-  const addNewItem = () => { 
-    if(!newItem.name) return alert("Fill details"); 
-    setInventory([...inventory, { 
-        id: Date.now(), 
-        ...newItem, 
-        stock: parseInt(newItem.stock), 
-        img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" 
-    }]); 
-    setShowAddModal(false); 
-  };
+  const updateStock = (id, change) => { setInventory(inventory.map(item => item.id === id ? { ...item, stock: Math.max(0, item.stock + change) } : item)); };
+  const removeMedicine = (id) => { if(confirm("Remove item?")) setInventory(inventory.filter(item => item.id !== id)); };
+  const addNewItem = () => { if(!newItem.name) return alert("Fill details"); setInventory([...inventory, { id: Date.now(), ...newItem, stock: parseInt(newItem.stock), img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" }]); setShowAddModal(false); };
 
   return (
     <div className={`min-h-screen bg-slate-50 flex font-sans text-slate-800 relative`}>
@@ -355,28 +353,25 @@ const HospitalDashboard = () => {
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 relative">
+            
+            {/* 1. ALERTS TAB */}
             {activeTab === 'alerts' && (
-                <div className="grid gap-6 max-w-6xl mx-auto">
-                    {predictions.length > 0 && (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
-                             <div className="md:col-span-3 flex justify-between items-center mb-2">
-                                 <h4 className="text-sm font-bold text-slate-500 uppercase flex items-center gap-2"><TrendingUp size={16}/> AI Demand Predictions</h4>
-                                 <div className="flex items-center gap-2"><Filter size={14} className="text-slate-400"/><select className="bg-white border border-slate-300 text-xs p-2 rounded-lg outline-none font-medium text-slate-600" onChange={(e) => setSelectedPhc(e.target.value)}><option value="All">All PHCs</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option><option value="PHC Belgaon">PHC Belgaon</option><option value="PHC Dhutergatta">PHC Dhutergatta</option><option value="PHC Gatta">PHC Gatta</option><option value="PHC Gaurkheda">PHC Gaurkheda</option><option value="PHC Murmadi">PHC Murmadi</option></select></div>
-                             </div>
-                             {filteredPredictions.map((pred, i) => (<div key={i} className="bg-white border border-slate-200 p-4 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-shadow"><div><p className="text-[10px] text-slate-400 mb-1 uppercase font-bold">{pred.phc || "District Wide"}</p><p className="text-sm font-bold text-slate-800">{pred.name}</p><p className="text-lg font-bold text-indigo-600">{pred.predictedQty} <span className="text-xs text-slate-400 font-normal">units/week</span></p></div><div className={`p-2.5 rounded-lg ${pred.trend.includes('Rising') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}><TrendingUp size={24} /></div></div>))}
-                        </div>
-                    )}
-                    <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-xs h-36 overflow-y-auto border border-slate-700 shadow-inner relative"><div className="flex items-center gap-2 mb-2 border-b border-slate-700 pb-1 sticky top-0 bg-slate-900 w-full"><Terminal size={14}/> SYSTEM LOGS [AUTO-PILOT ENABLED]:</div>{aiLogs.map((log, i) => (<p key={i} className={`mb-1 ${log.color}`}>{log.time} &gt; {log.msg}</p>))}</div>
+                <div className="max-w-6xl mx-auto">
+                    {/* Request List */}
                     {requests.length === 0 && <p className="text-center text-slate-400 mt-4">No pending requests.</p>}
                     {requests.map((req) => {
                         const score = calculatePriorityScore(req);
                         const hasIncident = req.incidents && req.incidents.length > 0;
                         return (
-                        <div key={req._id} className={`bg-white rounded-xl shadow-sm border p-4 flex flex-col md:flex-row justify-between gap-4 ${req.status === 'Rejected' ? 'opacity-50' : ''} ${hasIncident ? 'border-red-500 ring-2 ring-red-100' : ''}`}>
+                        <div key={req._id} className={`bg-white rounded-xl shadow-sm border p-4 mb-4 flex flex-col md:flex-row justify-between gap-4 ${req.status === 'Rejected' ? 'opacity-50' : ''} ${hasIncident ? 'border-red-500 ring-2 ring-red-100' : ''}`}>
                             <div className="flex items-start gap-4">
                                 <div className={`p-3 rounded-full ${req.urgency === 'Critical' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-600'}`}><AlertOctagon size={24} /></div>
                                 <div>
-                                    <h3 className="font-bold text-slate-800 flex items-center gap-2">{req.phc}<span className={`text-[10px] px-2 py-0.5 rounded border ${score >= 0.8 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>Score: {score}</span>{hasIncident && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 ml-2"><AlertTriangle size={10}/> ISSUE</span>}</h3>
+                                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                                        {req.phc}
+                                        <span className={`text-[10px] px-2 py-0.5 rounded border ${score >= 0.8 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>Score: {score}</span>
+                                        {hasIncident && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 ml-2"><AlertTriangle size={10}/> ISSUE</span>}
+                                    </h3>
                                     <button onClick={() => setViewItemList(req)} className="text-sm text-slate-600 hover:text-blue-600 hover:underline text-left mt-1 font-medium flex items-center gap-1"><ClipboardList size={14}/> {req.qty} items (Click to View List)</button>
                                     <div className="flex items-center gap-2 mt-1 text-xs text-slate-500"><Clock size={12}/> {new Date(req.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
                                     <button onClick={() => showCoordinates(req)} className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1"><Globe size={12} /> Loc ({req.coordinates ? 'GPS' : 'Static'})</button>
@@ -395,6 +390,25 @@ const HospitalDashboard = () => {
                     )})}
                 </div>
             )}
+
+            {/* 2. ANALYTICS TAB */}
+            {activeTab === 'analytics' && (
+                <div className="max-w-6xl mx-auto">
+                    {/* AI FORECAST */}
+                    {predictions.length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                             <div className="md:col-span-3 flex justify-between items-center mb-2">
+                                 <h4 className="text-sm font-bold text-slate-500 uppercase flex items-center gap-2"><TrendingUp size={16}/> AI Demand Predictions</h4>
+                                 <div className="flex items-center gap-2"><Filter size={14} className="text-slate-400"/><select className="bg-white border border-slate-300 text-xs p-2 rounded-lg outline-none font-medium text-slate-600" onChange={(e) => setSelectedPhc(e.target.value)}><option value="All">All PHCs</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option><option value="PHC Belgaon">PHC Belgaon</option><option value="PHC Dhutergatta">PHC Dhutergatta</option><option value="PHC Gatta">PHC Gatta</option><option value="PHC Gaurkheda">PHC Gaurkheda</option><option value="PHC Murmadi">PHC Murmadi</option></select></div>
+                             </div>
+                             {filteredPredictions.map((pred, i) => (<div key={i} className="bg-white border border-slate-200 p-4 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-shadow"><div><p className="text-[10px] text-slate-400 mb-1 uppercase font-bold">{pred.phc || "District Wide"}</p><p className="text-sm font-bold text-slate-800">{pred.name}</p><p className="text-lg font-bold text-indigo-600">{pred.predictedQty} <span className="text-xs text-slate-400 font-normal">units/week</span></p></div><div className={`p-2.5 rounded-lg ${pred.trend.includes('Rising') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}><TrendingUp size={24} /></div></div>))}
+                        </div>
+                    )}
+                    <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-xs h-64 overflow-y-auto border border-slate-700 shadow-inner relative"><div className="flex items-center gap-2 mb-2 border-b border-slate-700 pb-1 sticky top-0 bg-slate-900 w-full"><Terminal size={14}/> SYSTEM LOGS [AUTO-PILOT ENABLED]:</div>{aiLogs.map((log, i) => (<p key={i} className={`mb-1 ${log.color}`}>{log.time} &gt; {log.msg}</p>))}</div>
+                </div>
+            )}
+
+            {/* 3. REPORTS TAB */}
             {activeTab === 'reports' && (
                 <div className="max-w-5xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -408,6 +422,8 @@ const HospitalDashboard = () => {
                     </div>
                 </div>
             )}
+
+            {/* 4. MAP & INVENTORY (Standard) */}
             {activeTab === 'map' && ( <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] flex items-center justify-center text-white relative overflow-hidden">{activeMissions.length > 0 ? (<div className="w-full h-full relative"><div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div><svg className="absolute inset-0 w-full h-full pointer-events-none"><line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#475569" strokeWidth="4" strokeDasharray="8" /><line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#3b82f6" strokeWidth="4" strokeDasharray="1000" strokeDashoffset={1000 - (trackProgress * 10)} className="transition-all duration-300 ease-linear" /></svg><div className="absolute top-1/2 left-[10%] -translate-y-1/2 flex flex-col items-center z-10"><div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20"><Building2 size={24} className="text-slate-900" /></div><span className="text-white text-xs font-bold mt-3 bg-slate-800 px-2 py-1 rounded border border-slate-700">District Hospital</span></div><div className="absolute top-1/2 right-[10%] -translate-y-1/2 flex flex-col items-center z-10"><div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/50 animate-pulse border-4 border-slate-900"><MapPin size={24} className="text-white" /></div><span className="text-white text-xs font-bold mt-3 bg-blue-900 px-2 py-1 rounded border border-blue-700">Destination</span></div>{countdown > 0 ? (<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center"><div className="bg-black/80 backdrop-blur-md p-6 rounded-2xl border border-yellow-500 text-center shadow-2xl"><Timer className="w-10 h-10 text-yellow-500 mx-auto mb-2 animate-pulse" /><h2 className="text-4xl font-bold text-white font-mono">{countdown}s</h2><p className="text-yellow-400 text-xs font-bold uppercase tracking-widest mt-2">Preparing for Takeoff</p></div></div>) : (<div className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-linear z-20 flex flex-col items-center" style={{ left: `${10 + (trackProgress * 0.8)}%` }}><div className="bg-white p-2 rounded-full shadow-2xl relative"><Navigation size={32} className="text-red-500 rotate-90" fill="currentColor" /><div className="absolute -top-1 -left-1 w-full h-full border-2 border-slate-300 rounded-full animate-spin opacity-50"></div></div><div className="bg-black/80 text-white text-[10px] px-2 py-1 rounded-md mt-2 backdrop-blur-sm font-mono border border-slate-700">{Math.round(trackProgress)}%</div></div>)}<div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-6 py-3 rounded-xl border border-slate-700 text-center"><h3 className="text-lg font-bold">{countdown > 0 ? 'STANDBY' : 'ENROUTE'}</h3><div className="flex gap-4 mt-2 text-xs text-slate-400"><span>SPD: {droneStats.speed} km/h</span><span>ALT: {droneStats.altitude}m</span><span className="text-green-400">BAT: {droneStats.battery}%</span></div></div></div>) : (<div className="text-center text-slate-500"><MapIcon size={48} className="mx-auto mb-2"/><p>No Active Flights</p></div>)}</div> )}
             {activeTab === 'inventory' && ( 
                 <div className="max-w-6xl mx-auto">
@@ -424,7 +440,7 @@ const HospitalDashboard = () => {
                                 <img src={item.img} className="h-24 w-full object-contain mb-2"/>
                                 <h3 className="font-bold text-sm">{item.name}</h3>
                                 <p className={`text-[10px] mt-1 font-bold ${isExpiring ? 'text-red-500' : 'text-green-600'}`}>Exp: {item.expiry || 'N/A'}</p>
-                                <div className="flex justify-center gap-2 mt-2"><button onClick={() => updateStock(item.id, -1)} className="p-1 bg-gray-100 rounded"><Minus size={12}/></button><span className="font-bold">{item.stock}</span><button onClick={() => updateStock(item.id, 1)} className="p-1 bg-blue-100 text-blue-600 rounded"><Plus size={12}/></button></div>
+                                <div className="mt-2"><span className="text-xs text-slate-400 uppercase font-bold">Current Stock</span><p className="text-xl font-bold text-slate-800">{item.stock}</p></div>
                             </div>
                         )})}
                     </div>
@@ -433,6 +449,7 @@ const HospitalDashboard = () => {
         </div>
       </main>
 
+      {/* MODALS */}
       {activeChatId && activeChatRequest && (<div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"><div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[500px]"><div className="bg-blue-600 p-4 flex justify-between items-center text-white"><h3 className="font-bold flex items-center gap-2"><MessageCircle size={18}/> Chat with PHC</h3><button onClick={() => setActiveChatId(null)}><X size={20}/></button></div><div className="flex-1 p-4 overflow-y-auto bg-slate-50 space-y-3">{activeChatRequest.chat?.map((c, i) => (<div key={i} className={`flex ${c.sender === 'Hospital' ? 'justify-end' : 'justify-start'}`}><div className={`p-3 rounded-xl text-sm max-w-[80%] ${c.sender === 'Hospital' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border border-slate-200 rounded-bl-none'}`}><p>{c.message}</p><span className="text-[10px] opacity-70 block mt-1 text-right">{new Date(c.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div></div>))}</div><div className="p-3 bg-white border-t flex gap-2"><input className="flex-1 bg-slate-100 border-0 rounded-xl px-4 py-2 text-sm focus:outline-none" placeholder="Type message..." value={chatMessage} onChange={(e)=>setChatMessage(e.target.value)} onKeyPress={(e)=>e.key==='Enter' && sendMessage()}/><button onClick={sendMessage} className="bg-blue-600 text-white p-2 rounded-xl hover:bg-blue-700"><Send size={18}/></button></div></div></div>)}
       {viewItemList && (<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"><div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"><div className="bg-blue-600 p-4 flex justify-between items-center text-white"><h3 className="font-bold flex items-center gap-2"><ClipboardList size={18} /> Packing List</h3><button onClick={() => setViewItemList(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button></div><div className="p-6 max-h-96 overflow-y-auto bg-slate-50"><div className="space-y-3">{viewItemList.item.split(', ').map((itm, idx) => (<div key={idx} className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm"><span className="font-bold text-slate-800">{itm}</span><span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-bold">Pack This</span></div>))}</div></div><div className="p-4 bg-white text-right border-t border-slate-200"><button onClick={() => setViewItemList(null)} className="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-bold text-sm shadow-md">Done Packing</button></div></div></div>)}
       {viewProof && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-4 rounded shadow-lg w-96"><img src={viewProof.proofFiles[0]} className="w-full"/><button onClick={()=>setViewProof(null)} className="mt-2 w-full bg-gray-200 p-2 rounded">Close</button></div></div>}
