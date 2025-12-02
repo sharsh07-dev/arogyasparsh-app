@@ -8,7 +8,7 @@ const authRoutes = require("./routes/authRoutes");
 const requestRoutes = require("./routes/requestRoutes");
 const phcInventoryRoutes = require("./routes/phcInventoryRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
-const hospitalInventoryRoutes = require("./routes/hospitalInventoryRoutes");
+
 dotenv.config();
 connectDB();
 
@@ -32,7 +32,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/requests", requestRoutes);
 app.use("/api/phc-inventory", phcInventoryRoutes);
 app.use("/api/analytics", analyticsRoutes);
-app.use("/api/hospital-inventory", hospitalInventoryRoutes);
+
 const PORT = process.env.PORT || 5000; // Standard port is often 5000 or 8000
 
 app.listen(PORT, () => {

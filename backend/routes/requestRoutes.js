@@ -45,7 +45,7 @@ router.get("/", async (req, res) => {
 
 // UPDATE STATUS
 const PhcInventory = require("../models/PhcInventory");
-const HospitalInventory = require("../models/HospitalInventory");
+
 
 // UPDATE STATUS (With Auto-Stock Adjustment)
 router.put("/:id", async (req, res) => {
