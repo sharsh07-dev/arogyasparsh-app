@@ -9,18 +9,17 @@ import {
 
 import logoMain from '../assets/logo_final.png';
 import AiCopilot from '../components/AiCopilot';
-// ✅ IMPORT TRACKER
 import RealisticFlightTracker from '../components/RealisticFlightTracker';
 
 // IMAGES
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
-import imgDopamine from '../assets/medicines/Dopamine_med.jpg'; 
+import imgDopamine from '../assets/medicines/Dopamine.jpg'; 
 import imgAvil from '../assets/medicines/Avil.webp';
 import imgAdrenaline from '../assets/medicines/Adranaline.webp';
 import imgDexa from '../assets/medicines/Dexa.jpg';
 import imgDiclo from '../assets/medicines/Diclo.jpg';
-import imgDex25 from '../assets/medicines/Dex25.jpg';
+import imgDex25 from '../assets/medicines/25%_Dex.jpg';
 import imgDeriphylline from '../assets/medicines/Deriphylline.webp';
 import imgHamaccyl from '../assets/medicines/Hamaccyl.webp';
 import imgHydrocort from '../assets/medicines/Hydrocort.webp';
@@ -98,6 +97,24 @@ const PHCDashboard = () => {
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
   const INV_URL = "https://arogyasparsh-backend.onrender.com/api/phc-inventory";
 
+  // ✅ 1. ROBUST COORDINATE SAFETY CHECK
+  // Prevents "coordinates must contain numbers" crash
+  const getSafeDestination = () => {
+      const defaultCoords = { lat: 19.9280, lng: 79.9050 }; // Default Center
+      try {
+          if (user?.landingCoordinates?.lat && user?.landingCoordinates?.lng) {
+              const lat = parseFloat(user.landingCoordinates.lat);
+              const lng = parseFloat(user.landingCoordinates.lng);
+              
+              // Check if valid numbers
+              if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+                  return { lat, lng };
+              }
+          }
+      } catch (e) { console.error("Coord Error:", e); }
+      return defaultCoords;
+  };
+
   const fetchData = async () => {
     try {
       // 1. Fetch Orders
@@ -109,10 +126,11 @@ const PHCDashboard = () => {
         }
       }
 
-      // 2. Fetch Inventory
+      // 2. Fetch & Merge Inventory
       const invRes = await fetch(`${INV_URL}/${user.name}`);
       if (invRes.ok) {
           const liveData = await invRes.json();
+          
           const mergedItems = MEDICINE_DB.map(localItem => {
               const liveItem = liveData.find(i => i.name === localItem.name);
               return {
@@ -122,7 +140,8 @@ const PHCDashboard = () => {
                   batch: liveItem ? liveItem.batch : 'N/A'
               };
           });
-          // Add custom items if any
+          
+          // Add custom items
           liveData.forEach(liveItem => {
               if (!MEDICINE_DB.find(m => m.name === liveItem.name)) {
                   mergedItems.push({
@@ -136,6 +155,7 @@ const PHCDashboard = () => {
                   });
               }
           });
+
           setPhcInventory(mergedItems);
       }
     } catch (err) { console.error("Network Error"); }
@@ -174,10 +194,15 @@ const PHCDashboard = () => {
     }
   };
 
-  const addNewItem = async () => { 
+  const addNewItem = () => { 
     if(!newItem.name) return alert("Fill details"); 
-    const newEntry = { id: Date.now(), ...newItem, stock: parseInt(newItem.stock), img: logoMain };
-    setPhcInventory([...phcInventory, newEntry]); 
+    // Optimistic update
+    setPhcInventory([...phcInventory, { 
+        id: Date.now(), 
+        ...newItem, 
+        stock: parseInt(newItem.stock), 
+        img: logoMain 
+    }]); 
     setShowAddModal(false); 
   };
 
@@ -237,11 +262,8 @@ const PHCDashboard = () => {
     const itemSummary = cart.map(c => `${c.qty}x ${c.name}`).join(', ');
     const totalQty = cart.reduce((acc, c) => acc + c.qty, 0);
     
-    // ✅ SAFE COORDINATE PARSING (Fixes the Crash)
-    let coords = { lat: 0, lng: 0 };
-    if (user.landingCoordinates && user.landingCoordinates.lat) {
-        coords = user.landingCoordinates;
-    }
+    // ✅ Use Safe Coordinates
+    const safeCoords = getSafeDestination();
 
     const formDataToSend = new FormData();
     formDataToSend.append("phc", user.name || "Unknown PHC");
@@ -249,7 +271,7 @@ const PHCDashboard = () => {
     formDataToSend.append("qty", totalQty);
     formDataToSend.append("urgency", urgency);
     formDataToSend.append("description", "App Order");
-    formDataToSend.append("coordinates", JSON.stringify(coords)); // Send Safe Coords
+    formDataToSend.append("coordinates", JSON.stringify(safeCoords)); // Send Safe Coords
     proofFiles.forEach((file) => formDataToSend.append("proofFiles", file));
     try {
         const res = await fetch(API_URL, { method: "POST", body: formDataToSend });
@@ -260,7 +282,6 @@ const PHCDashboard = () => {
 
   const startTracking = () => {
     setShowTracker(true); 
-    // RealisticFlightTracker handles its own state, no need for interval here
   };
 
   const filteredMedicines = MEDICINE_DB.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -315,7 +336,7 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* 2️⃣ INVENTORY VIEW (READ ONLY) */}
+          {/* ✅ 2️⃣ INVENTORY VIEW (Read-Only, No Buttons) */}
           {!showTracker && activeTab === 'inventory' && (
               <div className="max-w-6xl mx-auto">
                   <div className="flex justify-between items-center mb-6">
@@ -333,14 +354,13 @@ const PHCDashboard = () => {
                               <span className="text-xs text-slate-500 mb-1">Batch: {item.batch}</span>
                               <p className={`text-[10px] font-bold mb-3 ${isExpiring ? 'text-red-500' : 'text-green-600'}`}>Exp: {item.expiry || 'N/A'}</p>
                               
-                              {/* ✅ STATIC STOCK DISPLAY (NO BUTTONS) */}
+                              {/* ✅ READ-ONLY STOCK */}
                               <div className="w-full bg-slate-50 p-2 rounded-xl border border-slate-100">
                                   <span className="text-xs text-slate-400 uppercase font-bold block mb-1">Current Stock</span>
                                   <span className="text-xl font-bold text-slate-800">{item.stock}</span>
                               </div>
                           </div>
                       )})}
-                      {phcInventory.length === 0 && <p className="col-span-4 text-center text-slate-400 py-10">Loading inventory...</p>}
                   </div>
               </div>
           )}
@@ -427,20 +447,18 @@ const PHCDashboard = () => {
                      <h2 className="text-xl font-bold text-slate-800">Inbound Delivery Tracking</h2>
                      <button onClick={() => setShowTracker(false)} className="text-sm text-red-600 hover:underline flex items-center gap-1"><XCircle size={16}/> Close</button>
                 </div>
-                
                 {/* ✅ REALISTIC TRACKER */}
-              {/* ✅ REALISTIC TRACKER */}
-<RealisticFlightTracker 
-    origin={{ lat: 19.9260, lng: 79.9033 }} 
-    destination={user.landingCoordinates || { lat: 19.9280, lng: 79.9050 }}
-    orderId="INBOUND-01"
-    phcName={user.name} // ✅ Passing User's PHC Name
-    onDeliveryComplete={() => {
-        alert("📦 Package Arrived! Please collect it from the landing pad.");
-        setShowTracker(false);
-        fetchData(); 
-    }}
-/>
+                <RealisticFlightTracker 
+                    origin={{ lat: 19.9260, lng: 79.9033 }} 
+                    destination={getSafeDestination()} 
+                    orderId="INBOUND-01"
+                    phcName={user.name}
+                    onDeliveryComplete={() => {
+                        alert("📦 Package Arrived! Please collect it from the landing pad.");
+                        setShowTracker(false);
+                        fetchData(); 
+                    }}
+                />
              </div>
           )}
         </div>
@@ -488,7 +506,7 @@ const PHCDashboard = () => {
         </div>
       )}
 
-      {/* DETAILS MODAL */}
+      {/* ORDER DETAILS MODAL */}
       {viewOrder && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
