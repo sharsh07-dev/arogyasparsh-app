@@ -40,7 +40,7 @@ const OPERATORS = [
     phcCount: 4,
     contact: {
       phone: "+91 98765 43210",
-      email: "manohar.s@arogya.com",
+      email: "manohar.@gmail.com",
       address: "12, Civil Lines, Gadchiroli, MH"
     },
     documents: {
@@ -59,7 +59,7 @@ const OPERATORS = [
     phcCount: 4,
     contact: {
       phone: "+91 87654 32109",
-      email: "priya.d@arogya.com",
+      email: "priya.d@gmail.com",
       address: "45, Near Bus Stand, Chamorshi, MH"
     },
     documents: {
@@ -210,7 +210,7 @@ const AdminDashboard = () => {
                 <p className="text-xs text-slate-500">{activeTab === 'operators' ? 'Authorized Pilots & Coordinators' : 'Real-Time Supply Chain Intelligence'}</p>
             </div>
           </div>
-          <div className="bg-purple-50 px-3 py-1 rounded-full text-xs font-semibold text-purple-700 flex items-center gap-2 border border-purple-100"><Cpu size={14} /> Admin AI</div>
+          <div className="bg-purple-50 px-3 py-1 rounded-full text-xs font-semibold text-purple-700 flex items-center gap-2 border border-purple-100"><Cpu size={14} /> Admin</div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50">

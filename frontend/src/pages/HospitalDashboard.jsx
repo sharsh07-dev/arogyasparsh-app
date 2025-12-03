@@ -13,7 +13,6 @@ import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Toolti
 
 import logoMain from '../assets/logo_final.png';
 import AiCopilot from '../components/AiCopilot';
-// ✅ 1. IMPORT THE REALISTIC TRACKER
 import RealisticFlightTracker from '../components/RealisticFlightTracker';
 
 // Register ChartJS
@@ -40,7 +39,7 @@ import imgPhenargan from '../assets/medicines/Phenargan.webp';
 import imgKCL from '../assets/medicines/Potassium_chloride_KCL.webp';
 import imgGluconate from '../assets/medicines/gluconate.png';
 
-// PHC COORDINATES (8 PHCs)
+// PHC COORDINATES
 const PHC_COORDINATES = {
   "PHC Chamorshi": { lat: 19.9280, lng: 79.9050 },
   "PHC Gadhchiroli": { lat: 20.1849, lng: 79.9948 },
@@ -54,7 +53,7 @@ const PHC_COORDINATES = {
 
 const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; 
 
-// ✅ LOCAL REFERENCE DB (Keeps Images Safe)
+// LOCAL REFERENCE DB (Keeps Images Safe)
 const LOCAL_MEDICINE_DB = [
   { id: 6, name: 'Inj. Atropine', img: imgAtropine },
   { id: 7, name: 'Inj. Adrenaline', img: imgAdrenaline },
@@ -84,7 +83,6 @@ const HospitalDashboard = () => {
   const [activeTab, setActiveTab] = useState('alerts');
   const [requests, setRequests] = useState([]); 
   
-  // Initialize Inventory
   const [inventory, setInventory] = useState(LOCAL_MEDICINE_DB.map(item => ({
       ...item, stock: 0, expiry: 'N/A', batch: 'N/A'
   })));
@@ -92,11 +90,11 @@ const HospitalDashboard = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [viewProof, setViewProof] = useState(null);
   const [viewItemList, setViewItemList] = useState(null);
+  
   const [predictions, setPredictions] = useState([]); 
   const [filteredPredictions, setFilteredPredictions] = useState([]); 
   const [selectedPhc, setSelectedPhc] = useState("All"); 
 
-  // Chat & Incident State
   const [activeChatId, setActiveChatId] = useState(null);
   const [chatMessage, setChatMessage] = useState("");
   const [incidentData, setIncidentData] = useState([]);
@@ -129,7 +127,6 @@ const HospitalDashboard = () => {
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
   const INV_URL = "https://arogyasparsh-backend.onrender.com/api/hospital-inventory";
 
-  // FETCH & MERGE DATA
   const fetchRequests = async () => {
     try {
       const res = await fetch(API_URL);
@@ -139,7 +136,6 @@ const HospitalDashboard = () => {
           const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
           setRequests(sortedData);
           
-          // Process Incidents
           const allIncidents = [];
           const phcCounts = {};
           const typeCounts = {};
@@ -243,6 +239,7 @@ const HospitalDashboard = () => {
     return score.toFixed(2); 
   };
 
+  // ✅ UPDATED AUTO-PILOT LOOP (Includes PHC Name in Logs)
   useEffect(() => {
     const aiLoop = setInterval(() => {
         requests.forEach(req => {
@@ -250,18 +247,20 @@ const HospitalDashboard = () => {
                 const score = calculatePriorityScore(req);
                 setProcessingQueue(prev => [...prev, req._id]);
 
+                // Log Format: ID | PHC Name | Status
+                const logPrefix = `ID: ${req._id.slice(-4)} | ${req.phc}`;
+
                 if (req.urgency === 'Critical') {
-                    const logMsg = `ID: ${req._id.slice(-4)} | CRITICAL - PROCESSING (10s)`;
-                    addLog(logMsg, "text-red-500 font-bold");
+                    addLog(`${logPrefix} | CRITICAL - PROCESSING (10s)`, "text-red-500 font-bold");
                     setTimeout(() => {
                         updateStatusInDB(req._id, 'Approved');
-                        addLog(`ID: ${req._id.slice(-4)} | ✅ APPROVED. WAITING FOR DISPATCH.`, "text-green-400");
+                        addLog(`${logPrefix} | ✅ APPROVED. WAITING FOR DISPATCH.`, "text-green-400");
                     }, 10000);
                 } else {
-                    addLog(`ID: ${req._id.slice(-4)} | Score: ${score} | ⏳ QUEUED (20s Buffer)`, "text-yellow-400");
+                    addLog(`${logPrefix} | Score: ${score} | ⏳ QUEUED (20s Buffer)`, "text-yellow-400");
                     setTimeout(() => {
                          updateStatusInDB(req._id, 'Approved');
-                         addLog(`ID: ${req._id.slice(-4)} | ✅ APPROVED. WAITING FOR DISPATCH.`, "text-green-300");
+                         addLog(`${logPrefix} | ✅ APPROVED. WAITING FOR DISPATCH.`, "text-green-300");
                     }, 20000);
                 }
             }
@@ -273,11 +272,12 @@ const HospitalDashboard = () => {
   const handleAutoDispatch = (req) => {
     if (activeMissions.find(m => m.id === req._id)) return;
     updateStatusInDB(req._id, 'Dispatched');
-    addLog(`🚁 Drone Dispatched by Pilot Manohar Singh`, "text-blue-400 font-bold");
+    addLog(`🚁 Drone Dispatched by Pilot Manohar Singh to ${req.phc}`, "text-blue-400 font-bold");
     const destination = (req.coordinates && req.coordinates.lat) ? req.coordinates : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
     const newMission = { id: req._id, phc: req.phc, destination: destination, startTime: Date.now(), delivered: false };
     setActiveMissions(prev => [...prev, newMission]);
-    setActiveTab('map'); // Auto-switch to map
+    setActiveTab('map');
+    setTimeout(() => { addLog(`📦 Package Out for Delivery - Enroute to ${req.phc}`, "text-white"); }, 2000);
   };
 
   useEffect(() => {
@@ -312,7 +312,7 @@ const HospitalDashboard = () => {
   };
 
   const removeMedicine = (id) => {
-    if(confirm("Remove item?")) setInventory(inventory.filter(item => item.id !== id));
+    if(confirm("Remove this medicine?")) setInventory(inventory.filter(item => item.id !== id));
   };
 
   const addNewItem = () => { 
@@ -356,8 +356,6 @@ const HospitalDashboard = () => {
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 relative">
-            
-            {/* 1. ALERTS TAB */}
             {activeTab === 'alerts' && (
                 <div className="max-w-6xl mx-auto">
                     {requests.length === 0 && <p className="text-center text-slate-400 mt-4">No pending requests.</p>}
@@ -424,7 +422,7 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* 4. MAP TAB (REALISTIC TRACKER) */}
+            {/* 4. MAP TAB */}
             {activeTab === 'map' && (
                 <div className="w-full max-w-6xl mx-auto space-y-4">
                     <div className="flex justify-between items-center">
@@ -432,22 +430,22 @@ const HospitalDashboard = () => {
                          <button onClick={() => { setActiveTab('alerts'); fetchRequests(); }} className="text-sm text-blue-600 hover:underline">Exit Mission View</button>
                     </div>
                     {activeMissions.length > 0 ? (
-                       <RealisticFlightTracker 
-        origin={HOSPITAL_LOC} 
-        destination={activeMissions[0].destination} 
-        orderId={activeMissions[0].id}
-        phcName={activeMissions[0].phc} // ✅ Passing PHC Name Here
-        onDeliveryComplete={() => {
-            const mission = activeMissions[0];
-            updateStatusInDB(mission.id, 'Delivered'); 
-            addLog(`✅ MISSION COMPLETE: Package Delivered to ${mission.phc}`, "text-green-400 font-bold border-l-4 border-green-500 pl-2");
-            setTimeout(() => {
-                setActiveMissions(prev => prev.slice(1));
-                setActiveTab('alerts');
-                fetchRequests(); 
-            }, 5000);
-        }}
-    />
+                        <RealisticFlightTracker 
+                            origin={HOSPITAL_LOC} 
+                            destination={activeMissions[0].destination} 
+                            orderId={activeMissions[0].id}
+                            phcName={activeMissions[0].phc}
+                            onDeliveryComplete={() => {
+                                const mission = activeMissions[0];
+                                updateStatusInDB(mission.id, 'Delivered'); 
+                                addLog(`✅ MISSION COMPLETE: Package Delivered to ${mission.phc}`, "text-green-500 font-bold border-l-4 border-green-600 pl-2");
+                                setTimeout(() => {
+                                    setActiveMissions(prev => prev.slice(1));
+                                    setActiveTab('alerts');
+                                    fetchRequests(); 
+                                }, 5000);
+                            }}
+                        />
                     ) : (
                         <div className="bg-slate-100 h-[500px] rounded-3xl flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-300">
                             <MapIcon size={64} className="mb-4 opacity-50"/>
