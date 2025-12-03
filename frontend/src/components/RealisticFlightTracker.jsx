@@ -3,14 +3,13 @@ import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet
 import L from "leaflet";
 import * as turf from "@turf/turf";
 import "leaflet/dist/leaflet.css";
-import { Plane, Navigation, MapPin, Battery, Signal, Clock } from "lucide-react";
+import { Plane, Navigation, MapPin, Battery, Signal, Clock, Box, AlertOctagon } from "lucide-react";
 
-// 🚁 Custom Drone Icon (High Quality)
+// 🚁 Custom Icons
 const droneIcon = new L.Icon({
-  iconUrl: "https://cdn-icons-png.flaticon.com/512/3165/3165643.png", // Or your local asset
+  iconUrl: "https://cdn-icons-png.flaticon.com/512/3165/3165643.png",
   iconSize: [50, 50],
   iconAnchor: [25, 25],
-  className: "drone-shadow" // We will add CSS for shadow
 });
 
 const hospitalIcon = new L.Icon({
@@ -25,66 +24,94 @@ const phcIcon = new L.Icon({
   iconAnchor: [20, 40],
 });
 
-// 🎥 Camera Controller to Follow Drone
-const CameraFollow = ({ position, zoom }) => {
+// 🎥 Camera Controller (Smooth Follow)
+const CameraFollow = ({ position }) => {
   const map = useMap();
   useEffect(() => {
-    map.flyTo(position, map.getZoom(), { animate: false, duration: 0 });
+    if(position) map.flyTo(position, 16, { animate: true, duration: 1 });
   }, [position, map]);
   return null;
 };
 
-const RealisticFlightTracker = ({ origin, destination, onDeliveryComplete }) => {
+const RealisticFlightTracker = ({ origin, destination, orderId, onDeliveryComplete }) => {
   const [currentPos, setCurrentPos] = useState(origin);
   const [progress, setProgress] = useState(0);
-  const [stats, setStats] = useState({ speed: 0, alt: 0, dist: 0 });
-  const requestRef = useRef();
+  const [stats, setStats] = useState({
+    speed: 0,
+    alt: 0,
+    battery: 100,
+    status: "Preparing for Takeoff",
+    lat: origin.lat,
+    lng: origin.lng
+  });
   
-  // Flight Configuration
-  const FLIGHT_TIME_MS = 30000; // 30 Seconds for Demo (Increase for realism)
-  const TOTAL_DIST_KM = turf.distance(
-      turf.point([origin.lng, origin.lat]), 
-      turf.point([destination.lng, destination.lat])
-  );
+  const requestRef = useRef();
+  const startTimeRef = useRef(null);
+
+  // ⚙️ FLIGHT CONFIGURATION
+  const FLIGHT_DURATION_MS = 20000; // 20 Seconds for Demo (Fast enough to watch)
+  
+  // Calculate total distance once
+  const from = turf.point([origin.lng, origin.lat]);
+  const to = turf.point([destination.lng, destination.lat]);
+  const totalDistanceKm = turf.distance(from, to);
+  const line = turf.lineString([[origin.lng, origin.lat], [destination.lng, destination.lat]]);
 
   useEffect(() => {
-    const startTime = performance.now();
-    const startPoint = turf.point([origin.lng, origin.lat]);
-    const endPoint = turf.point([destination.lng, destination.lat]);
-    const line = turf.lineString([
-        [origin.lng, origin.lat],
-        [destination.lng, destination.lat]
-    ]);
-
     const animate = (time) => {
-      const elapsed = time - startTime;
-      const pct = Math.min(elapsed / FLIGHT_TIME_MS, 1);
-      
-      // Calculate new position along the line
-      // Using Turf to interpolate position accurately on Earth's curvature
-      const newCoords = turf.along(line, pct * TOTAL_DIST_KM).geometry.coordinates;
-      const newLat = newCoords[1];
-      const newLng = newCoords[0];
+      if (!startTimeRef.current) startTimeRef.current = time;
+      const elapsed = time - startTimeRef.current;
+      const pct = Math.min(elapsed / FLIGHT_DURATION_MS, 1); // 0.0 to 1.0
+
+      // 📍 Calculate Position
+      const newPoint = turf.along(line, pct * totalDistanceKm);
+      const newLat = newPoint.geometry.coordinates[1];
+      const newLng = newPoint.geometry.coordinates[0];
 
       setCurrentPos({ lat: newLat, lng: newLng });
       setProgress(pct * 100);
 
-      // 📊 Fake Real-Time Physics Telemetry
-      const speed = pct < 0.1 || pct > 0.9 ? 25 : 120 + (Math.random() * 10); // Slow start/stop
-      const alt = pct < 0.1 || pct > 0.9 ? pct * 1000 : 120; // Takeoff/Landing altitude
-      const distLeft = (TOTAL_DIST_KM * (1 - pct)).toFixed(2);
+      // 📊 SIMULATE REAL-TIME TELEMETRY
+      let currentStatus = "In Flight";
+      let currentAlt = 120; // Cruising altitude
+      let currentSpeed = 65 + (Math.random() * 5); // 65-70 km/h jitter
+
+      // Phase 1: Takeoff (0-10%)
+      if (pct < 0.1) {
+        currentStatus = "Preparing for Takeoff";
+        currentAlt = pct * 1200; // Climb
+        currentSpeed = pct * 600; // Accelerate
+      } 
+      // Phase 3: Landing (90-100%)
+      else if (pct > 0.9) {
+        currentStatus = "Landing";
+        currentAlt = (1 - pct) * 1200; // Descend
+        currentSpeed = (1 - pct) * 600; // Decelerate
+      }
+      // Phase 4: Delivered
+      if (pct >= 1) {
+        currentStatus = "Delivered";
+        currentAlt = 0;
+        currentSpeed = 0;
+      }
+
+      // 🔋 Battery Logic (Drains exactly 20% from 100% -> 80%)
+      const currentBattery = 100 - (pct * 20);
 
       setStats({
-        speed: Math.round(speed),
-        alt: Math.round(alt),
-        dist: distLeft
+        speed: Math.round(currentSpeed),
+        alt: Math.round(currentAlt),
+        battery: currentBattery.toFixed(1),
+        status: currentStatus,
+        lat: newLat.toFixed(6),
+        lng: newLng.toFixed(6)
       });
 
       if (pct < 1) {
         requestRef.current = requestAnimationFrame(animate);
       } else {
-        // 🎯 LANDED! Trigger System Update
-        onDeliveryComplete(); 
+        // Mission Complete
+        if (onDeliveryComplete) onDeliveryComplete();
       }
     };
 
@@ -93,58 +120,81 @@ const RealisticFlightTracker = ({ origin, destination, onDeliveryComplete }) => 
   }, [origin, destination]);
 
   return (
-    <div className="relative w-full h-[500px] rounded-3xl overflow-hidden border-4 border-slate-800 shadow-2xl">
+    <div className="relative w-full h-[600px] rounded-3xl overflow-hidden border-4 border-slate-900 shadow-2xl bg-slate-900">
       
+      {/* 🗺️ 3D MAP LAYER */}
       <MapContainer center={origin} zoom={15} style={{ height: "100%", width: "100%" }} zoomControl={false}>
-        
-        {/* 🌍 1. REAL SATELLITE TILES (Esri World Imagery) */}
         <TileLayer
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           attribution='&copy; Esri'
         />
-
-        {/* 📍 Markers & Path */}
         <Marker position={origin} icon={hospitalIcon} />
         <Marker position={destination} icon={phcIcon} />
-        <Polyline positions={[origin, destination]} color="#3b82f6" weight={4} dashArray="10, 10" opacity={0.6} />
-
-        {/* 🚁 The Drone */}
-        <Marker position={currentPos} icon={droneIcon} zIndexOffset={1000}>
-        </Marker>
-
+        <Polyline positions={[origin, destination]} color="#3b82f6" weight={3} dashArray="10, 10" opacity={0.7} />
+        
+        {/* Moving Drone */}
+        <Marker position={currentPos} icon={droneIcon} />
         <CameraFollow position={currentPos} />
       </MapContainer>
 
-      {/* 📟 HUD OVERLAY (Heads Up Display) */}
-      <div className="absolute top-4 left-4 z-[1000] bg-black/80 backdrop-blur-md p-4 rounded-xl border border-slate-600 text-green-400 font-mono w-64 shadow-xl">
-        <div className="flex items-center gap-2 mb-2 border-b border-green-900 pb-2">
-            <Signal className="animate-pulse" size={16}/> 
-            <span className="text-xs font-bold">LIVE DATA LINK: STABLE</span>
-        </div>
-        <div className="grid grid-cols-2 gap-y-3 text-xs">
-            <div>
-                <p className="text-slate-400">GROUND SPEED</p>
-                <p className="text-lg font-bold text-white">{stats.speed} <span className="text-[10px]">km/h</span></p>
-            </div>
-            <div>
-                <p className="text-slate-400">ALTITUDE</p>
-                <p className="text-lg font-bold text-white">{stats.alt} <span className="text-[10px]">m</span></p>
-            </div>
-            <div>
-                <p className="text-slate-400">DIST. REMAINING</p>
-                <p className="text-lg font-bold text-yellow-400">{stats.dist} <span className="text-[10px]">km</span></p>
-            </div>
-            <div>
-                <p className="text-slate-400">BATTERY</p>
-                <p className="text-lg font-bold text-green-400 flex items-center gap-1">
-                    <Battery size={14} fill="currentColor"/> {Math.max(20, 100 - Math.round(progress / 1.5))}%
-                </p>
-            </div>
-        </div>
-        <div className="mt-3 bg-green-900/30 h-1.5 rounded-full overflow-hidden border border-green-900">
-            <div className="bg-green-500 h-full transition-all duration-100" style={{ width: `${progress}%` }}></div>
-        </div>
-        <p className="text-[10px] text-center mt-1 text-green-600">MISSION PROGRESS</p>
+      {/* 📟 PROFESSIONAL HUD (HEADS UP DISPLAY) */}
+      <div className="absolute top-4 left-4 z-[1000] w-80 bg-black/80 backdrop-blur-md border border-slate-700 rounded-2xl p-4 text-white font-mono shadow-2xl">
+          {/* Header */}
+          <div className="flex justify-between items-center border-b border-slate-700 pb-3 mb-3">
+              <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
+                  <span className="text-xs font-bold text-red-400 tracking-widest">LIVE FEED • CAM-04</span>
+              </div>
+              <span className="text-xs text-slate-400">ID: {orderId ? orderId.slice(-6).toUpperCase() : 'N/A'}</span>
+          </div>
+
+          {/* Main Stats */}
+          <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                  <p className="text-[10px] text-slate-400 uppercase">Ground Speed</p>
+                  <p className="text-2xl font-bold text-blue-400">{stats.speed} <span className="text-xs text-slate-500">km/h</span></p>
+              </div>
+              <div>
+                  <p className="text-[10px] text-slate-400 uppercase">Altitude</p>
+                  <p className="text-2xl font-bold text-blue-400">{stats.alt} <span className="text-xs text-slate-500">m</span></p>
+              </div>
+              <div>
+                  <p className="text-[10px] text-slate-400 uppercase">Battery Level</p>
+                  <div className="flex items-center gap-2">
+                      <Battery size={16} className={stats.battery < 20 ? "text-red-500" : "text-green-400"} />
+                      <p className="text-xl font-bold">{stats.battery}%</p>
+                  </div>
+              </div>
+              <div>
+                  <p className="text-[10px] text-slate-400 uppercase">Signal Strength</p>
+                  <div className="flex items-center gap-1 text-green-500">
+                      <Signal size={16} /> <span className="text-sm font-bold">Strong</span>
+                  </div>
+              </div>
+          </div>
+
+          {/* GPS & Status */}
+          <div className="bg-slate-800/50 rounded-xl p-3 space-y-2 border border-slate-700">
+              <div className="flex justify-between items-center">
+                  <span className="text-xs text-slate-400">STATUS</span>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded ${stats.status === 'Delivered' ? 'bg-green-500 text-black' : 'bg-yellow-500 text-black'}`}>
+                      {stats.status.toUpperCase()}
+                  </span>
+              </div>
+              <div className="flex justify-between items-center">
+                  <span className="text-xs text-slate-400">GPS LAT</span>
+                  <span className="text-xs font-mono text-white">{stats.lat}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                  <span className="text-xs text-slate-400">GPS LNG</span>
+                  <span className="text-xs font-mono text-white">{stats.lng}</span>
+              </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="mt-4 relative h-1.5 bg-slate-700 rounded-full overflow-hidden">
+              <div className="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-100" style={{ width: `${progress}%` }}></div>
+          </div>
       </div>
 
     </div>

@@ -1,19 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
 import { 
   Activity, Users, Package, Navigation, LogOut, 
   MapPin, CheckCircle2, Clock, AlertOctagon, 
   Battery, Signal, Plane, Plus, Minus, Search, 
   Map as MapIcon, VolumeX, Siren, X, Check, Menu,
   Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2, Globe, Timer, Zap, Brain, Cpu, Terminal, 
-  TrendingUp, ClipboardList, Filter, MessageCircle, Send, AlertTriangle, ShieldAlert, BarChart3, Calendar, LayoutDashboard
+  TrendingUp, ClipboardList, Filter, MessageCircle, Send, AlertTriangle, ShieldAlert, BarChart3, Calendar
 } from 'lucide-react';
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
 
 import logoMain from '../assets/logo_final.png';
 import AiCopilot from '../components/AiCopilot';
+// ✅ 1. IMPORT THE REALISTIC TRACKER
+import RealisticFlightTracker from '../components/RealisticFlightTracker';
 
 // Register ChartJS
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
@@ -26,7 +27,7 @@ import imgAvil from '../assets/medicines/Avil.webp';
 import imgAdrenaline from '../assets/medicines/Adranaline.webp';
 import imgDexa from '../assets/medicines/Dexa.jpg';
 import imgDiclo from '../assets/medicines/Diclo.jpg';
-import imgDex25 from '../assets/medicines/Dex25.jpg';
+import imgDex25 from '../assets/medicines/25%_Dex.jpg';
 import imgDeriphylline from '../assets/medicines/Deriphylline.webp';
 import imgHamaccyl from '../assets/medicines/Hamaccyl.webp';
 import imgHydrocort from '../assets/medicines/Hydrocort.webp';
@@ -53,27 +54,27 @@ const PHC_COORDINATES = {
 
 const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; 
 
-// INVENTORY
-const INITIAL_INVENTORY = [
-  { id: 6, name: 'Inj. Atropine', stock: 50, batch: 'EM-001', expiry: '2025-12-01', img: imgAtropine },
-  { id: 7, name: 'Inj. Adrenaline', stock: 40, batch: 'EM-002', expiry: '2024-11-20', img: imgAdrenaline },
-  { id: 8, name: 'Inj. Hydrocortisone', stock: 35, batch: 'EM-003', expiry: '2026-05-15', img: imgHydrocort },
-  { id: 9, name: 'Inj. Deriphyllin', stock: 30, batch: 'EM-004', expiry: '2025-08-10', img: imgDeriphylline },
-  { id: 10, name: 'Inj. Dexamethasone', stock: 25, batch: 'EM-005', expiry: '2025-10-30', img: imgDexa },
-  { id: 11, name: 'Inj. KCl (Potassium)', stock: 20, batch: 'EM-006', expiry: '2025-01-01', img: imgKCL },
-  { id: 12, name: 'Inj. Cal. Gluconate', stock: 20, batch: 'EM-007', expiry: '2025-06-20', img: imgGluconate },
-  { id: 14, name: 'Inj. Midazolam', stock: 15, batch: 'EM-009', expiry: '2024-12-15', img: imgMidazolam },
-  { id: 15, name: 'Inj. Phenergan', stock: 10, batch: 'EM-010', expiry: '2025-03-10', img: imgPhenargan },
-  { id: 16, name: 'Inj. Dopamine', stock: 10, batch: 'EM-011', expiry: '2025-07-07', img: imgDopamine },
-  { id: 17, name: 'Inj. Actrapid (Insulin)', stock: 10, batch: 'EM-012', expiry: '2024-10-01', img: imgActrapid },
-  { id: 18, name: 'Inj. Nor Adrenaline', stock: 15, batch: 'EM-013', expiry: '2025-09-12', img: imgNorAd },
-  { id: 19, name: 'Inj. NTG', stock: 10, batch: 'EM-014', expiry: '2026-01-01', img: imgNTG },
-  { id: 20, name: 'Inj. Diclofenac', stock: 50, batch: 'EM-015', expiry: '2025-11-30', img: imgDiclo },
-  { id: 22, name: 'Inj. Neostigmine', stock: 20, batch: 'EM-017', expiry: '2025-04-05', img: imgNeostigmine },
-  { id: 24, name: 'Inj. Avil', stock: 25, batch: 'EM-019', expiry: '2025-02-28', img: imgAvil },
-  { id: 25, name: 'IV Paracetamol 100ml', stock: 100, batch: 'IV-101', expiry: '2026-08-15', img: imgIVPara },
-  { id: 26, name: 'IV 25% Dextrose', stock: 60, batch: 'IV-102', expiry: '2025-12-12', img: imgDex25 },
-  { id: 27, name: 'IV Haemaccel', stock: 30, batch: 'IV-103', expiry: '2025-05-05', img: imgHamaccyl },
+// ✅ LOCAL REFERENCE DB (Keeps Images Safe)
+const LOCAL_MEDICINE_DB = [
+  { id: 6, name: 'Inj. Atropine', img: imgAtropine },
+  { id: 7, name: 'Inj. Adrenaline', img: imgAdrenaline },
+  { id: 8, name: 'Inj. Hydrocortisone', img: imgHydrocort },
+  { id: 9, name: 'Inj. Deriphyllin', img: imgDeriphylline },
+  { id: 10, name: 'Inj. Dexamethasone', img: imgDexa },
+  { id: 11, name: 'Inj. KCl (Potassium)', img: imgKCL },
+  { id: 12, name: 'Inj. Cal. Gluconate', img: imgGluconate },
+  { id: 14, name: 'Inj. Midazolam', img: imgMidazolam },
+  { id: 15, name: 'Inj. Phenergan', img: imgPhenargan },
+  { id: 16, name: 'Inj. Dopamine', img: imgDopamine },
+  { id: 17, name: 'Inj. Actrapid (Insulin)', img: imgActrapid },
+  { id: 18, name: 'Inj. Nor Adrenaline', img: imgNorAd },
+  { id: 19, name: 'Inj. NTG', img: imgNTG },
+  { id: 20, name: 'Inj. Diclofenac', img: imgDiclo },
+  { id: 22, name: 'Inj. Neostigmine', img: imgNeostigmine },
+  { id: 24, name: 'Inj. Avil', img: imgAvil },
+  { id: 25, name: 'IV Paracetamol 100ml', img: imgIVPara },
+  { id: 26, name: 'IV 25% Dextrose', img: imgDex25 },
+  { id: 27, name: 'IV Haemaccel', img: imgHamaccyl },
 ];
 
 const HospitalDashboard = () => {
@@ -82,17 +83,20 @@ const HospitalDashboard = () => {
   
   const [activeTab, setActiveTab] = useState('alerts');
   const [requests, setRequests] = useState([]); 
-  const [inventory, setInventory] = useState(INITIAL_INVENTORY);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  // Features
+  // Initialize Inventory
+  const [inventory, setInventory] = useState(LOCAL_MEDICINE_DB.map(item => ({
+      ...item, stock: 0, expiry: 'N/A', batch: 'N/A'
+  })));
+
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [viewProof, setViewProof] = useState(null);
   const [viewItemList, setViewItemList] = useState(null);
   const [predictions, setPredictions] = useState([]); 
   const [filteredPredictions, setFilteredPredictions] = useState([]); 
   const [selectedPhc, setSelectedPhc] = useState("All"); 
 
-  // Chat & Incidents
+  // Chat & Incident State
   const [activeChatId, setActiveChatId] = useState(null);
   const [chatMessage, setChatMessage] = useState("");
   const [incidentData, setIncidentData] = useState([]);
@@ -119,48 +123,60 @@ const HospitalDashboard = () => {
   };
 
   const [processingQueue, setProcessingQueue] = useState([]);
-  const [trackProgress, setTrackProgress] = useState(0);
-  const [countdown, setCountdown] = useState(0); 
-  const [missionStatusText, setMissionStatusText] = useState('Standby');
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [droneStats, setDroneStats] = useState({ speed: 0, battery: 100, altitude: 0 });
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '', expiry: '' });
 
-  const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: "" });
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
+  const INV_URL = "https://arogyasparsh-backend.onrender.com/api/hospital-inventory";
 
-  // FETCH REQUESTS
+  // FETCH & MERGE DATA
   const fetchRequests = async () => {
     try {
       const res = await fetch(API_URL);
-      if (!res.ok) return;
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        setRequests(sortedData);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          setRequests(sortedData);
+          
+          // Process Incidents
+          const allIncidents = [];
+          const phcCounts = {};
+          const typeCounts = {};
+          sortedData.forEach(req => {
+              if (req.incidents && req.incidents.length > 0) {
+                  req.incidents.forEach(inc => {
+                      allIncidents.push({ ...inc, phc: req.phc, item: req.item, orderId: req._id });
+                      phcCounts[req.phc] = (phcCounts[req.phc] || 0) + 1;
+                      typeCounts[inc.type] = (typeCounts[inc.type] || 0) + 1;
+                  });
+              }
+          });
+          setIncidentData(allIncidents);
+          setBarChartData({
+              labels: Object.keys(phcCounts),
+              datasets: [{ label: 'Incidents', data: Object.values(phcCounts), backgroundColor: 'rgba(239, 68, 68, 0.6)', borderColor: 'rgba(239, 68, 68, 1)', borderWidth: 1 }]
+          });
+          setPieChartData({
+              labels: Object.keys(typeCounts),
+              datasets: [{ data: Object.values(typeCounts), backgroundColor: ['rgba(255, 99, 132, 0.6)', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 206, 86, 0.6)'] }]
+          });
+        }
+      }
 
-        const allIncidents = [];
-        const phcCounts = {};
-        const typeCounts = {};
-        sortedData.forEach(req => {
-            if (req.incidents && req.incidents.length > 0) {
-                req.incidents.forEach(inc => {
-                    allIncidents.push({ ...inc, phc: req.phc, item: req.item, orderId: req._id });
-                    phcCounts[req.phc] = (phcCounts[req.phc] || 0) + 1;
-                    typeCounts[inc.type] = (typeCounts[inc.type] || 0) + 1;
-                });
-            }
-        });
-        setIncidentData(allIncidents);
-        setBarChartData({
-            labels: Object.keys(phcCounts),
-            datasets: [{ label: 'Incidents Reported', data: Object.values(phcCounts), backgroundColor: 'rgba(239, 68, 68, 0.6)', borderColor: 'rgba(239, 68, 68, 1)', borderWidth: 1 }]
-        });
-        setPieChartData({
-            labels: Object.keys(typeCounts),
-            datasets: [{ data: Object.values(typeCounts), backgroundColor: ['rgba(255, 99, 132, 0.6)', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 206, 86, 0.6)'] }]
-        });
+      const invRes = await fetch(INV_URL);
+      if (invRes.ok) {
+          const liveData = await invRes.json();
+          const mergedInventory = LOCAL_MEDICINE_DB.map(localItem => {
+              const liveItem = liveData.find(i => i.name === localItem.name);
+              return {
+                  ...localItem, 
+                  stock: liveItem ? liveItem.stock : 0, 
+                  expiry: liveItem ? liveItem.expiry : 'N/A',
+                  batch: liveItem ? liveItem.batch : 'N/A'
+              };
+          });
+          setInventory(mergedInventory);
       }
     } catch (err) { console.error("Network Error"); }
   };
@@ -261,48 +277,12 @@ const HospitalDashboard = () => {
     const destination = (req.coordinates && req.coordinates.lat) ? req.coordinates : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
     const newMission = { id: req._id, phc: req.phc, destination: destination, startTime: Date.now(), delivered: false };
     setActiveMissions(prev => [...prev, newMission]);
-    setTimeout(() => { addLog(`📦 Package Out for Delivery - Enroute to ${req.phc}`, "text-white"); }, 2000);
+    setActiveTab('map'); // Auto-switch to map
   };
 
   useEffect(() => {
     localStorage.setItem('activeMissions', JSON.stringify(activeMissions));
-    if (activeTab !== 'map' || activeMissions.length === 0) return;
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
-    const interval = setInterval(() => {
-      const mission = activeMissions[0];
-      if(!mission) return;
-      const now = Date.now();
-      const elapsed = now - mission.startTime; 
-      const FLIGHT_DURATION = 600000; 
-
-      if (elapsed < 10000) {
-        setCountdown(Math.ceil((10000 - elapsed) / 1000));
-        setTrackProgress(0);
-        setMissionStatusText(`Pre-Flight Checks`);
-        setDroneStats({ speed: 0, battery: 100, altitude: 0 });
-      } else if (elapsed < (FLIGHT_DURATION + 10000)) {
-        setCountdown(0);
-        const percent = ((elapsed - 10000) / FLIGHT_DURATION) * 100;
-        setTrackProgress(percent);
-        setMissionStatusText('In-Flight');
-        let currentSpeed = 60; let currentAlt = 120;
-        if (percent < 5) { currentSpeed = percent * 12; currentAlt = percent * 24; } 
-        else if (percent > 95) { currentSpeed = 60 - (percent-95)*12; currentAlt = 120 - (percent-95)*24; } 
-        setDroneStats({ speed: Math.floor(currentSpeed), battery: Math.max(0, 100 - Math.floor(percent / 1.5)), altitude: Math.floor(currentAlt) });
-      } else {
-        setTrackProgress(100);
-        setMissionStatusText('Delivered');
-        setDroneStats({ speed: 0, battery: 30, altitude: 0 });
-        if (!mission.delivered) {
-           addLog(`✅ DELIVERY SUCCESSFUL at ${mission.phc}`, "text-blue-400 font-bold border-l-2 border-blue-500 pl-2");
-           setRequests(prev => prev.map(r => r._id === mission.id ? { ...r, status: 'Delivered' } : r));
-           updateStatusInDB(mission.id, 'Delivered');
-           setTimeout(() => { setActiveMissions(prev => prev.filter(m => m.id !== mission.id)); }, 5000);
-        }
-      }
-    }, 100);
-    return () => { clearInterval(interval); clearInterval(timer); };
-  }, [activeTab, activeMissions]);
+  }, [activeMissions]);
 
   const handleLogout = () => { localStorage.removeItem('userInfo'); navigate('/login'); };
   
@@ -319,9 +299,32 @@ const HospitalDashboard = () => {
   const handleApprove = (id, urgency) => { updateStatusInDB(id, 'Approved'); };
   const handleDispatch = (req) => { if(!confirm("Confirm Manual Dispatch?")) return; handleAutoDispatch(req, 0); };
   const handleReject = (id, urgency) => { if(!confirm("Reject this request?")) return; updateStatusInDB(id, 'Rejected'); };
-  const updateStock = (id, change) => { setInventory(inventory.map(item => item.id === id ? { ...item, stock: Math.max(0, item.stock + change) } : item)); };
-  const removeMedicine = (id) => { if(confirm("Remove item?")) setInventory(inventory.filter(item => item.id !== id)); };
-  const addNewItem = () => { if(!newItem.name) return alert("Fill details"); setInventory([...inventory, { id: Date.now(), ...newItem, stock: parseInt(newItem.stock), img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" }]); setShowAddModal(false); };
+  
+  const updateStock = async (id, change) => { 
+      try {
+          await fetch(`${INV_URL}/update`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ itemId: id, change })
+          });
+          fetchRequests(); 
+      } catch (e) { alert("Failed to update stock"); }
+  };
+
+  const removeMedicine = (id) => {
+    if(confirm("Remove item?")) setInventory(inventory.filter(item => item.id !== id));
+  };
+
+  const addNewItem = () => { 
+    if(!newItem.name) return alert("Fill details"); 
+    setInventory([...inventory, { 
+        id: Date.now(), 
+        ...newItem, 
+        stock: parseInt(newItem.stock), 
+        img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" 
+    }]); 
+    setShowAddModal(false); 
+  };
 
   return (
     <div className={`min-h-screen bg-slate-50 flex font-sans text-slate-800 relative`}>
@@ -357,7 +360,6 @@ const HospitalDashboard = () => {
             {/* 1. ALERTS TAB */}
             {activeTab === 'alerts' && (
                 <div className="max-w-6xl mx-auto">
-                    {/* Request List */}
                     {requests.length === 0 && <p className="text-center text-slate-400 mt-4">No pending requests.</p>}
                     {requests.map((req) => {
                         const score = calculatePriorityScore(req);
@@ -380,7 +382,7 @@ const HospitalDashboard = () => {
                             <div className="flex items-center gap-2">
                                 <button onClick={() => setActiveChatId(req._id)} className={`p-2 rounded-full relative ${req.chat?.length > 0 ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}><MessageCircle size={18}/></button>
                                 <button onClick={() => setViewProof(req)} className="px-3 py-2 border rounded-lg text-slate-600 text-sm flex gap-2"><FileText size={16} /> Proof</button>
-                                {req.status === 'Pending' && (<div className="flex items-center gap-2 text-green-600 font-bold text-sm animate-pulse bg-green-50 px-3 py-2 rounded border border-green-200">{req.urgency === 'Critical' ? '🚀 LAUNCHING...' : '⏳ SAFETY CHECK (15s)'}</div>)}
+                                {req.status === 'Pending' && (<div className="flex items-center gap-2 text-green-600 font-bold text-sm animate-pulse bg-green-50 px-3 py-2 rounded border border-green-200">{req.urgency === 'Critical' ? 'AI Processing...' : 'AI Queue...'}</div>)}
                                 {req.status === 'Dispatched' && <span className="text-green-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> In-Flight</span>}
                                 {req.status === 'Delivered' && <span className="text-blue-600 font-bold text-sm flex items-center gap-1"><CheckCircle2 size={16} /> Delivered</span>}
                                 {req.status === 'Pending' && score < 0.8 && (<><button onClick={() => handleReject(req._id, req.urgency)} className="px-3 py-2 border text-red-600 text-sm rounded-lg">Reject</button><button onClick={() => handleApprove(req._id, req.urgency)} className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg">Approve</button></>)}
@@ -394,7 +396,6 @@ const HospitalDashboard = () => {
             {/* 2. ANALYTICS TAB */}
             {activeTab === 'analytics' && (
                 <div className="max-w-6xl mx-auto">
-                    {/* AI FORECAST */}
                     {predictions.length > 0 && (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                              <div className="md:col-span-3 flex justify-between items-center mb-2">
@@ -423,8 +424,40 @@ const HospitalDashboard = () => {
                 </div>
             )}
 
-            {/* 4. MAP & INVENTORY (Standard) */}
-            {activeTab === 'map' && ( <div className="bg-slate-900 rounded-3xl h-64 md:h-[600px] flex items-center justify-center text-white relative overflow-hidden">{activeMissions.length > 0 ? (<div className="w-full h-full relative"><div className="absolute inset-0 opacity-20 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div><svg className="absolute inset-0 w-full h-full pointer-events-none"><line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#475569" strokeWidth="4" strokeDasharray="8" /><line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#3b82f6" strokeWidth="4" strokeDasharray="1000" strokeDashoffset={1000 - (trackProgress * 10)} className="transition-all duration-300 ease-linear" /></svg><div className="absolute top-1/2 left-[10%] -translate-y-1/2 flex flex-col items-center z-10"><div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20"><Building2 size={24} className="text-slate-900" /></div><span className="text-white text-xs font-bold mt-3 bg-slate-800 px-2 py-1 rounded border border-slate-700">District Hospital</span></div><div className="absolute top-1/2 right-[10%] -translate-y-1/2 flex flex-col items-center z-10"><div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/50 animate-pulse border-4 border-slate-900"><MapPin size={24} className="text-white" /></div><span className="text-white text-xs font-bold mt-3 bg-blue-900 px-2 py-1 rounded border border-blue-700">Destination</span></div>{countdown > 0 ? (<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center"><div className="bg-black/80 backdrop-blur-md p-6 rounded-2xl border border-yellow-500 text-center shadow-2xl"><Timer className="w-10 h-10 text-yellow-500 mx-auto mb-2 animate-pulse" /><h2 className="text-4xl font-bold text-white font-mono">{countdown}s</h2><p className="text-yellow-400 text-xs font-bold uppercase tracking-widest mt-2">Preparing for Takeoff</p></div></div>) : (<div className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-linear z-20 flex flex-col items-center" style={{ left: `${10 + (trackProgress * 0.8)}%` }}><div className="bg-white p-2 rounded-full shadow-2xl relative"><Navigation size={32} className="text-red-500 rotate-90" fill="currentColor" /><div className="absolute -top-1 -left-1 w-full h-full border-2 border-slate-300 rounded-full animate-spin opacity-50"></div></div><div className="bg-black/80 text-white text-[10px] px-2 py-1 rounded-md mt-2 backdrop-blur-sm font-mono border border-slate-700">{Math.round(trackProgress)}%</div></div>)}<div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-6 py-3 rounded-xl border border-slate-700 text-center"><h3 className="text-lg font-bold">{countdown > 0 ? 'STANDBY' : 'ENROUTE'}</h3><div className="flex gap-4 mt-2 text-xs text-slate-400"><span>SPD: {droneStats.speed} km/h</span><span>ALT: {droneStats.altitude}m</span><span className="text-green-400">BAT: {droneStats.battery}%</span></div></div></div>) : (<div className="text-center text-slate-500"><MapIcon size={48} className="mx-auto mb-2"/><p>No Active Flights</p></div>)}</div> )}
+            {/* 4. MAP TAB (REALISTIC TRACKER) */}
+            {activeTab === 'map' && (
+                <div className="w-full max-w-6xl mx-auto space-y-4">
+                    <div className="flex justify-between items-center">
+                         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><div className="w-3 h-3 bg-red-500 rounded-full animate-ping"></div> Live Mission Control</h2>
+                         <button onClick={() => { setActiveTab('alerts'); fetchRequests(); }} className="text-sm text-blue-600 hover:underline">Exit Mission View</button>
+                    </div>
+                    {activeMissions.length > 0 ? (
+                        <RealisticFlightTracker 
+                            origin={HOSPITAL_LOC} 
+                            destination={activeMissions[0].destination} 
+                            orderId={activeMissions[0].id} 
+                            onDeliveryComplete={() => {
+                                const mission = activeMissions[0];
+                                updateStatusInDB(mission.id, 'Delivered'); 
+                                addLog(`✅ MISSION COMPLETE: Package Delivered to ${mission.phc}`, "text-green-500 font-bold border-l-4 border-green-600 pl-2");
+                                setTimeout(() => {
+                                    setActiveMissions(prev => prev.slice(1));
+                                    setActiveTab('alerts');
+                                    fetchRequests(); 
+                                }, 5000);
+                            }}
+                        />
+                    ) : (
+                        <div className="bg-slate-100 h-[500px] rounded-3xl flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-300">
+                            <MapIcon size={64} className="mb-4 opacity-50"/>
+                            <p className="font-bold text-lg">No Active Sorties</p>
+                            <p className="text-sm">Dispatch a drone from the Alerts tab to initialize satellite tracking.</p>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* 5. INVENTORY TAB */}
             {activeTab === 'inventory' && ( 
                 <div className="max-w-6xl mx-auto">
                     <div className="flex justify-between items-center mb-6">

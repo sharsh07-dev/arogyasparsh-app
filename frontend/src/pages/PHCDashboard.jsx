@@ -9,7 +9,7 @@ import {
 
 import logoMain from '../assets/logo_final.png';
 import AiCopilot from '../components/AiCopilot';
-
+import RealisticFlightTracker from '../components/RealisticFlightTracker';
 // IMAGES
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
@@ -396,21 +396,25 @@ const PHCDashboard = () => {
 
           {/* 5️⃣ TRACKER VIEW */}
           {showTracker && (
-             <div className="max-w-4xl mx-auto space-y-6">
-                <div className="bg-slate-200 rounded-3xl h-64 md:h-80 relative overflow-hidden border-4 border-white shadow-2xl">
-                    <div className="absolute inset-0 opacity-30 bg-[url('https://img.freepik.com/free-vector/grey-world-map_1053-431.jpg')] bg-cover bg-center grayscale"></div>
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none"><path d="M 100,160 Q 400,50 700,160" fill="none" stroke="#3b82f6" strokeWidth="3" strokeDasharray="10" /></svg>
-                    <div className="absolute top-[160px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-red-600" size={32} fill="#ef4444"/><span className="font-bold text-slate-700 text-xs mt-1">Hospital</span></div>
-                    <div className="absolute top-[160px] left-[700px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"><MapPin className="text-orange-500" size={32} fill="#f97316"/><span className="font-bold text-slate-700 text-xs mt-1">PHC</span></div>
-                    <div className="absolute top-0 left-0 transition-all duration-100 ease-linear z-20" style={{ left: `${100 + (trackProgress / 100) * 600}px`, top: `${160 - Math.sin((trackProgress / 100) * Math.PI) * 110}px`, transform: `translate(-50%, -50%) rotate(${90 + (trackProgress < 50 ? -20 : 20)}deg)` }}><Plane size={48} className="text-yellow-500 drop-shadow-xl" fill="gold" /></div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 rounded-3xl overflow-hidden shadow-2xl font-mono">
-                    <div className="bg-slate-900 text-white border-r border-slate-700"><div className="bg-blue-600 py-3 text-center"><h2 className="text-2xl font-bold uppercase tracking-widest">Departure</h2></div><div className="p-6 space-y-4"><div className="flex justify-between border-b border-slate-700 pb-2"><span className="text-slate-400 text-xs uppercase">Time</span><div className="text-right"><p className="text-xs text-slate-400">SCH. {timeString}</p><p className="text-lg font-bold text-green-400">ACT. {timeString}</p></div></div><div className="text-center py-2"><h3 className="text-xl font-bold text-blue-300">District Hospital (DH)</h3></div></div></div>
-                    <div className="bg-slate-900 text-white"><div className="bg-blue-600 py-3 text-center"><h2 className="text-2xl font-bold uppercase tracking-widest">Arrival</h2></div><div className="p-6 space-y-4"><div className="flex justify-between border-b border-slate-700 pb-2"><span className="text-slate-400 text-xs uppercase">Time</span><div className="text-right"><p className="text-xs text-slate-400">SCH. {arrivalTime}</p><p className="text-lg font-bold text-yellow-400">ETA. {arrivalTime}</p></div></div><div className="text-center py-2"><h3 className="text-xl font-bold text-blue-300">Wagholi PHC (WAG)</h3></div></div></div>
-                </div>
-                <div className="flex justify-center"><button onClick={() => setShowTracker(false)} className="text-slate-500 hover:text-red-500 text-sm flex items-center gap-2 transition-colors"><XCircle size={20} /> Close Flight View</button></div>
-             </div>
-          )}
+    <div className="max-w-5xl mx-auto space-y-6">
+        <div className="flex justify-between items-center">
+             <h2 className="text-xl font-bold text-slate-800">Inbound Delivery Tracking</h2>
+             <button onClick={() => setShowTracker(false)} className="text-sm text-red-600 hover:underline flex items-center gap-1"><XCircle size={16}/> Close</button>
+        </div>
+        
+        {/* Use the SAME Realistic Tracker */}
+        <RealisticFlightTracker 
+            origin={{ lat: 19.9260, lng: 79.9033 }} // Hospital Location
+            destination={user.landingCoordinates || { lat: 19.9280, lng: 79.9050 }} // PHC Location
+            orderId="INBOUND-01"
+            onDeliveryComplete={() => {
+                alert("📦 Package Arrived! Please collect it from the landing pad.");
+                setShowTracker(false);
+                fetchRequests(); // Refresh inventory
+            }}
+        />
+    </div>
+)}
         </div>
       </main>
 
