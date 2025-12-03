@@ -432,21 +432,22 @@ const HospitalDashboard = () => {
                          <button onClick={() => { setActiveTab('alerts'); fetchRequests(); }} className="text-sm text-blue-600 hover:underline">Exit Mission View</button>
                     </div>
                     {activeMissions.length > 0 ? (
-                        <RealisticFlightTracker 
-                            origin={HOSPITAL_LOC} 
-                            destination={activeMissions[0].destination} 
-                            orderId={activeMissions[0].id} 
-                            onDeliveryComplete={() => {
-                                const mission = activeMissions[0];
-                                updateStatusInDB(mission.id, 'Delivered'); 
-                                addLog(`✅ MISSION COMPLETE: Package Delivered to ${mission.phc}`, "text-green-500 font-bold border-l-4 border-green-600 pl-2");
-                                setTimeout(() => {
-                                    setActiveMissions(prev => prev.slice(1));
-                                    setActiveTab('alerts');
-                                    fetchRequests(); 
-                                }, 5000);
-                            }}
-                        />
+                       <RealisticFlightTracker 
+        origin={HOSPITAL_LOC} 
+        destination={activeMissions[0].destination} 
+        orderId={activeMissions[0].id}
+        phcName={activeMissions[0].phc} // ✅ Passing PHC Name Here
+        onDeliveryComplete={() => {
+            const mission = activeMissions[0];
+            updateStatusInDB(mission.id, 'Delivered'); 
+            addLog(`✅ MISSION COMPLETE: Package Delivered to ${mission.phc}`, "text-green-400 font-bold border-l-4 border-green-500 pl-2");
+            setTimeout(() => {
+                setActiveMissions(prev => prev.slice(1));
+                setActiveTab('alerts');
+                fetchRequests(); 
+            }, 5000);
+        }}
+    />
                     ) : (
                         <div className="bg-slate-100 h-[500px] rounded-3xl flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-300">
                             <MapIcon size={64} className="mb-4 opacity-50"/>

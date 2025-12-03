@@ -429,19 +429,18 @@ const PHCDashboard = () => {
                 </div>
                 
                 {/* ✅ REALISTIC TRACKER */}
-                <RealisticFlightTracker 
-                    origin={{ lat: 19.9260, lng: 79.9033 }} 
-                    destination={{ 
-                        lat: parseFloat(user.landingCoordinates?.lat || 19.9280), 
-                        lng: parseFloat(user.landingCoordinates?.lng || 79.9050) 
-                    }}
-                    orderId="INBOUND-01"
-                    onDeliveryComplete={() => {
-                        alert("📦 Package Arrived! Please collect it from the landing pad.");
-                        setShowTracker(false);
-                        fetchData(); 
-                    }}
-                />
+              {/* ✅ REALISTIC TRACKER */}
+<RealisticFlightTracker 
+    origin={{ lat: 19.9260, lng: 79.9033 }} 
+    destination={user.landingCoordinates || { lat: 19.9280, lng: 79.9050 }}
+    orderId="INBOUND-01"
+    phcName={user.name} // ✅ Passing User's PHC Name
+    onDeliveryComplete={() => {
+        alert("📦 Package Arrived! Please collect it from the landing pad.");
+        setShowTracker(false);
+        fetchData(); 
+    }}
+/>
              </div>
           )}
         </div>
