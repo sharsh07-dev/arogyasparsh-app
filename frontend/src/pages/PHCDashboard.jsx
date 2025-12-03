@@ -9,7 +9,9 @@ import {
 
 import logoMain from '../assets/logo_final.png';
 import AiCopilot from '../components/AiCopilot';
+// ✅ IMPORT TRACKER
 import RealisticFlightTracker from '../components/RealisticFlightTracker';
+
 // IMAGES
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
@@ -60,7 +62,12 @@ const PHCDashboard = () => {
   const [activeTab, setActiveTab] = useState('shop'); 
   const [showTracker, setShowTracker] = useState(false);
   const [orderHistory, setOrderHistory] = useState([]); 
-  const [phcInventory, setPhcInventory] = useState([]); 
+  
+  // Initialize inventory with Local DB images
+  const [phcInventory, setPhcInventory] = useState(MEDICINE_DB.map(item => ({
+      ...item, stock: 0, expiry: 'N/A', batch: 'N/A'
+  })));
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [viewOrder, setViewOrder] = useState(null);
@@ -93,7 +100,7 @@ const PHCDashboard = () => {
 
   const fetchData = async () => {
     try {
-      // Orders
+      // 1. Fetch Orders
       const res = await fetch(API_URL);
       if (res.ok) {
         const data = await res.json();
@@ -101,15 +108,35 @@ const PHCDashboard = () => {
             setOrderHistory(data.filter(r => r.phc === user.name).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
         }
       }
-      // Inventory
+
+      // 2. Fetch Inventory
       const invRes = await fetch(`${INV_URL}/${user.name}`);
       if (invRes.ok) {
-          const items = await invRes.json();
-          const mappedItems = items.map(item => {
-              const localMatch = MEDICINE_DB.find(dbItem => dbItem.id === item.id);
-              return { ...item, img: localMatch ? localMatch.img : '' }; 
+          const liveData = await invRes.json();
+          const mergedItems = MEDICINE_DB.map(localItem => {
+              const liveItem = liveData.find(i => i.name === localItem.name);
+              return {
+                  ...localItem, 
+                  stock: liveItem ? liveItem.stock : 0, 
+                  expiry: liveItem ? liveItem.expiry : 'N/A',
+                  batch: liveItem ? liveItem.batch : 'N/A'
+              };
           });
-          setPhcInventory(mappedItems);
+          // Add custom items if any
+          liveData.forEach(liveItem => {
+              if (!MEDICINE_DB.find(m => m.name === liveItem.name)) {
+                  mergedItems.push({
+                      id: liveItem.id || Date.now(),
+                      name: liveItem.name,
+                      stock: liveItem.stock,
+                      batch: liveItem.batch,
+                      expiry: liveItem.expiry,
+                      type: 'Custom',
+                      img: logoMain 
+                  });
+              }
+          });
+          setPhcInventory(mergedItems);
       }
     } catch (err) { console.error("Network Error"); }
   };
@@ -130,7 +157,6 @@ const PHCDashboard = () => {
       } catch (e) { alert("Failed to clear"); }
   };
 
-  // Only used for adding new items now, not +/- buttons
   const updateLocalStock = async (id, change) => {
       try {
           await fetch(`${INV_URL}/update`, {
@@ -148,14 +174,10 @@ const PHCDashboard = () => {
     }
   };
 
-  const addNewItem = () => { 
+  const addNewItem = async () => { 
     if(!newItem.name) return alert("Fill details"); 
-    setPhcInventory([...phcInventory, { 
-        id: Date.now(), 
-        ...newItem, 
-        stock: parseInt(newItem.stock), 
-        img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" 
-    }]); 
+    const newEntry = { id: Date.now(), ...newItem, stock: parseInt(newItem.stock), img: logoMain };
+    setPhcInventory([...phcInventory, newEntry]); 
     setShowAddModal(false); 
   };
 
@@ -214,13 +236,20 @@ const PHCDashboard = () => {
     setLoading(true);
     const itemSummary = cart.map(c => `${c.qty}x ${c.name}`).join(', ');
     const totalQty = cart.reduce((acc, c) => acc + c.qty, 0);
+    
+    // ✅ SAFE COORDINATE PARSING (Fixes the Crash)
+    let coords = { lat: 0, lng: 0 };
+    if (user.landingCoordinates && user.landingCoordinates.lat) {
+        coords = user.landingCoordinates;
+    }
+
     const formDataToSend = new FormData();
     formDataToSend.append("phc", user.name || "Unknown PHC");
     formDataToSend.append("item", itemSummary);
     formDataToSend.append("qty", totalQty);
     formDataToSend.append("urgency", urgency);
     formDataToSend.append("description", "App Order");
-    formDataToSend.append("coordinates", JSON.stringify(user.landingCoordinates || { lat: 0, lng: 0 }));
+    formDataToSend.append("coordinates", JSON.stringify(coords)); // Send Safe Coords
     proofFiles.forEach((file) => formDataToSend.append("proofFiles", file));
     try {
         const res = await fetch(API_URL, { method: "POST", body: formDataToSend });
@@ -230,14 +259,13 @@ const PHCDashboard = () => {
   };
 
   const startTracking = () => {
-    setShowTracker(true); setTrackProgress(0);
-    const interval = setInterval(() => { setTrackProgress(prev => { if (prev >= 100) { clearInterval(interval); return 100; } return prev + 0.4; }); }, 50);
+    setShowTracker(true); 
+    // RealisticFlightTracker handles its own state, no need for interval here
   };
 
   const filteredMedicines = MEDICINE_DB.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const handleLogout = () => { localStorage.removeItem('userInfo'); navigate('/login'); };
   const timeString = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-  const arrivalTime = new Date(currentTime.getTime() + 15 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 relative">
@@ -287,7 +315,7 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* ✅ 2️⃣ INVENTORY VIEW (Read-Only Stock, Added Expiry) */}
+          {/* 2️⃣ INVENTORY VIEW (READ ONLY) */}
           {!showTracker && activeTab === 'inventory' && (
               <div className="max-w-6xl mx-auto">
                   <div className="flex justify-between items-center mb-6">
@@ -303,11 +331,9 @@ const PHCDashboard = () => {
                               <img src={item.img || logoMain} className="h-24 w-full object-contain mb-3"/>
                               <h3 className="font-bold text-slate-800 text-sm">{item.name}</h3>
                               <span className="text-xs text-slate-500 mb-1">Batch: {item.batch}</span>
+                              <p className={`text-[10px] font-bold mb-3 ${isExpiring ? 'text-red-500' : 'text-green-600'}`}>Exp: {item.expiry || 'N/A'}</p>
                               
-                              {/* ✅ EXPIRY DATE */}
-                              <p className={`text-[10px] font-bold mb-2 ${isExpiring ? 'text-red-500' : 'text-green-600'}`}>Exp: {item.expiry || 'N/A'}</p>
-                              
-                              {/* ✅ STATIC STOCK (No Buttons) */}
+                              {/* ✅ STATIC STOCK DISPLAY (NO BUTTONS) */}
                               <div className="w-full bg-slate-50 p-2 rounded-xl border border-slate-100">
                                   <span className="text-xs text-slate-400 uppercase font-bold block mb-1">Current Stock</span>
                                   <span className="text-xl font-bold text-slate-800">{item.stock}</span>
@@ -396,25 +422,28 @@ const PHCDashboard = () => {
 
           {/* 5️⃣ TRACKER VIEW */}
           {showTracker && (
-    <div className="max-w-5xl mx-auto space-y-6">
-        <div className="flex justify-between items-center">
-             <h2 className="text-xl font-bold text-slate-800">Inbound Delivery Tracking</h2>
-             <button onClick={() => setShowTracker(false)} className="text-sm text-red-600 hover:underline flex items-center gap-1"><XCircle size={16}/> Close</button>
-        </div>
-        
-        {/* Use the SAME Realistic Tracker */}
-        <RealisticFlightTracker 
-            origin={{ lat: 19.9260, lng: 79.9033 }} // Hospital Location
-            destination={user.landingCoordinates || { lat: 19.9280, lng: 79.9050 }} // PHC Location
-            orderId="INBOUND-01"
-            onDeliveryComplete={() => {
-                alert("📦 Package Arrived! Please collect it from the landing pad.");
-                setShowTracker(false);
-                fetchRequests(); // Refresh inventory
-            }}
-        />
-    </div>
-)}
+             <div className="max-w-4xl mx-auto space-y-6">
+                <div className="flex justify-between items-center">
+                     <h2 className="text-xl font-bold text-slate-800">Inbound Delivery Tracking</h2>
+                     <button onClick={() => setShowTracker(false)} className="text-sm text-red-600 hover:underline flex items-center gap-1"><XCircle size={16}/> Close</button>
+                </div>
+                
+                {/* ✅ REALISTIC TRACKER */}
+                <RealisticFlightTracker 
+                    origin={{ lat: 19.9260, lng: 79.9033 }} 
+                    destination={{ 
+                        lat: parseFloat(user.landingCoordinates?.lat || 19.9280), 
+                        lng: parseFloat(user.landingCoordinates?.lng || 79.9050) 
+                    }}
+                    orderId="INBOUND-01"
+                    onDeliveryComplete={() => {
+                        alert("📦 Package Arrived! Please collect it from the landing pad.");
+                        setShowTracker(false);
+                        fetchData(); 
+                    }}
+                />
+             </div>
+          )}
         </div>
       </main>
 
