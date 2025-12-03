@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Settings, LogOut, Download, Filter, 
   TrendingUp, AlertTriangle, Package, MapPin, Calendar, 
-  Search, Plus, Trash2, Edit, Cpu, Menu, X, FileText, DollarSign, BarChart3, Network, ChevronRight, ArrowLeft, Building2, Activity, CheckCircle2, Clock, FolderTree
+  Search, Plus, Trash2, Edit, Cpu, Menu, X, FileText, DollarSign, BarChart3, Network, ChevronRight, ArrowLeft, Building2, Activity, CheckCircle2, Clock, BadgeCheck, Phone, Mail, FileCheck, Shield
 } from 'lucide-react';
 import { 
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, 
@@ -17,7 +17,7 @@ import AiCopilot from '../components/AiCopilot';
 // Register ChartJS
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, ArcElement, Filler);
 
-// ✅ DATA STRUCTURE: SUB-DISTRICTS & PHCS
+// DATA STRUCTURES
 const INITIAL_HIERARCHY = [
     { 
         id: 'SD-001', 
@@ -28,10 +28,49 @@ const INITIAL_HIERARCHY = [
             "PHC Dhutergatta", "PHC Gatta", "PHC Gaurkheda", "PHC Murmadi"
         ]
     }
-    // You can add more sub-districts here later
 ];
 
-// ESTIMATED PRICE MAP
+const OPERATORS = [
+  {
+    id: 1,
+    name: "Manohar Singh",
+    role: "Senior Drone Pilot",
+    subDistrict: "Chamorshi",
+    experience: "5 Years",
+    phcCount: 4,
+    contact: {
+      phone: "+91 98765 43210",
+      email: "manohar.s@arogya.com",
+      address: "12, Civil Lines, Gadchiroli, MH"
+    },
+    documents: {
+      license: "Verified",
+      medical: "Fit",
+      registration: "MH-DR-2023-001"
+    },
+    img: "https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=400&h=400&c=crop"
+  },
+  {
+    id: 2,
+    name: "Priya Deshmukh",
+    role: "Logistics Coordinator",
+    subDistrict: "Chamorshi",
+    experience: "3 Years",
+    phcCount: 4,
+    contact: {
+      phone: "+91 87654 32109",
+      email: "priya.d@arogya.com",
+      address: "45, Near Bus Stand, Chamorshi, MH"
+    },
+    documents: {
+      license: "Verified",
+      medical: "Fit",
+      registration: "MH-DR-2024-045"
+    },
+    img: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&h=400&c=crop"
+  }
+];
+
 const PRICE_MAP = {
   "Inj. Atropine": 15, "Inj. Adrenaline": 25, "Inj. Hydrocortisone": 40,
   "Inj. Deriphyllin": 30, "Inj. Dexamethasone": 20, "Inj. KCl (Potassium)": 18,
@@ -45,61 +84,48 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('userInfo')) || { name: 'Super Admin' };
 
-  const [activeTab, setActiveTab] = useState('network'); // Default to Network View
+  const [activeTab, setActiveTab] = useState('analytics');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [requests, setRequests] = useState([]);
   
-  // HIERARCHY STATE
   const [hierarchy, setHierarchy] = useState(INITIAL_HIERARCHY);
-  const [viewLevel, setViewLevel] = useState('global'); // 'global' | 'subdistrict' | 'phc'
+  const [viewLevel, setViewLevel] = useState('global'); 
   const [selectedSubDistrict, setSelectedSubDistrict] = useState(null);
   const [selectedPhc, setSelectedPhc] = useState(null);
 
-  // Modal State
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItemName, setNewItemName] = useState("");
-
-  // Filters
   const [timeFilter, setTimeFilter] = useState('30');
   
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
 
-  // 1. FETCH ALL DATA
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await fetch(API_URL);
         const data = await res.json();
-        if (Array.isArray(data)) {
-            setRequests(data);
-        }
+        if (Array.isArray(data)) setRequests(data);
       } catch (err) { console.error("Error fetching data"); }
     };
     fetchData();
   }, []);
 
-  // 2. ANALYTICS ENGINE (DYNAMIC)
   const getAnalytics = () => {
       let data = requests;
-      
-      // Filter based on View Level
       if (viewLevel === 'subdistrict' && selectedSubDistrict) {
           data = data.filter(r => selectedSubDistrict.phcs.includes(r.phc));
       } else if (viewLevel === 'phc' && selectedPhc) {
           data = data.filter(r => r.phc === selectedPhc);
       }
       
-      // Apply Time Filter
       const today = new Date();
       const cutoff = new Date(today.setDate(today.getDate() - parseInt(timeFilter)));
       data = data.filter(r => new Date(r.createdAt) >= cutoff);
 
-      // Calculate Stats
       const totalOrders = data.length;
       const critical = data.filter(r => r.urgency === 'Critical').length;
       const delivered = data.filter(r => r.status === 'Delivered').length;
       
-      // Value
       const totalVal = data.reduce((acc, r) => {
           const match = r.item.match(/(\d+)x\s+(.+)/);
           const name = match ? match[2].trim() : r.item;
@@ -107,14 +133,9 @@ const AdminDashboard = () => {
           return acc + ((PRICE_MAP[name] || 0) * qty);
       }, 0);
 
-      // Charts: Trends
       const dates = {};
-      data.forEach(r => {
-          const d = new Date(r.createdAt).toLocaleDateString('en-GB');
-          dates[d] = (dates[d] || 0) + 1;
-      });
+      data.forEach(r => { const d = new Date(r.createdAt).toLocaleDateString('en-GB'); dates[d] = (dates[d] || 0) + 1; });
 
-      // Charts: Top Items
       const itemCounts = {};
       data.forEach(r => {
           const match = r.item.match(/(\d+)x\s+(.+)/);
@@ -123,7 +144,6 @@ const AdminDashboard = () => {
       });
       const topItems = Object.entries(itemCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
 
-      // Charts: PHC Ranking (Only for Global/Subdistrict views)
       const phcStats = {};
       data.forEach(r => { if (!phcStats[r.phc]) phcStats[r.phc] = 0; phcStats[r.phc]++; });
 
@@ -137,66 +157,42 @@ const AdminDashboard = () => {
       };
   };
 
-  // Action Handlers
   const handleAdd = () => {
       if(!newItemName) return;
       if (viewLevel === 'global') {
-          // Add Sub-District
           setHierarchy([...hierarchy, { id: `SD-${Date.now()}`, name: newItemName, hq: 'New HQ', phcs: [] }]);
       } else if (viewLevel === 'subdistrict' && selectedSubDistrict) {
-          // Add PHC to Sub-District
-          const updated = hierarchy.map(sd => {
-              if(sd.id === selectedSubDistrict.id) {
-                  return { ...sd, phcs: [...sd.phcs, newItemName] };
-              }
-              return sd;
-          });
+          const updated = hierarchy.map(sd => sd.id === selectedSubDistrict.id ? { ...sd, phcs: [...sd.phcs, newItemName] } : sd);
           setHierarchy(updated);
-          // Update current selection
           setSelectedSubDistrict({ ...selectedSubDistrict, phcs: [...selectedSubDistrict.phcs, newItemName] });
       }
       setNewItemName(""); setShowAddModal(false);
   };
 
-  const handleDeleteSubDistrict = (id) => {
-      if(confirm("Delete this Sub-District and all its data?")) {
-          setHierarchy(hierarchy.filter(sd => sd.id !== id));
-      }
-  };
-
+  const handleDeleteSubDistrict = (id) => { if(confirm("Delete this Sub-District?")) setHierarchy(hierarchy.filter(sd => sd.id !== id)); };
   const handleDeletePHC = (phcName) => {
-      if(confirm("Remove this PHC from the network?")) {
-          const updated = hierarchy.map(sd => {
-              if(sd.id === selectedSubDistrict.id) {
-                  return { ...sd, phcs: sd.phcs.filter(p => p !== phcName) };
-              }
-              return sd;
-          });
+      if(confirm("Remove this PHC?")) {
+          const updated = hierarchy.map(sd => sd.id === selectedSubDistrict.id ? { ...sd, phcs: sd.phcs.filter(p => p !== phcName) } : sd);
           setHierarchy(updated);
           setSelectedSubDistrict({ ...selectedSubDistrict, phcs: selectedSubDistrict.phcs.filter(p => p !== phcName) });
       }
   };
-
   const handleLogout = () => { localStorage.removeItem('userInfo'); navigate('/login'); };
-
-  // Get Current Stats
   const stats = getAnalytics();
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 relative">
-      
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
-      
       <AiCopilot contextData={{ requests, viewLevel, selectedSubDistrict, selectedPhc }} />
 
-      {/* SIDEBAR */}
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
         <div className="p-6 border-b border-slate-800 flex justify-between items-center">
           <div className="mb-4"><img src={logoMain} className="h-10 w-auto object-contain bg-white rounded-lg p-1" /></div>
           <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400"><X size={24} /></button>
         </div>
         <nav className="flex-1 px-4 space-y-2 mt-4">
-          <button onClick={() => { setViewLevel('global'); setActiveTab('network'); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'network' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><FolderTree size={18} /> Network Hierarchy</button>
+          <button onClick={() => { setViewLevel('global'); setActiveTab('network'); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'network' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><Network size={18} /> Network & PHCs</button>
+          <button onClick={() => setActiveTab('operators')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'operators' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><Users size={18} /> Drone Operators</button>
           <button onClick={() => setActiveTab('analytics')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'analytics' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><BarChart3 size={18} /> Analytics Suite</button>
         </nav>
         <div className="p-4 border-t border-slate-800"><button onClick={handleLogout} className="w-full flex items-center gap-2 text-red-400 hover:bg-slate-800 p-3 rounded-xl"><LogOut size={16} /> Logout</button></div>
@@ -208,23 +204,70 @@ const AdminDashboard = () => {
             <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-600"><Menu size={24} /></button>
             <div>
                 <h1 className="text-lg md:text-2xl font-bold text-slate-800 flex items-center gap-2">
-                    {viewLevel !== 'global' && <button onClick={() => {
-                        if (viewLevel === 'phc') setViewLevel('subdistrict');
-                        else setViewLevel('global');
-                    }} className="hover:bg-slate-100 p-1 rounded-full"><ArrowLeft size={20}/></button>}
-                    {viewLevel === 'global' ? 'District Command Center' : viewLevel === 'subdistrict' ? `${selectedSubDistrict.name} Sub-District` : selectedPhc}
+                    {viewLevel !== 'global' && <button onClick={() => { viewLevel === 'phc' ? setViewLevel('subdistrict') : setViewLevel('global'); }} className="hover:bg-slate-100 p-1 rounded-full"><ArrowLeft size={20}/></button>}
+                    {viewLevel === 'global' && activeTab === 'network' ? 'District Network Map' : activeTab === 'operators' ? 'Operator Management' : viewLevel === 'subdistrict' ? `${selectedSubDistrict.name} Sub-District` : selectedPhc || 'Admin Dashboard'}
                 </h1>
-                <p className="text-xs text-slate-500">{viewLevel === 'global' ? 'Managing All Sub-Districts' : viewLevel === 'subdistrict' ? `Managing ${selectedSubDistrict.phcs.length} PHCs` : 'PHC Performance View'}</p>
+                <p className="text-xs text-slate-500">{activeTab === 'operators' ? 'Authorized Pilots & Coordinators' : 'Real-Time Supply Chain Intelligence'}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-              <div className="bg-purple-50 px-3 py-1 rounded-full text-xs font-semibold text-purple-700 flex items-center gap-2 border border-purple-100"><Cpu size={14} /> Admin AI</div>
-          </div>
+          <div className="bg-purple-50 px-3 py-1 rounded-full text-xs font-semibold text-purple-700 flex items-center gap-2 border border-purple-100"><Cpu size={14} /> Admin AI</div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50">
             
-            {/* 🌐 LEVEL 1: GLOBAL NETWORK VIEW (Sub-Districts) */}
+            {/* 1. OPERATORS TAB */}
+            {activeTab === 'operators' && (
+                <div className="max-w-7xl mx-auto">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {OPERATORS.map(op => (
+                            <div key={op.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row">
+                                <div className="w-full md:w-1/3 h-48 md:h-auto bg-slate-100 relative">
+                                    <img src={op.img} alt={op.name} className="w-full h-full object-cover" />
+                                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                                        <h3 className="text-white font-bold text-lg">{op.name}</h3>
+                                        <p className="text-white/80 text-xs">{op.role}</p>
+                                    </div>
+                                </div>
+                                <div className="p-6 flex-1 flex flex-col justify-between">
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="text-xs text-slate-500 uppercase font-bold">Assigned Zone</p>
+                                                <p className="font-bold text-blue-600 flex items-center gap-1"><MapPin size={14}/> {op.subDistrict}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xs text-slate-500 uppercase font-bold">Experience</p>
+                                                <p className="font-bold text-slate-800">{op.experience}</p>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2 text-sm text-slate-600">
+                                            <div className="flex items-center gap-2"><Phone size={14} className="text-slate-400"/> {op.contact.phone}</div>
+                                            <div className="flex items-center gap-2"><Mail size={14} className="text-slate-400"/> {op.contact.email}</div>
+                                            <div className="flex items-center gap-2"><MapPin size={14} className="text-slate-400"/> {op.contact.address}</div>
+                                        </div>
+                                    </div>
+                                    <div className="mt-6 pt-4 border-t border-slate-100 grid grid-cols-3 gap-2">
+                                        <div className="flex flex-col items-center p-2 bg-green-50 rounded-lg border border-green-100">
+                                            <BadgeCheck size={16} className="text-green-600 mb-1"/>
+                                            <span className="text-[10px] font-bold text-green-700">License</span>
+                                        </div>
+                                        <div className="flex flex-col items-center p-2 bg-green-50 rounded-lg border border-green-100">
+                                            <Activity size={16} className="text-green-600 mb-1"/>
+                                            <span className="text-[10px] font-bold text-green-700">Medical</span>
+                                        </div>
+                                        <div className="flex flex-col items-center p-2 bg-blue-50 rounded-lg border border-blue-100">
+                                            <span className="text-lg font-bold text-blue-600 leading-none">{op.phcCount}</span>
+                                            <span className="text-[10px] font-bold text-blue-700">PHCs</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* 2. GLOBAL NETWORK VIEW (Sub-Districts) */}
             {activeTab === 'network' && viewLevel === 'global' && (
                 <div className="max-w-7xl mx-auto">
                     <div className="flex justify-between items-center mb-6">
@@ -249,21 +292,13 @@ const AdminDashboard = () => {
                 </div>
             )}
 
-            {/* 🏥 LEVEL 2: SUB-DISTRICT VIEW (PHC List) */}
+            {/* 3. SUB-DISTRICT VIEW (PHC List) */}
             {activeTab === 'network' && viewLevel === 'subdistrict' && (
                 <div className="max-w-7xl mx-auto">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold text-slate-800">Connected PHCs in {selectedSubDistrict.name}</h2>
                         <button onClick={() => setShowAddModal(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold hover:bg-blue-700"><Plus size={16}/> Add PHC</button>
                     </div>
-                    
-                    {/* INLINE ANALYTICS FOR SUB-DISTRICT */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                         <div className="bg-white p-4 rounded-xl border shadow-sm"><p className="text-xs text-slate-500">Total Requests</p><p className="text-2xl font-bold">{stats.totalOrders}</p></div>
-                         <div className="bg-white p-4 rounded-xl border shadow-sm"><p className="text-xs text-slate-500">Total Value</p><p className="text-2xl font-bold text-green-600">₹{stats.totalVal.toLocaleString()}</p></div>
-                         <div className="bg-white p-4 rounded-xl border shadow-sm"><p className="text-xs text-slate-500">Critical Alerts</p><p className="text-2xl font-bold text-red-600">{stats.critical}</p></div>
-                    </div>
-
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                         <table className="w-full text-left">
                             <thead className="bg-slate-50 border-b"><tr><th className="p-4 text-xs font-bold text-slate-500 uppercase">PHC Name</th><th className="p-4 text-xs font-bold text-slate-500 uppercase">Status</th><th className="p-4 text-xs font-bold text-slate-500 uppercase">Orders</th><th className="p-4 text-xs font-bold text-slate-500 uppercase text-right">Actions</th></tr></thead>
@@ -275,7 +310,7 @@ const AdminDashboard = () => {
                                         <td className="p-4 font-bold text-slate-800 flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">{i+1}</div>{phc}</td>
                                         <td className="p-4"><span className="px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">Online</span></td>
                                         <td className="p-4 text-sm text-slate-600">{count} Requests</td>
-                                        <td className="p-4 flex gap-2 justify-end" onClick={(e) => e.stopPropagation()}><button onClick={() => handleDeletePHC(phc)} className="p-2 hover:bg-red-50 text-red-600 rounded-lg"><Trash2 size={16}/></button></td>
+                                        <td className="p-4 flex gap-2 justify-end" onClick={(e) => e.stopPropagation()}><button className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg"><Edit size={16}/></button><button onClick={() => handleDeletePHC(phc)} className="p-2 hover:bg-red-50 text-red-600 rounded-lg"><Trash2 size={16}/></button></td>
                                     </tr>
                                 )})}
                             </tbody>
@@ -284,7 +319,7 @@ const AdminDashboard = () => {
                 </div>
             )}
 
-            {/* 📊 LEVEL 3: PHC DETAIL VIEW (Or Analytics Tab) */}
+            {/* 4. ANALYTICS TAB (OR PHC DETAIL VIEW) */}
             {(activeTab === 'analytics' || viewLevel === 'phc') && stats.charts.trends && (
                 <div className="max-w-7xl mx-auto space-y-6">
                     {/* FILTERS */}
@@ -293,32 +328,41 @@ const AdminDashboard = () => {
                             <div className="flex items-center gap-2 text-slate-500"><Filter size={18} /><span className="text-sm font-bold">Time Range:</span></div>
                             <select className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-medium outline-none" value={timeFilter} onChange={(e)=>setTimeFilter(e.target.value)}><option value="7">Last 7 Days</option><option value="30">Last 30 Days</option><option value="90">Last Quarter</option></select>
                         </div>
-                        <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Real-Time Data</div>
+                        {viewLevel === 'phc' && <button onClick={()=>setViewLevel('subdistrict')} className="text-sm text-blue-600 hover:underline flex items-center gap-1"><ArrowLeft size={16}/> Back to {selectedSubDistrict.name}</button>}
                     </div>
 
-                    {/* CHARTS */}
+                    {/* KPI CARDS */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h3 className="text-3xl font-bold text-slate-800">{stats.totalOrders}</h3><p className="text-sm text-slate-500">Total Orders</p></div>
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h3 className="text-3xl font-bold text-green-600">₹{stats.totalVal.toLocaleString()}</h3><p className="text-sm text-slate-500">Order Value</p></div>
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h3 className="text-3xl font-bold text-red-600">{stats.critical}</h3><p className="text-sm text-slate-500">Critical Alerts</p></div>
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h3 className="text-3xl font-bold text-blue-600">{stats.delivered}</h3><p className="text-sm text-slate-500">Delivered</p></div>
+                    </div>
+
+                    {/* GRAPHS */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                            <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2"><TrendingUp size={18}/> Order Trends</h3>
-                            <div className="h-64"><Line data={stats.charts.trends} options={{ maintainAspectRatio: false, plugins: { legend: { display: false } } }} /></div>
+                            <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2"><TrendingUp size={18}/> Order Volume Trends</h3>
+                            <div className="h-72"><Line data={stats.charts.trends} options={{ maintainAspectRatio: false, plugins: { legend: { display: false } } }} /></div>
                         </div>
                         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                            <h3 className="font-bold text-slate-800 mb-6">Top 5 Medicines</h3>
-                            <div className="h-64"><Bar indexAxis="y" data={stats.charts.topItems} options={{ maintainAspectRatio: false }} /></div>
+                            <h3 className="font-bold text-slate-800 mb-6">Top Requested Items</h3>
+                            <div className="h-72"><Bar indexAxis="y" data={stats.charts.topItems} options={{ maintainAspectRatio: false }} /></div>
                         </div>
                     </div>
-
+                    
+                    {/* GLOBAL ONLY: PHC RANKING */}
                     {viewLevel !== 'phc' && (
                          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                            <h3 className="font-bold text-slate-800 mb-6">PHC Activity Share</h3>
+                            <h3 className="font-bold text-slate-800 mb-6">PHC Activity Ranking</h3>
                             <div className="h-64 flex justify-center"><Doughnut data={stats.charts.phcRanking} options={{ maintainAspectRatio: false }} /></div>
                         </div>
                     )}
                     
-                    {/* DETAILED LOG FOR PHC LEVEL */}
+                    {/* PHC ONLY: ORDER LOG */}
                     {viewLevel === 'phc' && (
                         <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
-                            <div className="p-4 border-b bg-slate-50 font-bold text-slate-700">Order History for {selectedPhc}</div>
+                            <div className="p-4 border-b bg-slate-50 font-bold text-slate-700">Recent History for {selectedPhc}</div>
                             {stats.data.slice(0, 10).map(r => (
                                 <div key={r._id} className="p-4 border-b last:border-0 flex justify-between items-center hover:bg-slate-50">
                                     <div><p className="text-sm font-bold text-slate-800">{r.item}</p><p className="text-xs text-slate-500">{new Date(r.createdAt).toLocaleString()}</p></div>
