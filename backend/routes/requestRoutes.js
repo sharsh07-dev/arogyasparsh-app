@@ -6,7 +6,7 @@ const { storage } = require("../config/cloudinary");
 
 const upload = multer({ storage });
 // ✅ NEW (Correct - Matches filename Case)
-const HospitalInventory = require("../models/hospitalinventory");
+const HospitalInventory = require("../models/Hospital_Inventory");
 // POST: Create Request
 router.post("/", upload.array('proofFiles'), async (req, res) => {
   try {

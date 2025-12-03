@@ -1,5 +1,4 @@
-const HospitalInventory = require("../models/hospitalinventory");
-
+const HospitalInventory = require("../models/Hospital_Inventory");
 // Initial Stock Data
 const INITIAL_STOCK = [
   { id: 6, name: 'Inj. Atropine', stock: 500, batch: 'HOSP-001', expiry: '2025-12-01', img: 'https://5.imimg.com/data5/SELLER/Default/2023/7/325482487/OY/MO/ZJ/193964405/atropine-sulphate-injection-1-mg-ml.jpg' },
