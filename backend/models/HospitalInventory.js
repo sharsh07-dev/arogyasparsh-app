@@ -13,4 +13,4 @@ const hospitalInventorySchema = new mongoose.Schema({
   ]
 }, { timestamps: true });
 
-module.exports = mongoose.model("HospitalInventory", hospitalInventorySchema);//updated
+module.exports = mongoose.model("HospitalInventory", hospitalInventorySchema);//updatedcd 
