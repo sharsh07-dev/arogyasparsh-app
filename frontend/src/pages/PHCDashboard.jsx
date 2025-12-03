@@ -14,12 +14,12 @@ import RealisticFlightTracker from '../components/RealisticFlightTracker';
 // IMAGES
 import imgAtropine from '../assets/medicines/Atropine.jpg';
 import imgActrapid from '../assets/medicines/Actrapid_Plain.webp';
-import imgDopamine from '../assets/medicines/Dopamine.jpg'; 
+import imgDopamine from '../assets/medicines/Dopamine_med.jpg'; 
 import imgAvil from '../assets/medicines/Avil.webp';
 import imgAdrenaline from '../assets/medicines/Adranaline.webp';
 import imgDexa from '../assets/medicines/Dexa.jpg';
 import imgDiclo from '../assets/medicines/Diclo.jpg';
-import imgDex25 from '../assets/medicines/25%_Dex.jpg';
+import imgDex25 from '../assets/medicines/Dex25.jpg';
 import imgDeriphylline from '../assets/medicines/Deriphylline.webp';
 import imgHamaccyl from '../assets/medicines/Hamaccyl.webp';
 import imgHydrocort from '../assets/medicines/Hydrocort.webp';
@@ -62,7 +62,7 @@ const PHCDashboard = () => {
   const [showTracker, setShowTracker] = useState(false);
   const [orderHistory, setOrderHistory] = useState([]); 
   
-  // Initialize inventory with Local DB images
+  // Initialize inventory
   const [phcInventory, setPhcInventory] = useState(MEDICINE_DB.map(item => ({
       ...item, stock: 0, expiry: 'N/A', batch: 'N/A'
   })));
@@ -74,7 +74,6 @@ const PHCDashboard = () => {
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [addedFeedback, setAddedFeedback] = useState({});
-  const [trackProgress, setTrackProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   const [proofFiles, setProofFiles] = useState([]);
@@ -88,7 +87,6 @@ const PHCDashboard = () => {
   const [reportData, setReportData] = useState({ type: 'Damaged', details: '' });
   const [targetReportId, setTargetReportId] = useState(null);
   
-  // Inventory Management State
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '', expiry: '' });
 
@@ -97,27 +95,26 @@ const PHCDashboard = () => {
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
   const INV_URL = "https://arogyasparsh-backend.onrender.com/api/phc-inventory";
 
-  // ✅ 1. ROBUST COORDINATE SAFETY CHECK
-  // Prevents "coordinates must contain numbers" crash
+  // ✅ ROBUST COORDINATE CHECKER
   const getSafeDestination = () => {
-      const defaultCoords = { lat: 19.9280, lng: 79.9050 }; // Default Center
-      try {
-          if (user?.landingCoordinates?.lat && user?.landingCoordinates?.lng) {
-              const lat = parseFloat(user.landingCoordinates.lat);
-              const lng = parseFloat(user.landingCoordinates.lng);
-              
-              // Check if valid numbers
-              if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
-                  return { lat, lng };
-              }
+      // Default if missing
+      let destLat = 19.9280;
+      let destLng = 79.9050;
+
+      if (user?.landingCoordinates) {
+          const lat = parseFloat(user.landingCoordinates.lat);
+          const lng = parseFloat(user.landingCoordinates.lng);
+          if (!isNaN(lat) && !isNaN(lng)) {
+              destLat = lat;
+              destLng = lng;
           }
-      } catch (e) { console.error("Coord Error:", e); }
-      return defaultCoords;
+      }
+      // Pass as pure numbers
+      return { lat: destLat, lng: destLng };
   };
 
   const fetchData = async () => {
     try {
-      // 1. Fetch Orders
       const res = await fetch(API_URL);
       if (res.ok) {
         const data = await res.json();
@@ -125,38 +122,14 @@ const PHCDashboard = () => {
             setOrderHistory(data.filter(r => r.phc === user.name).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
         }
       }
-
-      // 2. Fetch & Merge Inventory
       const invRes = await fetch(`${INV_URL}/${user.name}`);
       if (invRes.ok) {
-          const liveData = await invRes.json();
-          
-          const mergedItems = MEDICINE_DB.map(localItem => {
-              const liveItem = liveData.find(i => i.name === localItem.name);
-              return {
-                  ...localItem, 
-                  stock: liveItem ? liveItem.stock : 0, 
-                  expiry: liveItem ? liveItem.expiry : 'N/A',
-                  batch: liveItem ? liveItem.batch : 'N/A'
-              };
+          const items = await invRes.json();
+          const mappedItems = items.map(item => {
+              const localMatch = MEDICINE_DB.find(dbItem => dbItem.id === item.id);
+              return { ...item, img: localMatch ? localMatch.img : '' }; 
           });
-          
-          // Add custom items
-          liveData.forEach(liveItem => {
-              if (!MEDICINE_DB.find(m => m.name === liveItem.name)) {
-                  mergedItems.push({
-                      id: liveItem.id || Date.now(),
-                      name: liveItem.name,
-                      stock: liveItem.stock,
-                      batch: liveItem.batch,
-                      expiry: liveItem.expiry,
-                      type: 'Custom',
-                      img: logoMain 
-                  });
-              }
-          });
-
-          setPhcInventory(mergedItems);
+          setPhcInventory(mappedItems);
       }
     } catch (err) { console.error("Network Error"); }
   };
@@ -196,7 +169,6 @@ const PHCDashboard = () => {
 
   const addNewItem = () => { 
     if(!newItem.name) return alert("Fill details"); 
-    // Optimistic update
     setPhcInventory([...phcInventory, { 
         id: Date.now(), 
         ...newItem, 
@@ -262,7 +234,7 @@ const PHCDashboard = () => {
     const itemSummary = cart.map(c => `${c.qty}x ${c.name}`).join(', ');
     const totalQty = cart.reduce((acc, c) => acc + c.qty, 0);
     
-    // ✅ Use Safe Coordinates
+    // ✅ Send Validated Coords
     const safeCoords = getSafeDestination();
 
     const formDataToSend = new FormData();
@@ -271,7 +243,7 @@ const PHCDashboard = () => {
     formDataToSend.append("qty", totalQty);
     formDataToSend.append("urgency", urgency);
     formDataToSend.append("description", "App Order");
-    formDataToSend.append("coordinates", JSON.stringify(safeCoords)); // Send Safe Coords
+    formDataToSend.append("coordinates", JSON.stringify(safeCoords));
     proofFiles.forEach((file) => formDataToSend.append("proofFiles", file));
     try {
         const res = await fetch(API_URL, { method: "POST", body: formDataToSend });
@@ -336,7 +308,7 @@ const PHCDashboard = () => {
              </div>
           )}
 
-          {/* ✅ 2️⃣ INVENTORY VIEW (Read-Only, No Buttons) */}
+          {/* ✅ 2️⃣ INVENTORY VIEW */}
           {!showTracker && activeTab === 'inventory' && (
               <div className="max-w-6xl mx-auto">
                   <div className="flex justify-between items-center mb-6">
@@ -353,8 +325,6 @@ const PHCDashboard = () => {
                               <h3 className="font-bold text-slate-800 text-sm">{item.name}</h3>
                               <span className="text-xs text-slate-500 mb-1">Batch: {item.batch}</span>
                               <p className={`text-[10px] font-bold mb-3 ${isExpiring ? 'text-red-500' : 'text-green-600'}`}>Exp: {item.expiry || 'N/A'}</p>
-                              
-                              {/* ✅ READ-ONLY STOCK */}
                               <div className="w-full bg-slate-50 p-2 rounded-xl border border-slate-100">
                                   <span className="text-xs text-slate-400 uppercase font-bold block mb-1">Current Stock</span>
                                   <span className="text-xl font-bold text-slate-800">{item.stock}</span>
@@ -447,7 +417,8 @@ const PHCDashboard = () => {
                      <h2 className="text-xl font-bold text-slate-800">Inbound Delivery Tracking</h2>
                      <button onClick={() => setShowTracker(false)} className="text-sm text-red-600 hover:underline flex items-center gap-1"><XCircle size={16}/> Close</button>
                 </div>
-                {/* ✅ REALISTIC TRACKER */}
+                
+                {/* ✅ REALISTIC TRACKER (Uses Valid Numbers) */}
                 <RealisticFlightTracker 
                     origin={{ lat: 19.9260, lng: 79.9033 }} 
                     destination={getSafeDestination()} 
@@ -464,7 +435,8 @@ const PHCDashboard = () => {
         </div>
       </main>
 
-      {/* CHAT MODAL */}
+      {/* MODALS */}
+      {/* CHAT */}
       {activeChatId && activeChatRequest && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[500px]">
@@ -491,7 +463,7 @@ const PHCDashboard = () => {
         </div>
       )}
 
-      {/* INCIDENT REPORT MODAL */}
+      {/* INCIDENT REPORT */}
       {showReportModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
              <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6">
@@ -506,7 +478,7 @@ const PHCDashboard = () => {
         </div>
       )}
 
-      {/* ORDER DETAILS MODAL */}
+      {/* ORDER DETAILS */}
       {viewOrder && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
