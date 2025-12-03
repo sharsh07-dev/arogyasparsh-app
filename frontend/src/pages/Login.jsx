@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, Activity, UserCircle, ShieldCheck, AlertCircle, MapPin } from 'lucide-react';
 import logo from '../assets/logo_final.png';
 // ✅ NEW: Import the Image instead of Video
-import loginBg from '../assets/loginimg.jpg';
+import loginBg from '/Users/harshshinde/Downloads/arogyasparsh-project 4/frontend/src/assets/loginimg.png';
 
 const Login = () => {
   const [role, setRole] = useState('phc'); // 'phc', 'hospital', 'admin'
