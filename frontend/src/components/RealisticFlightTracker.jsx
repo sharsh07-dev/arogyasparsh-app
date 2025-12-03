@@ -3,15 +3,14 @@ import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet
 import L from "leaflet";
 import * as turf from "@turf/turf";
 import "leaflet/dist/leaflet.css";
-import { Battery, Signal, MapPin } from "lucide-react";
+import { Battery, Signal, MapPin, Navigation } from "lucide-react";
 
-// 🚁 NEW HIGH-QUALITY DRONE ICON
+// ✅ FIX: Define icons using Leaflet's safest method
 const droneIcon = new L.Icon({
   iconUrl: "https://cdn-icons-png.flaticon.com/512/3165/3165643.png", 
   iconSize: [50, 50],
   iconAnchor: [25, 25],
-  popupAnchor: [0, -30],
-  className: "drop-shadow-2xl"
+  className: "drone-icon" // We will add CSS for this
 });
 
 const hospitalIcon = new L.Icon({
@@ -30,15 +29,17 @@ const phcIcon = new L.Icon({
 const CameraFollow = ({ position }) => {
   const map = useMap();
   useEffect(() => {
-    if(position) map.flyTo(position, 16, { animate: true, duration: 1 });
+    if(position && position.lat && position.lng) {
+        map.flyTo(position, 15, { animate: true, duration: 1 });
+    }
   }, [position, map]);
   return null;
 };
 
 const RealisticFlightTracker = ({ origin, destination, orderId, phcName, onDeliveryComplete }) => {
-  // ✅ SAFETY: Ensure coordinates are Numbers
-  const safeOrigin = { lat: Number(origin.lat), lng: Number(origin.lng) };
-  const safeDest = { lat: Number(destination.lat), lng: Number(destination.lng) };
+  // Safety Check
+  const safeOrigin = { lat: Number(origin?.lat || 0), lng: Number(origin?.lng || 0) };
+  const safeDest = { lat: Number(destination?.lat || 0), lng: Number(destination?.lng || 0) };
 
   const [currentPos, setCurrentPos] = useState(safeOrigin);
   const [progress, setProgress] = useState(0);
@@ -46,14 +47,10 @@ const RealisticFlightTracker = ({ origin, destination, orderId, phcName, onDeliv
   
   const requestRef = useRef();
   const startTimeRef = useRef(null);
-  const FLIGHT_DURATION_MS = 20000; // 20 Sec Flight
+  const FLIGHT_DURATION_MS = 20000; 
 
   useEffect(() => {
-    // ✅ Prevent Crash: If coordinates are invalid (NaN), stop immediately
-    if (isNaN(safeOrigin.lat) || isNaN(safeOrigin.lng) || isNaN(safeDest.lat) || isNaN(safeDest.lng)) {
-        console.error("Invalid Coordinates detected in Tracker");
-        return;
-    }
+    if (safeOrigin.lat === 0 || safeDest.lat === 0) return;
 
     const from = turf.point([safeOrigin.lng, safeOrigin.lat]);
     const to = turf.point([safeDest.lng, safeDest.lat]);
@@ -72,13 +69,13 @@ const RealisticFlightTracker = ({ origin, destination, orderId, phcName, onDeliv
       setCurrentPos({ lat: newLat, lng: newLng });
       setProgress(pct * 100);
 
-      // Physics
       let status = "In Transit";
       let alt = 120;
       let speed = 75 + Math.random() * 5;
 
       if (pct < 0.1) { status = "Takeoff"; alt = pct * 1200; speed = pct * 750; }
       else if (pct > 0.9) { status = "Landing"; alt = (1-pct) * 1200; speed = (1-pct) * 750; }
+      
       if (pct >= 1) status = "Delivered";
 
       setStats({
@@ -98,14 +95,20 @@ const RealisticFlightTracker = ({ origin, destination, orderId, phcName, onDeliv
     return () => cancelAnimationFrame(requestRef.current);
   }, [origin, destination]);
 
+  if (safeOrigin.lat === 0) return <div className="text-white p-4">Waiting for GPS Signal...</div>;
+
   return (
     <div className="relative w-full h-[600px] rounded-3xl overflow-hidden border-4 border-slate-900 shadow-2xl bg-slate-900">
-      <MapContainer center={safeOrigin} zoom={15} style={{ height: "100%", width: "100%" }} zoomControl={false}>
+      <MapContainer center={safeOrigin} zoom={14} style={{ height: "100%", width: "100%" }} zoomControl={false}>
         <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution='&copy; Esri' />
+        
         <Marker position={safeOrigin} icon={hospitalIcon} />
         <Marker position={safeDest} icon={phcIcon} />
         <Polyline positions={[safeOrigin, safeDest]} color="#3b82f6" weight={3} dashArray="10, 10" opacity={0.8} />
+        
+        {/* ✅ Drone Marker */}
         <Marker position={currentPos} icon={droneIcon} />
+        
         <CameraFollow position={currentPos} />
       </MapContainer>
 
@@ -129,6 +132,9 @@ const RealisticFlightTracker = ({ origin, destination, orderId, phcName, onDeliv
               <div><p className="text-[10px] text-slate-400">ALT</p><p className="text-xl font-bold text-blue-400">{stats.alt} m</p></div>
               <div><p className="text-[10px] text-slate-400">BAT</p><p className="text-xl font-bold text-green-400">{stats.battery}%</p></div>
               <div><p className="text-[10px] text-slate-400">STATUS</p><p className="text-xs font-bold bg-yellow-500/20 text-yellow-400 py-1 rounded">{stats.status}</p></div>
+          </div>
+          <div className="relative h-1 bg-slate-700 rounded-full overflow-hidden">
+              <div className="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-100" style={{ width: `${progress}%` }}></div>
           </div>
       </div>
     </div>
