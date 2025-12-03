@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 
 import logoMain from '../assets/logo_final.png';
-import AiCopilot from '../components/AiCopilot';
+import SwasthyaAIBot from '../components/SwasthyaAIBot';
 import RealisticFlightTracker from '../components/RealisticFlightTracker';
 
 // IMAGES
