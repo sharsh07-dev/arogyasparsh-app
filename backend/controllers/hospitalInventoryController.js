@@ -1,4 +1,4 @@
-const HospitalInventory = require("../models/HospitalInventory");
+const HospitalInventory = require("../models/hospitalinventory");
 
 // Initial Stock Data
 const INITIAL_STOCK = [

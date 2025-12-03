@@ -3,26 +3,29 @@ import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet
 import L from "leaflet";
 import * as turf from "@turf/turf";
 import "leaflet/dist/leaflet.css";
-import { Battery, Signal, MapPin, Navigation } from "lucide-react";
+import { Battery, Signal, MapPin } from "lucide-react";
 
-// ✅ FIX: Define icons using Leaflet's safest method
+// 🚁 EMBEDDED DRONE ICON (Base64 - Works Offline/Instantly)
+const droneImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAADlElEQVR4nO2ZTWgTQRTH/7Oz2dZKE7FqS6m1B/WgB8GLF8GLB0FvKooXPXjwouBBEERE8KB48CAIEvAgKHotKCp48KAeFExFq9WmtZqm2d3xJTO72WyT7E6y2YIPxvdmZ9/835t582YnQAAAAAAAAAAA/xOq0Q50g2J5M4jIy0S0lYg2EdEGIqok/t1CRH8S/m4S0Tci+k5E7/L5/Jt6vX7baD+6RSF/gYi2JkT0BhH9JKJd+Xz+fr1e32+wn92gIAeI6CgRbU/I5AcR3cnnyd4+2t0tCnKCiE4mZPKTiM7l8/m99Xp9u8F+dgpDPk9E5xMy+UVEp/L5/N16vb7TYD87QSEPEtH5hEx+ENGJfD5/u16v7zbYz05QyNNE9CAhk59EdDyfz1+v1+/20u5uUMgLRLQrIZNfRHQ0n89fr9fvGuxnJyjkaSI6kpDJTyI6nM/nr9fr9Z0G+9kJCuH/tT0hk19EdDCfz1+r1+t3G+xnJyjkaSI6mJDJTyI6kM/nr9br9V0G+9kJCrk/eF37RUT78/n8lXq9vttgPztBITeJ6EBCJj+J6EA+n79Sr9d3G+xnJyjk+uB17RcR7cvn85fq9foug/3sBIXcSETHh/n5+T09PT17o9FoT5L+oJBLw+vagyAI9kaj0Z4k/UEhF4noREImv4nodD6fv1Sv13ca7GcnKOQ8EZ1KyOQnEZ3N5/OX6/X6boP97ASFfEtEZxIy+UVE3/L5/OV6vb7LYD87QSHniOhsQia/iOhcPp+/WK/XdxvsZycoxP8d5xIy+UlE5/P5/MV6vb7TYD87QSGfEtH5hEx+EdH5fD5/oV6v7zLYz05QyL+D17XfRPRtYWHhwuzs7I0k/UEhpxLRhYRMfhPRhSAILkaj0Z4k/UEhHxPRpYRMfhPRpSAILkaj0Z4k/UEhHxLR5YRMfhPRlSAILkaj0Z4k/UEhHxDRlYRMfhPR1SAILkaj0Z4k/UEh7xPR1YRMfhPRtSAILkaj0Z4k/UEhbxPRtYRMfhPRtSAILkaj0Z4k/UEhbxLR9YRMfhPR9SAILkaj0Z4k/UEhbxDRjYRMfhPRjSAILkaj0Z4k/UEhbxDRzYRMfhPRzSAILkaj0Z4k/UEhrxPRrYRMfhHRrSAIbkej0Z4k/UEhLxPR7YRMfhHR7SAIbkej0Z4k/UEhLxDRnYRMfhHRnSAIbtbr9V1J+gMAAAAAAAAAAADgX/IDoCVrE827Zc0AAAAASUVORK5CYII=";
+
 const droneIcon = new L.Icon({
-  iconUrl: "https://cdn-icons-png.flaticon.com/512/3165/3165643.png", 
-  iconSize: [50, 50],
+  iconUrl: droneImage,
+  iconSize: [50, 50], 
   iconAnchor: [25, 25],
-  className: "drone-icon" // We will add CSS for this
+  className: "drone-icon"
 });
 
+// Use Standard Markers for stability
 const hospitalIcon = new L.Icon({
-  iconUrl: "https://cdn-icons-png.flaticon.com/512/4320/4320350.png",
-  iconSize: [40, 40],
-  iconAnchor: [20, 40],
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
 });
 
 const phcIcon = new L.Icon({
-  iconUrl: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
-  iconSize: [40, 40],
-  iconAnchor: [20, 40],
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
 });
 
 // Camera Follower
@@ -30,16 +33,16 @@ const CameraFollow = ({ position }) => {
   const map = useMap();
   useEffect(() => {
     if(position && position.lat && position.lng) {
-        map.flyTo(position, 15, { animate: true, duration: 1 });
+        map.flyTo(position, 15, { animate: true, duration: 1, easeLinearity: 0.1 });
     }
   }, [position, map]);
   return null;
 };
 
 const RealisticFlightTracker = ({ origin, destination, orderId, phcName, onDeliveryComplete }) => {
-  // Safety Check
-  const safeOrigin = { lat: Number(origin?.lat || 0), lng: Number(origin?.lng || 0) };
-  const safeDest = { lat: Number(destination?.lat || 0), lng: Number(destination?.lng || 0) };
+  // Safety Check: Convert to Numbers to prevent crashes
+  const safeOrigin = { lat: Number(origin?.lat || 19.9260), lng: Number(origin?.lng || 79.9033) };
+  const safeDest = { lat: Number(destination?.lat || 19.9280), lng: Number(destination?.lng || 79.9050) };
 
   const [currentPos, setCurrentPos] = useState(safeOrigin);
   const [progress, setProgress] = useState(0);
@@ -50,8 +53,6 @@ const RealisticFlightTracker = ({ origin, destination, orderId, phcName, onDeliv
   const FLIGHT_DURATION_MS = 20000; 
 
   useEffect(() => {
-    if (safeOrigin.lat === 0 || safeDest.lat === 0) return;
-
     const from = turf.point([safeOrigin.lng, safeOrigin.lat]);
     const to = turf.point([safeDest.lng, safeDest.lat]);
     const totalDistance = turf.distance(from, to);
@@ -95,8 +96,6 @@ const RealisticFlightTracker = ({ origin, destination, orderId, phcName, onDeliv
     return () => cancelAnimationFrame(requestRef.current);
   }, [origin, destination]);
 
-  if (safeOrigin.lat === 0) return <div className="text-white p-4">Waiting for GPS Signal...</div>;
-
   return (
     <div className="relative w-full h-[600px] rounded-3xl overflow-hidden border-4 border-slate-900 shadow-2xl bg-slate-900">
       <MapContainer center={safeOrigin} zoom={14} style={{ height: "100%", width: "100%" }} zoomControl={false}>
@@ -106,7 +105,7 @@ const RealisticFlightTracker = ({ origin, destination, orderId, phcName, onDeliv
         <Marker position={safeDest} icon={phcIcon} />
         <Polyline positions={[safeOrigin, safeDest]} color="#3b82f6" weight={3} dashArray="10, 10" opacity={0.8} />
         
-        {/* ✅ Drone Marker */}
+        {/* ✅ DRONE MARKER */}
         <Marker position={currentPos} icon={droneIcon} />
         
         <CameraFollow position={currentPos} />
