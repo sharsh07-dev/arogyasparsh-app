@@ -263,7 +263,13 @@ const PHCDashboard = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 relative">
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
-    <SwasthyaAIBot contextData={{ orderHistory, cart, inventory: phcInventory }} />
+   {/* ✅ PASS THE USER NAME TO THE BOT */}
+<SwasthyaAIBot contextData={{ 
+    orderHistory, 
+    cart, 
+    inventory: phcInventory, 
+    userPHC: user.name // <--- This tells the bot who you are (e.g., "PHC Panera")
+}} />
 
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
         <div className="p-6 border-b border-slate-800 flex justify-between items-center">

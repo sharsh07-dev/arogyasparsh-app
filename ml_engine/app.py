@@ -49,7 +49,6 @@ def generate_predictions():
         phc_encoded = le_phc.transform([phc])[0]
         for item in unique_items:
             item_encoded = le_item.transform([item])[0]
-            # PREDICT with Uncertainty Interval (Mocked for Random Forest)
             preds = [tree.predict([[item_encoded, phc_encoded, next_week_day]])[0] for tree in model.estimators_]
             pred_qty = np.mean(preds)
             lower = np.percentile(preds, 5)
@@ -91,26 +90,39 @@ def swasthya_ai():
         
         response = {
             "text": "I am SwasthyaAI. How can I assist with PHC operations today?",
-            "type": "text" # text, table, alert
+            "type": "text" 
+        }
+
+        # ✅ KEYWORD MAPPING (Fixes the Comparison Issue)
+        phc_map = {
+            "wagholi": "Wagholi PHC",
+            "chamorshi": "PHC Chamorshi",
+            "gadhchiroli": "PHC Gadhchiroli",
+            "panera": "PHC Panera",
+            "belgaon": "PHC Belgaon",
+            "dhutergatta": "PHC Dhutergatta",
+            "gatta": "PHC Gatta",
+            "gaurkheda": "PHC Gaurkheda",
+            "murmadi": "PHC Murmadi"
         }
 
         # --- 1. INTENT: TRACK DRONE ---
         if 'track' in query or 'drone' in query or 'status' in query:
             active_orders = list(requests_collection.find({"status": {"$in": ["Dispatched", "In-Flight", "Delivered"]}}))
             
-            # Identify PHC from query or context
             target_phc = None
-            phc_list = ["wagholi", "chamorshi", "gadhchiroli", "panera", "belgaon", "dhutergatta", "gatta", "gaurkheda", "murmadi"]
-            for p in phc_list:
-                if p in query: target_phc = p; break
+            for key in phc_map:
+                if key in query: 
+                    target_phc = phc_map[key]
+                    break
             
+            # If no specific PHC named, use the user's own PHC from context
             if not target_phc and context.get('userPHC'):
-                # Default to current user if no specific PHC mentioned
-                target_phc = context.get('userPHC').lower()
+                target_phc = context.get('userPHC')
 
             if target_phc:
-                # Match fuzzy name
-                mission = next((r for r in reversed(active_orders) if target_phc in r['phc'].lower()), None)
+                # Match exact PHC name in DB
+                mission = next((r for r in reversed(active_orders) if r['phc'] == target_phc), None)
                 
                 if mission:
                     eta = "5 mins" if mission['status'] == 'In-Flight' else "0 mins"
@@ -125,34 +137,41 @@ def swasthya_ai():
                         }
                     }
                 else:
-                    response["text"] = f"No active drone missions found for {target_phc.title()} at this time. The last delivery was completed successfully."
+                    response["text"] = f"No active drone missions found for **{target_phc}** at this time. The last delivery was completed successfully."
             else:
                 response["text"] = "Which PHC's drone would you like to track? (e.g., 'Track Panera')"
 
-        # --- 2. INTENT: COMPARE PHCS ---
+        # --- 2. INTENT: COMPARE PHCS (FIXED) ---
         elif 'compare' in query:
-            # Extract PHC names
-            phc_list = ["Wagholi PHC", "PHC Chamorshi", "PHC Gadhchiroli", "PHC Panera", "PHC Belgaon", "PHC Dhutergatta", "PHC Gatta", "PHC Gaurkheda", "PHC Murmadi"]
-            found_phcs = [p for p in phc_list if p.lower() in query]
+            # Find ALL mentioned PHCs in the query using the map
+            found_phcs = []
+            for key, fullname in phc_map.items():
+                if key in query:
+                    found_phcs.append(fullname)
             
+            # Remove duplicates just in case
+            found_phcs = list(set(found_phcs))
+
             if len(found_phcs) < 2:
-                 response["text"] = "Please specify at least two PHCs to compare. (e.g., 'Compare Chamorshi and Panera')"
+                 response["text"] = "Please specify at least two PHCs to compare. (e.g., 'Compare **Chamorshi** and **Panera**')"
             else:
                 phc_a, phc_b = found_phcs[0], found_phcs[1]
                 
-                # Calculate Metrics
+                # Calculate Metrics Function
                 def get_metrics(name):
                     orders = list(requests_collection.find({"phc": name}))
                     total = len(orders)
                     delivered = len([o for o in orders if o['status'] == 'Delivered'])
                     rate = round((delivered/total * 100), 1) if total > 0 else 0
-                    return {"total": total, "rate": f"{rate}%", "avg_time": "22 min"}
+                    # Mock lead time based on total orders for variance
+                    avg_time = 20 + (total % 5) 
+                    return {"total": total, "rate": f"{rate}%", "avg_time": f"{avg_time} min"}
 
                 stats_a = get_metrics(phc_a)
                 stats_b = get_metrics(phc_b)
 
                 response = {
-                    "text": f"Comparison between **{phc_a}** and **{phc_b}** based on last 30 days performance:",
+                    "text": f"Comparison between **{phc_a}** and **{phc_b}** based on historical performance:",
                     "type": "table",
                     "data": {
                         "headers": ["Metric", phc_a, phc_b],
@@ -160,7 +179,7 @@ def swasthya_ai():
                             ["Total Orders", stats_a['total'], stats_b['total']],
                             ["Fulfillment Rate", stats_a['rate'], stats_b['rate']],
                             ["Avg Delivery Time", stats_a['avg_time'], stats_b['avg_time']],
-                            ["Stockouts Reported", "2", "0"]
+                            ["Critical Alerts", "1", "0"]
                         ]
                     }
                 }
@@ -169,14 +188,19 @@ def swasthya_ai():
         elif 'forecast' in query or 'predict' in query or 'demand' in query:
              preds = generate_predictions()
              
-             # Filter for current PHC context
-             user_phc = context.get('userPHC', '')
-             phc_preds = [p for p in preds if user_phc.lower() in p['phc'].lower()]
+             target_phc = context.get('userPHC', '')
+             # Override if user mentions a different PHC
+             for key in phc_map:
+                 if key in query:
+                     target_phc = phc_map[key]
+                     break
+
+             phc_preds = [p for p in preds if target_phc.lower() in p['phc'].lower()]
              
              if phc_preds:
                  top = max(phc_preds, key=lambda x: x['predictedQty'])
                  response = {
-                     "text": f"Based on historical consumption and seasonal patterns, here is the forecast for **{top['phc']}** for the upcoming week.",
+                     "text": f"Based on historical consumption, here is the forecast for **{top['phc']}** for next week.",
                      "type": "forecast",
                      "data": {
                          "item": top['name'],
@@ -187,20 +211,17 @@ def swasthya_ai():
                      }
                  }
              else:
-                 response["text"] = "Insufficient historical data to generate a confident forecast for this PHC yet."
+                 response["text"] = f"Insufficient data to generate a forecast for **{target_phc}** yet. Please fulfill more orders."
 
         # --- 4. INTENT: GREETING/HELP ---
         elif 'hello' in query or 'hi' in query or 'help' in query:
-            response["text"] = "Hello. I am **SwasthyaAI**, your operational assistant. I can help you:\n\n1. **Track** active drone deliveries.\n2. **Compare** performance between PHCs.\n3. **Forecast** medicine demand for next week.\n\nWhat would you like to do?"
+            response["text"] = "Hello. I am **SwasthyaAI**, your operational assistant. I can help you:\n\n1. **Track** active drone deliveries.\n2. **Compare** performance (e.g. 'Compare Panera and Belgaon').\n3. **Forecast** medicine demand.\n\nWhat would you like to do?"
 
         return jsonify(response)
 
     except Exception as e:
         print(e)
         return jsonify({"text": "I encountered a system error processing your request. Please contact IT support.", "type": "error"}), 500
-
-# Keep existing routes...
-# ...
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5002))
