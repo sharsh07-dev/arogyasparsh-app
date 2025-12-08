@@ -8,7 +8,7 @@ import ForgotPassword from './pages/ForgotPassword';
 // Change this line:
 // <Route path="/phc-dashboard" element={<PHCDashboard />} />  (The old placeholder)
 import SetLocation from './pages/SetLocation';
-\
+
 // ... inside Routes
 
 
