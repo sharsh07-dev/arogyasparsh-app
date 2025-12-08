@@ -78,6 +78,9 @@ const LOCAL_MEDICINE_DB = [
 
 const HospitalDashboard = () => {
   const navigate = useNavigate();
+  // ✅ SOUND & TRACKING REFS
+  const prevRequestCount = useRef(0);
+  const audioRef = useRef(new Audio(NOTIFICATION_SOUND));
   const user = JSON.parse(localStorage.getItem('userInfo')) || { name: 'District Hospital' };
   
   const [activeTab, setActiveTab] = useState('alerts');
@@ -86,7 +89,8 @@ const HospitalDashboard = () => {
   const [inventory, setInventory] = useState(LOCAL_MEDICINE_DB.map(item => ({
       ...item, stock: 0, expiry: 'N/A', batch: 'N/A'
   })));
-
+// ✅ SOUND URL
+const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [viewProof, setViewProof] = useState(null);
   const [viewItemList, setViewItemList] = useState(null);
@@ -135,7 +139,16 @@ const HospitalDashboard = () => {
         if (Array.isArray(data)) {
           const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
           setRequests(sortedData);
-          
+
+          if (sortedData.length > prevRequestCount.current) {
+              // Only play if it's not the first load (prevCount > 0)
+              if (prevRequestCount.current > 0) {
+                  audioRef.current.play().catch(e => console.log("Audio blocked: interact with page first"));
+                  // Optional: Add a log entry
+                  // addLog("🔔 New Order Received!", "text-yellow-400 font-bold");
+              }
+          }
+          prevRequestCount.current = sortedData.length;
           const allIncidents = [];
           const phcCounts = {};
           const typeCounts = {};
