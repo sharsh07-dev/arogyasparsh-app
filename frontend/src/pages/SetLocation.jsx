@@ -59,17 +59,30 @@ const SetLocation = () => {
     );
   }
 
-  const handleSave = () => {
-    // 1. Update Local Storage
+  const handleSave = async () => {
+    // 1. Update Local Storage (Immediate feedback)
     const updatedUser = {
       ...user,
       landingCoordinates: { lat: position[0], lng: position[1] }
     };
     localStorage.setItem("userInfo", JSON.stringify(updatedUser));
 
-    // 2. (Optional) You could also send this to the Backend API here to save permanently
-    
-    alert(`✅ Landing Zone Updated!\nLat: ${position[0].toFixed(4)}\nLng: ${position[1].toFixed(4)}`);
+    // 2. ✅ Update Backend Database (Persistent)
+    try {
+        await fetch(`https://arogyasparsh-backend.onrender.com/api/auth/update-location`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                email: user.email, // Identify user
+                coordinates: { lat: position[0], lng: position[1] } 
+            })
+        });
+        alert(`✅ Landing Zone Updated & Saved to Cloud!\nLat: ${position[0].toFixed(4)}\nLng: ${position[1].toFixed(4)}`);
+    } catch (e) {
+        console.error("Save failed:", e);
+        alert("Saved locally (Offline Mode).");
+    }
+
     navigate("/phc-dashboard");
   };
 

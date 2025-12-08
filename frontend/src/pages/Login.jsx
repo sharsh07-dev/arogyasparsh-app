@@ -173,13 +173,10 @@ const Login = () => {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
                 </span>
-                <span className="text-xs font-bold tracking-widest text-green-400 uppercase">System Online • 2 Drones Active</span>
+                <span className="text-xs font-bold tracking-widest text-green-400 uppercase">System Online </span>
             </div>
             <h1 className="text-3xl font-bold mb-2 leading-tight">Rapid Response Network</h1>
-            <p className="text-slate-300 text-sm leading-relaxed">
-              Coordinating autonomous medical delivery for 120+ Sub-districts. 
-              Real-time tracking and AI-driven inventory management enabled.
-            </p>
+           
           </div>
         </div>
       </div>

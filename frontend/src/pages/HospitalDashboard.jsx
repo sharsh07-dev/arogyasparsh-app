@@ -269,17 +269,42 @@ const HospitalDashboard = () => {
     return () => clearInterval(aiLoop);
   }, [requests, processingQueue]);
 
-  const handleAutoDispatch = (req) => {
+ const handleAutoDispatch = (req) => {
     if (activeMissions.find(m => m.id === req._id)) return;
+
     updateStatusInDB(req._id, 'Dispatched');
-    addLog(`🚁 Drone Dispatched by Pilot Manohar Singh to ${req.phc}`, "text-blue-400 font-bold");
-    const destination = (req.coordinates && req.coordinates.lat) ? req.coordinates : (PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 });
-    const newMission = { id: req._id, phc: req.phc, destination: destination, startTime: Date.now(), delivered: false };
+    addLog(`🚁 Drone Dispatched by Pilot Manohar Singh`, "text-blue-400 font-bold");
+
+    // ✅ FIX: Parse Coordinates correctly
+    let destination = PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 }; // Default
+    
+    if (req.coordinates) {
+        try {
+            // If it's a string (JSON), parse it. If it's already an object, use it.
+            const parsed = typeof req.coordinates === 'string' ? JSON.parse(req.coordinates) : req.coordinates;
+            if (parsed.lat && parsed.lng) {
+                destination = { lat: parseFloat(parsed.lat), lng: parseFloat(parsed.lng) };
+            }
+        } catch (e) {
+            console.error("Coordinate Parse Error:", e);
+        }
+    }
+
+    const newMission = { 
+        id: req._id, 
+        phc: req.phc, 
+        destination: destination, 
+        startTime: Date.now(), 
+        delivered: false 
+    };
+
     setActiveMissions(prev => [...prev, newMission]);
     setActiveTab('map');
-    setTimeout(() => { addLog(`📦 Package Out for Delivery - Enroute to ${req.phc}`, "text-white"); }, 2000);
-  };
 
+    setTimeout(() => {
+        addLog(`📦 Package Out for Delivery - Enroute to ${req.phc}`, "text-white");
+    }, 2000);
+  };
   useEffect(() => {
     localStorage.setItem('activeMissions', JSON.stringify(activeMissions));
   }, [activeMissions]);
