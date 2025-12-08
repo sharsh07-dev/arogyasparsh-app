@@ -52,7 +52,7 @@ const PHC_COORDINATES = {
 };
 
 const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; 
-
+const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
 // LOCAL REFERENCE DB (Keeps Images Safe)
 const LOCAL_MEDICINE_DB = [
   { id: 6, name: 'Inj. Atropine', img: imgAtropine },
@@ -90,7 +90,7 @@ const HospitalDashboard = () => {
       ...item, stock: 0, expiry: 'N/A', batch: 'N/A'
   })));
 // ✅ SOUND URL
-const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [viewProof, setViewProof] = useState(null);
   const [viewItemList, setViewItemList] = useState(null);
@@ -128,9 +128,8 @@ const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/286
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '', expiry: '' });
 
-  const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
+const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
   const INV_URL = "https://arogyasparsh-backend.onrender.com/api/hospital-inventory";
-
   const fetchRequests = async () => {
     try {
       const res = await fetch(API_URL);
@@ -190,11 +189,16 @@ const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/286
     } catch (err) { console.error("Network Error"); }
   };
 
+ // ✅ FIX: Auto-Refresh Restored & Safe
   useEffect(() => {
-    fetchRequests();
-    const interval = setInterval(fetchRequests, 3000);
-    return () => clearInterval(interval);
-  }, []);
+    fetchRequests(); // Initial fetch
+
+    const interval = setInterval(() => {
+      fetchRequests(); // Auto-refresh every 3s
+    }, 3000);
+
+    return () => clearInterval(interval); // Cleanup on unmount
+  }, []); // Empty dependency array ensures it initializes once
 
   const sendMessage = async () => {
     if (!chatMessage.trim() || !activeChatId) return;
