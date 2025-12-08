@@ -18,7 +18,7 @@ import AiCopilot from '../components/AiCopilot';
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, ArcElement, Filler);
 
 // DATA STRUCTURES
-const INITIAL_HIERARCHY = [
+const INITIAL_HIERARCHY = [//end
     { 
         id: 'SD-001', 
         name: 'Chamorshi', 
