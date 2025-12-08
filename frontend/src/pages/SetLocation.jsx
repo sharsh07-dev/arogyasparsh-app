@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
-import { Save, ArrowLeft, MapPin } from "lucide-react";
+import { Save, ArrowLeft, MapPin, Loader } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -20,29 +20,38 @@ L.Marker.prototype.options.icon = DefaultIcon;
 const SetLocation = () => {
   const navigate = useNavigate();
   
-  // ✅ CRASH-PROOF COORDINATE LOADER
-  const getSafePosition = () => {
+  // ✅ SMART COORDINATE PARSER
+  // This extracts your exact coordinates even if they are 'stringified'
+  const getSavedPosition = () => {
     try {
       const user = JSON.parse(localStorage.getItem("userInfo")) || {};
-      
-      // Check if coordinates exist
-      if (user.landingCoordinates && user.landingCoordinates.lat) {
-        const lat = parseFloat(user.landingCoordinates.lat);
-        const lng = parseFloat(user.landingCoordinates.lng);
+      let coords = user.landingCoordinates;
 
-        // Verify they are actual numbers (Not NaN)
+      // 1. If stored as a string (JSON), parse it
+      if (typeof coords === 'string') {
+          try { coords = JSON.parse(coords); } catch (e) {}
+      }
+
+      // 2. Validate Numbers
+      if (coords && coords.lat && coords.lng) {
+        const lat = parseFloat(coords.lat);
+        const lng = parseFloat(coords.lng);
+
         if (!isNaN(lat) && !isNaN(lng)) {
-          return [lat, lng];
+          return [lat, lng]; // ✅ RETURN EXACT SAVED LOCATION
         }
       }
     } catch (e) {
       console.error("Error reading location:", e);
     }
-    // Fallback Default (Gadchiroli Center)
-    return [19.9280, 79.9050];
+    
+    // ⚠️ CRITICAL: Map MUST have a center to open.
+    // If your data is corrupted (NaN), we start at Gadchiroli so you can drag to fix it.
+    // This is ONLY used if your saved data is broken.
+    return [19.9280, 79.9050]; 
   };
 
-  const [position, setPosition] = useState(getSafePosition());
+  const [position, setPosition] = useState(getSavedPosition());
 
   // Handle Map Clicks
   function LocationMarker() {
@@ -67,8 +76,8 @@ const SetLocation = () => {
         ref={markerRef}
       >
         <Popup>
-          <span className="font-bold text-blue-600">Landing Zone</span>
-          <br />Drag to adjust.
+          <span className="font-bold text-blue-600">Selected Landing Zone</span>
+          <br />Exact Coords: {position[0].toFixed(4)}, {position[1].toFixed(4)}
         </Popup>
       </Marker>
     );
@@ -77,10 +86,10 @@ const SetLocation = () => {
   const handleSave = async () => {
     const user = JSON.parse(localStorage.getItem("userInfo")) || {};
     
-    // 1. Update Local Storage
+    // 1. Save as CLEAN OBJECT (Fixes the NaN issue for future)
     const updatedUser = {
       ...user,
-      landingCoordinates: { lat: position[0], lng: position[1] }
+      landingCoordinates: { lat: position[0], lng: position[1] } // Saving as Object, not string
     };
     localStorage.setItem("userInfo", JSON.stringify(updatedUser));
 
@@ -94,13 +103,17 @@ const SetLocation = () => {
                 coordinates: { lat: position[0], lng: position[1] } 
             })
         });
-        alert(`✅ Landing Zone Saved!\nLat: ${position[0].toFixed(4)}\nLng: ${position[1].toFixed(4)}`);
+        alert(`✅ Location Secured!\nLatitude: ${position[0]}\nLongitude: ${position[1]}`);
         navigate("/phc-dashboard");
     } catch (e) {
         alert("Saved locally (Offline Mode).");
         navigate("/phc-dashboard");
     }
   };
+
+  if (isNaN(position[0]) || isNaN(position[1])) {
+      return <div className="h-screen flex items-center justify-center text-red-500">Error: Invalid Coordinates. Clear Cache.</div>;
+  }
 
   return (
     <div className="h-screen w-full flex flex-col bg-slate-50">
@@ -113,22 +126,22 @@ const SetLocation = () => {
             </button>
             <div>
                 <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                    <MapPin className="text-red-500"/> Set Landing Zone
+                    <MapPin className="text-blue-600"/> Set Exact Landing Zone
                 </h1>
-                <p className="text-xs text-slate-500">Drag marker to exact drop location.</p>
+                <p className="text-xs text-slate-500">Pinpoint your exact PHC location for drone delivery.</p>
             </div>
         </div>
         <button 
             onClick={handleSave}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg active:scale-95 text-sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg active:scale-95 text-sm transition-all"
         >
-            <Save size={16} /> Confirm
+            <Save size={18} /> Confirm Location
         </button>
       </div>
 
       {/* Map */}
       <div className="flex-1 relative z-0">
-        <MapContainer center={position} zoom={13} style={{ height: "100%", width: "100%" }}>
+        <MapContainer center={position} zoom={15} style={{ height: "100%", width: "100%" }}>
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -136,9 +149,15 @@ const SetLocation = () => {
           <LocationMarker />
         </MapContainer>
         
-        <div className="absolute bottom-8 left-8 bg-white/90 backdrop-blur p-3 rounded-xl shadow-xl border border-slate-200 z-[1000]">
-            <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Selected Coordinates</p>
-            <p className="font-mono text-sm font-bold text-slate-800">{position[0].toFixed(5)}, {position[1].toFixed(5)}</p>
+        {/* Coordinate Display */}
+        <div className="absolute bottom-8 left-8 bg-white/90 backdrop-blur p-4 rounded-xl shadow-xl border border-slate-200 z-[1000] min-w-[200px]">
+            <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Target Coordinates</p>
+            <div className="font-mono text-sm font-bold text-slate-800 flex justify-between">
+                <span>LAT:</span> <span>{position[0].toFixed(6)}</span>
+            </div>
+            <div className="font-mono text-sm font-bold text-slate-800 flex justify-between">
+                <span>LNG:</span> <span>{position[1].toFixed(6)}</span>
+            </div>
         </div>
       </div>
     </div>
