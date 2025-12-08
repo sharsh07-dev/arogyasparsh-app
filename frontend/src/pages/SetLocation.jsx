@@ -1,112 +1,117 @@
-import React, { useState, useRef, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import { useNavigate } from 'react-router-dom';
-import { MapPin, CheckCircle, Navigation } from 'lucide-react';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
+import React, { useState, useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
+import { Save, ArrowLeft, MapPin } from "lucide-react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 // Fix Leaflet Marker Icon
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
+import icon from "leaflet/dist/images/marker-icon.png";
+import iconShadow from "leaflet/dist/images/marker-shadow.png";
 let DefaultIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Default Center (India/Maharashtra approx) or get from Browser Geolocation
-const DEFAULT_CENTER = [19.9280, 79.9050]; 
-
-const LocationMarker = ({ setPos }) => {
-  const [position, setPosition] = useState(DEFAULT_CENTER);
-  const map = useMapEvents({
-    click(e) {
-      setPosition([e.latlng.lat, e.latlng.lng]);
-      setPos({ lat: e.latlng.lat, lng: e.latlng.lng });
-      map.flyTo(e.latlng, map.getZoom());
-    },
-  });
-
-  return position === null ? null : (
-    <Marker position={position}></Marker>
-  );
-};
-
 const SetLocation = () => {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('userInfo'));
-  const [selectedPos, setSelectedPos] = useState({ lat: DEFAULT_CENTER[0], lng: DEFAULT_CENTER[1] });
-  const [isLoading, setIsLoading] = useState(false);
+  const user = JSON.parse(localStorage.getItem("userInfo")) || {};
+  
+  // Default to existing coords or a central point (Gadchiroli)
+  const defaultPosition = user.landingCoordinates 
+    ? [parseFloat(user.landingCoordinates.lat), parseFloat(user.landingCoordinates.lng)] 
+    : [19.9280, 79.9050];
 
-  const handleConfirm = async () => {
-    setIsLoading(true);
-    try {
-        const res = await fetch('https://arogyasparsh-backend.onrender.com/api/auth/set-landing-zone', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: user._id, lat: selectedPos.lat, lng: selectedPos.lng })
-        });
+  const [position, setPosition] = useState(defaultPosition);
 
-        if (res.ok) {
-            // Update local storage user data
-            const updatedUser = { ...user, landingCoordinates: { lat: selectedPos.lat, lng: selectedPos.lng, set: true } };
-            localStorage.setItem('userInfo', JSON.stringify(updatedUser));
-            
-            alert("✅ Landing Zone Confirmed! Redirecting to Dashboard...");
-            navigate('/phc-dashboard');
-        } else {
-            alert("Failed to save location.");
-        }
-    } catch (err) {
-        alert("Network Error");
-    }
-    setIsLoading(false);
+  // Component to handle map clicks/drags
+  function LocationMarker() {
+    const markerRef = useRef(null);
+    
+    useMapEvents({
+      click(e) {
+        setPosition([e.latlng.lat, e.latlng.lng]);
+      },
+    });
+
+    return (
+      <Marker
+        draggable={true}
+        eventHandlers={{
+          dragend: (e) => {
+            const marker = e.target;
+            const newPos = marker.getLatLng();
+            setPosition([newPos.lat, newPos.lng]);
+          },
+        }}
+        position={position}
+        ref={markerRef}
+      >
+        <Popup>
+          <span className="font-bold text-blue-600">Drone Landing Zone</span>
+          <br />
+          Drag to adjust.
+        </Popup>
+      </Marker>
+    );
+  }
+
+  const handleSave = () => {
+    // 1. Update Local Storage
+    const updatedUser = {
+      ...user,
+      landingCoordinates: { lat: position[0], lng: position[1] }
+    };
+    localStorage.setItem("userInfo", JSON.stringify(updatedUser));
+
+    // 2. (Optional) You could also send this to the Backend API here to save permanently
+    
+    alert(`✅ Landing Zone Updated!\nLat: ${position[0].toFixed(4)}\nLng: ${position[1].toFixed(4)}`);
+    navigate("/phc-dashboard");
   };
 
   return (
-    <div className="h-screen flex flex-col relative">
-      {/* Header Overlay */}
-      <div className="absolute top-4 left-4 right-4 z-[1000] bg-white p-4 rounded-2xl shadow-xl flex items-center justify-between">
-        <div>
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <MapPin className="text-red-500" /> Set Drone Landing Zone
-            </h2>
-            <p className="text-xs text-slate-500">Tap on the map to mark exact drop location.</p>
-        </div>
-      </div>
-
-      {/* Map */}
-      <MapContainer center={DEFAULT_CENTER} zoom={13} scrollWheelZoom={true} className="h-full w-full z-0">
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <LocationMarker setPos={setSelectedPos} />
-      </MapContainer>
-
-      {/* Footer Confirmation */}
-      <div className="absolute bottom-0 left-0 w-full p-6 bg-white rounded-t-3xl shadow-2xl z-[1000] border-t border-slate-200">
-        <div className="flex items-center justify-between mb-4">
+    <div className="h-screen w-full flex flex-col bg-slate-50">
+      
+      {/* Header */}
+      <div className="bg-white p-4 shadow-md z-10 flex justify-between items-center">
+        <div className="flex items-center gap-4">
+            <button onClick={() => navigate("/phc-dashboard")} className="p-2 hover:bg-slate-100 rounded-full text-slate-600">
+                <ArrowLeft size={24} />
+            </button>
             <div>
-                <p className="text-xs text-slate-400 uppercase font-bold">Selected Coordinates</p>
-                <p className="text-sm font-mono font-bold text-slate-700">
-                    {selectedPos.lat.toFixed(4)}, {selectedPos.lng.toFixed(4)}
-                </p>
-            </div>
-            <div className="bg-blue-50 p-2 rounded-full text-blue-600">
-                <Navigation size={24} />
+                <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <MapPin className="text-red-500"/> Set Landing Zone
+                </h1>
+                <p className="text-sm text-slate-500">Drag the marker to your exact PHC drop-off point.</p>
             </div>
         </div>
         <button 
-            onClick={handleConfirm}
-            disabled={isLoading}
-            className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-slate-800 transition-all active:scale-95"
+            onClick={handleSave}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-transform active:scale-95"
         >
-            {isLoading ? "Saving..." : <><CheckCircle /> Confirm Landing Spot</>}
+            <Save size={18} /> Confirm Location
         </button>
+      </div>
+
+      {/* Map */}
+      <div className="flex-1 relative z-0">
+        <MapContainer center={position} zoom={13} style={{ height: "100%", width: "100%" }}>
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <LocationMarker />
+        </MapContainer>
+        
+        {/* Floating Info Box */}
+        <div className="absolute bottom-8 left-8 bg-white/90 backdrop-blur p-4 rounded-xl shadow-xl border border-slate-200 z-[1000]">
+            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Current Selection</p>
+            <p className="font-mono text-lg font-bold text-slate-800">{position[0].toFixed(5)}, {position[1].toFixed(5)}</p>
+        </div>
       </div>
     </div>
   );

@@ -8,7 +8,7 @@ const authRoutes = require("./routes/authRoutes");
 const requestRoutes = require("./routes/requestRoutes");
 const phcInventoryRoutes = require("./routes/phcInventoryRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
-const hospitalInventoryRoutes = require("./routes/hospitalInventoryRoutes"); // ✅ Ensure this exists
+const hospitalInventoryRoutes = require("./routes/hospitalInventoryRoutes.js"); // ✅ Ensure this exists
 
 dotenv.config();
 connectDB();
