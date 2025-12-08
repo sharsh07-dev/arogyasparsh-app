@@ -6,12 +6,15 @@ import {
   Battery, Signal, Plane, Plus, Minus, Search, 
   Map as MapIcon, VolumeX, Siren, X, Check, Menu,
   Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2, Globe, Timer, Zap, Brain, Cpu, Terminal, 
-  TrendingUp, ClipboardList, Filter, MessageCircle, Send, AlertTriangle, ShieldAlert, BarChart3, Calendar
+  TrendingUp, ClipboardList, Filter, MessageCircle, Send, AlertTriangle, ShieldAlert, BarChart3, Calendar,
+  Volume2
 } from 'lucide-react';
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
 
 import logoMain from '../assets/logo_final.png';
+
+// ✅ IMPORT COMPONENTS
 import HospitalSwasthyaBot from '../components/HospitalSwasthyaBot';
 import RealisticFlightTracker from '../components/RealisticFlightTracker';
 
@@ -53,7 +56,7 @@ const PHC_COORDINATES = {
 
 const HOSPITAL_LOC = { lat: 19.9260, lng: 79.9033 }; 
 
-// LOCAL REFERENCE DB (Keeps Images Safe)
+// LOCAL REFERENCE DB
 const LOCAL_MEDICINE_DB = [
   { id: 6, name: 'Inj. Atropine', img: imgAtropine },
   { id: 7, name: 'Inj. Adrenaline', img: imgAdrenaline },
@@ -75,6 +78,9 @@ const LOCAL_MEDICINE_DB = [
   { id: 26, name: 'IV 25% Dextrose', img: imgDex25 },
   { id: 27, name: 'IV Haemaccel', img: imgHamaccyl },
 ];
+
+// ✅ SOUND URL
+const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
 
 const HospitalDashboard = () => {
   const navigate = useNavigate();
@@ -113,6 +119,10 @@ const HospitalDashboard = () => {
   
   useEffect(() => { localStorage.setItem('hospitalLogs_v1', JSON.stringify(aiLogs)); }, [aiLogs]);
 
+  // ✅ SOUND REFERENCE
+  const prevRequestCount = useRef(0);
+  const audioRef = useRef(new Audio(NOTIFICATION_SOUND));
+
   const addLog = (msg, color) => {
     setAiLogs(prev => {
         if (prev.length > 0 && prev[0].msg === msg) return prev; 
@@ -136,6 +146,17 @@ const HospitalDashboard = () => {
           const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
           setRequests(sortedData);
           
+          // ✅ PLAY SOUND IF NEW REQUEST ARRIVES
+          if (sortedData.length > prevRequestCount.current) {
+              // Only play if it's not the initial load (prevCount > 0)
+              if (prevRequestCount.current > 0) {
+                  audioRef.current.play().catch(e => console.log("Audio blocked by browser (click page to enable)."));
+                  addLog("🔔 New Order Received!", "text-yellow-400 font-bold");
+              }
+          }
+          prevRequestCount.current = sortedData.length;
+
+          // Process Incidents
           const allIncidents = [];
           const phcCounts = {};
           const typeCounts = {};
@@ -198,20 +219,14 @@ const HospitalDashboard = () => {
 
   const fetchPredictions = async () => {
     try {
-        const res = await fetch("https://arogyasparsh-backend.onrender.com/api/analytics/predict"); 
+        const res = await fetch("https://arogyasparsh-ml.onrender.com/predict-demand"); 
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
             setPredictions(data);
             setFilteredPredictions(data.slice(0, 3));
         } else { throw new Error("No Data"); }
     } catch (err) {
-        const mockData = [
-            { phc: "PHC Chamorshi", name: "Inj. Atropine", predictedQty: 42, trend: "📈 Rising" },
-            { phc: "PHC Belgaon", name: "IV Paracetamol", predictedQty: 15, trend: "📉 Stable" },
-            { phc: "PHC Gadhchiroli", name: "Inj. Adrenaline", predictedQty: 30, trend: "📈 Urgent" }
-        ];
-        setPredictions(mockData);
-        setFilteredPredictions(mockData.slice(0, 3));
+        // Fallback or Silent Fail
     }
   };
   useEffect(() => { fetchPredictions(); }, []);
@@ -239,7 +254,7 @@ const HospitalDashboard = () => {
     return score.toFixed(2); 
   };
 
-  // ✅ UPDATED AUTO-PILOT LOOP (Includes PHC Name in Logs)
+  // AUTO-PILOT LOOP
   useEffect(() => {
     const aiLoop = setInterval(() => {
         requests.forEach(req => {
@@ -247,7 +262,6 @@ const HospitalDashboard = () => {
                 const score = calculatePriorityScore(req);
                 setProcessingQueue(prev => [...prev, req._id]);
 
-                // Log Format: ID | PHC Name | Status
                 const logPrefix = `ID: ${req._id.slice(-4)} | ${req.phc}`;
 
                 if (req.urgency === 'Critical') {
@@ -269,42 +283,28 @@ const HospitalDashboard = () => {
     return () => clearInterval(aiLoop);
   }, [requests, processingQueue]);
 
- const handleAutoDispatch = (req) => {
+  const handleAutoDispatch = (req) => {
     if (activeMissions.find(m => m.id === req._id)) return;
-
     updateStatusInDB(req._id, 'Dispatched');
-    addLog(`🚁 Drone Dispatched by Pilot Manohar Singh`, "text-blue-400 font-bold");
-
-    // ✅ FIX: Parse Coordinates correctly
-    let destination = PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 }; // Default
+    addLog(`🚁 Drone Dispatched by Pilot Manohar Singh to ${req.phc}`, "text-blue-400 font-bold");
     
+    // ✅ FIX: Parse Coordinates
+    let destination = PHC_COORDINATES[req.phc] || { lat: 19.9280, lng: 79.9050 };
     if (req.coordinates) {
         try {
-            // If it's a string (JSON), parse it. If it's already an object, use it.
             const parsed = typeof req.coordinates === 'string' ? JSON.parse(req.coordinates) : req.coordinates;
             if (parsed.lat && parsed.lng) {
                 destination = { lat: parseFloat(parsed.lat), lng: parseFloat(parsed.lng) };
             }
-        } catch (e) {
-            console.error("Coordinate Parse Error:", e);
-        }
+        } catch (e) { console.error("Coord Parse Error", e); }
     }
 
-    const newMission = { 
-        id: req._id, 
-        phc: req.phc, 
-        destination: destination, 
-        startTime: Date.now(), 
-        delivered: false 
-    };
-
+    const newMission = { id: req._id, phc: req.phc, destination: destination, startTime: Date.now(), delivered: false };
     setActiveMissions(prev => [...prev, newMission]);
     setActiveTab('map');
-
-    setTimeout(() => {
-        addLog(`📦 Package Out for Delivery - Enroute to ${req.phc}`, "text-white");
-    }, 2000);
+    setTimeout(() => { addLog(`📦 Package Out for Delivery - Enroute to ${req.phc}`, "text-white"); }, 2000);
   };
+
   useEffect(() => {
     localStorage.setItem('activeMissions', JSON.stringify(activeMissions));
   }, [activeMissions]);
@@ -312,8 +312,11 @@ const HospitalDashboard = () => {
   const handleLogout = () => { localStorage.removeItem('userInfo'); navigate('/login'); };
   
   const showCoordinates = (req) => {
-      if (req.coordinates && req.coordinates.lat) {
-          alert(`📍 GPS Drop Location [${req.phc}]:\n\nLatitude: ${req.coordinates.lat}\nLongitude: ${req.coordinates.lng}\n\n✅ Received from PHC App.`);
+      if (req.coordinates) {
+          try {
+              const coords = typeof req.coordinates === 'string' ? JSON.parse(req.coordinates) : req.coordinates;
+              alert(`📍 GPS Drop Location [${req.phc}]:\n\nLatitude: ${coords.lat}\nLongitude: ${coords.lng}\n\n✅ Received from PHC App.`);
+          } catch(e) { alert("Coordinates format error."); }
       } else {
           const coords = PHC_COORDINATES[req.phc] || { lat: 'Unknown', lng: 'Unknown' };
           alert(`📍 Static Location [${req.phc}]:\n\nLatitude: ${coords.lat}\nLongitude: ${coords.lng}\n\n⚠️ Using database default.`);
@@ -325,17 +328,6 @@ const HospitalDashboard = () => {
   const handleDispatch = (req) => { if(!confirm("Confirm Manual Dispatch?")) return; handleAutoDispatch(req, 0); };
   const handleReject = (id, urgency) => { if(!confirm("Reject this request?")) return; updateStatusInDB(id, 'Rejected'); };
   
-  const updateStock = async (id, change) => { 
-      try {
-          await fetch(`${INV_URL}/update`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ itemId: id, change })
-          });
-          fetchRequests(); 
-      } catch (e) { alert("Failed to update stock"); }
-  };
-
   const removeMedicine = (id) => {
     if(confirm("Remove this medicine?")) setInventory(inventory.filter(item => item.id !== id));
   };
@@ -354,7 +346,9 @@ const HospitalDashboard = () => {
   return (
     <div className={`min-h-screen bg-slate-50 flex font-sans text-slate-800 relative`}>
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
-    <HospitalSwasthyaBot contextData={{ inventory, requests }} />
+      
+      {/* ✅ HOSPITAL AI BOT */}
+      <HospitalSwasthyaBot contextData={{ inventory, requests }} />
 
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:flex md:flex-col`}>
         <div className="p-6 border-b border-slate-800 flex justify-between items-center">
@@ -377,7 +371,7 @@ const HospitalDashboard = () => {
             <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-600"><Menu size={24} /></button>
             <h1 className="text-lg md:text-2xl font-bold text-slate-800">{activeTab === 'alerts' ? 'Autonomous Command Center' : activeTab === 'analytics' ? 'Predictive AI Analytics' : activeTab === 'reports' ? 'Incident Analytics' : (activeTab === 'map' ? 'Global Tracking' : 'Inventory')}</h1>
           </div>
-          <div className="bg-blue-50 px-3 py-1 rounded-full text-xs font-semibold text-blue-700 flex items-center gap-2"><Cpu size={14} />Sub-District</div>
+          <div className="bg-blue-50 px-3 py-1 rounded-full text-xs font-semibold text-blue-700 flex items-center gap-2"><Cpu size={14} /> AI Active</div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 relative">
@@ -497,6 +491,7 @@ const HospitalDashboard = () => {
                                 <img src={item.img} className="h-24 w-full object-contain mb-2"/>
                                 <h3 className="font-bold text-sm">{item.name}</h3>
                                 <p className={`text-[10px] mt-1 font-bold ${isExpiring ? 'text-red-500' : 'text-green-600'}`}>Exp: {item.expiry || 'N/A'}</p>
+                                {/* ✅ READ ONLY STOCK (No Buttons) */}
                                 <div className="mt-2"><span className="text-xs text-slate-400 uppercase font-bold">Current Stock</span><p className="text-xl font-bold text-slate-800">{item.stock}</p></div>
                             </div>
                         )})}
