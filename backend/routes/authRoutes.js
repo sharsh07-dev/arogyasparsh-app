@@ -18,7 +18,7 @@ router.put("/update-location", async (req, res) => {
         const user = await User.findOneAndUpdate(
             { email: email },
             { $set: { landingCoordinates: coordinates } },
-            { new: true }
+            { new: true }//change
         );
         res.status(200).json(user);
     } catch (err) {
