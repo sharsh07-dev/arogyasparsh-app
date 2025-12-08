@@ -14,7 +14,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Toolti
 import logoMain from '../assets/logo_final.png';
 import HospitalSwasthyaBot from '../components/HospitalSwasthyaBot';
 import RealisticFlightTracker from '../components/RealisticFlightTracker';
-
+//hello
 // Register ChartJS
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
