@@ -8,7 +8,8 @@ const phcInventorySchema = new mongoose.Schema({
       name: String,
       stock: Number,
       img: String,
-      batch: String
+      batch: String,
+      expiry: String
     }
   ]
 }, { timestamps: true });
