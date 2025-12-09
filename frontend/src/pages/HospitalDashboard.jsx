@@ -94,6 +94,15 @@ const HospitalDashboard = () => {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [viewProof, setViewProof] = useState(null);
+  const [showOperatorModal, setShowOperatorModal] = useState(false);
+  const [newOperator, setNewOperator] = useState({ 
+      name: '', 
+      qualification: '', 
+      licenseNumber: '', 
+      experience: '', 
+      contact: '', 
+      photo: '' 
+  });
   const [viewItemList, setViewItemList] = useState(null);
   
   const [predictions, setPredictions] = useState([]); 
