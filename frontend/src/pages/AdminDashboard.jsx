@@ -96,7 +96,7 @@ const AdminDashboard = () => {
       const delivered = data.filter(r => r.status === 'Delivered').length;
       
       // ❌ DELETED: totalVal calculation
-
+const [requests, setRequests] = useState([]);
       const dates = {};
       data.forEach(r => { const d = new Date(r.createdAt).toLocaleDateString('en-GB'); dates[d] = (dates[d] || 0) + 1; });
 
