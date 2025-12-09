@@ -141,13 +141,25 @@ const PHCDashboard = () => {
     return () => { clearInterval(timer); clearInterval(poller); };
   }, []);
 
-  const handleClearHistory = async () => {
-      if(!confirm("⚠️ Are you sure you want to clear ALL order history?")) return;
+const handleClearHistory = async () => {
+      if (!confirm("⚠️ Are you sure you want to delete ALL order history? This cannot be undone.")) return;
+      
       try {
-          await fetch(`${API_URL}/clear-all`, { method: "DELETE" });
-          alert("History Cleared");
-          fetchData();
-      } catch (e) { alert("Failed to clear"); }
+          const res = await fetch(`${REQUEST_API}/clear-history`, {
+              method: "DELETE"
+          });
+          
+          if (res.ok) {
+              alert("✅ Order History Cleared!");
+              setOrderHistory([]); // Clear local state
+              fetchData(); // Refresh data
+          } else {
+              alert("Failed to clear history.");
+          }
+      } catch (e) {
+          console.error(e);
+          alert("Network Error");
+      }
   };
 
   const updateLocalStock = async (id, change) => {
@@ -408,36 +420,46 @@ const PHCDashboard = () => {
           )}
 
           {/* 4️⃣ HISTORY & TRACKING */}
-          {!showTracker && activeTab === 'history' && (
-             <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl border overflow-hidden overflow-x-auto">
-                <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
-                    <h3 className="font-bold text-slate-700">Order History</h3>
-                    <div className="flex gap-2">
-                        <button onClick={handleClearHistory} className="flex items-center gap-2 text-sm text-red-600 hover:bg-red-50 px-3 py-1 rounded-lg transition-colors"><Trash2 size={16} /> Clear</button>
-                        <button onClick={fetchData} className="flex items-center gap-2 text-sm text-blue-600 hover:bg-blue-50 px-3 py-1 rounded-lg transition-colors"><RotateCcw size={16} /> Refresh</button>
+         {/* 3. HISTORY TAB */}
+            {activeTab === 'history' && (
+                <div className="max-w-4xl mx-auto">
+                    {/* ✅ Header with Clear Button */}
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-slate-800">Order History</h2>
+                        {orderHistory.length > 0 && (
+                            <button 
+                                onClick={handleClearHistory} 
+                                className="bg-red-100 text-red-600 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-red-200 transition-colors"
+                            >
+                                <Trash2 size={16} /> Clear History
+                            </button>
+                        )}
                     </div>
+
+                    {orderHistory.length === 0 ? (
+                        <div className="text-center py-10 text-slate-400">No past orders found.</div>
+                    ) : (
+                        orderHistory.map(order => (
+                            <div key={order._id} className="bg-white p-4 rounded-xl border shadow-sm mb-4 flex justify-between items-center">
+                                <div>
+                                    <p className="font-bold text-slate-800 flex items-center gap-2">
+                                        {order.item} 
+                                        {order.status === 'In-Flight' && <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1"><Plane size={10} /> Drone Active</span>}
+                                    </p>
+                                    <p className="text-xs text-slate-500 mt-1">Ordered: {new Date(order.createdAt).toLocaleString()}</p>
+                                </div>
+                                <div className="text-right">
+                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                        order.status === 'Delivered' ? 'bg-green-100 text-green-700' : 
+                                        order.status === 'Dispatched' ? 'bg-blue-100 text-blue-700' : 
+                                        'bg-yellow-100 text-yellow-700'
+                                    }`}>{order.status}</span>
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
-                <table className="w-full text-left min-w-[600px]">
-                    <thead className="bg-slate-50 border-b"><tr><th className="p-4">Date & Time</th><th className="p-4">Order ID</th><th className="p-4">Item</th><th className="p-4">Status</th><th className="p-4">Action</th></tr></thead>
-                    <tbody>
-                        {orderHistory.map((order) => (
-                            <tr key={order._id || order.id} className="hover:bg-slate-50 transition-colors">
-                                <td className="p-4 text-sm text-slate-500">{new Date(order.createdAt).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-                                <td className="p-4 font-mono text-sm">{(order._id || order.id).slice(-6).toUpperCase()}</td>
-                                <td className="p-4 font-bold">{order.item}</td>
-                                <td className="p-4"><span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-bold">{order.status}</span></td>
-                                <td className="p-4 flex items-center gap-2">
-                                    <button onClick={() => setActiveChatId(order._id)} className={`p-2 rounded-full relative ${order.chat?.length > 0 ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}><MessageCircle size={18}/></button>
-                                    <button onClick={() => { setTargetReportId(order._id); setShowReportModal(true); }} className="p-2 rounded-full bg-red-50 text-red-500 hover:bg-red-100"><AlertTriangle size={18}/></button>
-                                    <button onClick={() => setViewOrder(order)} className="text-slate-500 hover:text-blue-600 p-2 rounded-full hover:bg-blue-50 transition-colors"><Eye size={18} /></button>
-                                    {order.status === 'Dispatched' && <button onClick={startTracking} className="text-green-600 font-bold text-sm flex gap-1"><Navigation size={14}/> Track</button>}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-             </div>
-          )}
+            )}
 
           {/* 5️⃣ TRACKER VIEW */}
           {showTracker && (
@@ -496,7 +518,7 @@ const PHCDashboard = () => {
       {showReportModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
              <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6">
-                 <h3 className="text-xl font-bold text-red-600 flex items-center gap-2 mb-4"><AlertTriangle/> Report Issue</h3>
+                 <h3 className="text-xl font-bold text-red-600 flex items-center gap-2 mb-4"><AlertTriangle/> FeedBack</h3>
                  <div className="space-y-4">
                      <div><label className="block text-xs font-bold mb-1">Issue Type</label><select className="w-full border p-2 rounded-lg" value={reportData.type} onChange={(e)=>setReportData({...reportData, type: e.target.value})}><option>Damaged Kit</option><option>Wrong Medicine</option><option>Delivery Delay</option><option>Other</option></select></div>
                      <div><label className="block text-xs font-bold mb-1">Details</label><textarea className="w-full border p-2 rounded-lg h-24" placeholder="Describe what went wrong..." value={reportData.details} onChange={(e)=>setReportData({...reportData, details: e.target.value})}/></div>
