@@ -54,6 +54,9 @@ const MEDICINE_DB = [
   { id: 27, name: 'IV Haemaccel', type: 'Bottle', img: imgHamaccyl },
 ];
 
+  const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
+  const INV_URL = "https://arogyasparsh-backend.onrender.com/api/phc-inventory";
+
 const PHCDashboard = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('userInfo')) || { name: 'Wagholi PHC' };
@@ -93,9 +96,6 @@ const [showIncidentModal, setShowIncidentModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', batch: '', expiry: '' });
 
   const activeChatRequest = orderHistory.find(r => r._id === activeChatId) || null;
-
-  const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
-  const INV_URL = "https://arogyasparsh-backend.onrender.com/api/phc-inventory";
 
   // ✅ ROBUST COORDINATE CHECKER
   const getSafeDestination = () => {
