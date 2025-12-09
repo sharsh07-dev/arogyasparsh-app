@@ -83,7 +83,7 @@ const PHCDashboard = () => {
 
   const [activeChatId, setActiveChatId] = useState(null);
   const [chatMessage, setChatMessage] = useState("");
-  const [showReportModal, setShowReportModal] = useState(false);
+const [showIncidentModal, setShowIncidentModal] = useState(false);
   const [reportData, setReportData] = useState({ type: 'Damaged', details: '' });
   const [targetReportId, setTargetReportId] = useState(null);
   
