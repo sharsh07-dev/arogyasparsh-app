@@ -85,6 +85,8 @@ const PHCDashboard = () => {
   const [chatMessage, setChatMessage] = useState("");
 const [showIncidentModal, setShowIncidentModal] = useState(false);
   const [reportData, setReportData] = useState({ type: 'Damaged', details: '' });
+  const [activeIncidentId, setActiveIncidentId] = useState(null); 
+  const [incidentData, setIncidentData] = useState({ type: 'Damaged', details: '' });
   const [targetReportId, setTargetReportId] = useState(null);
   
   const [showAddModal, setShowAddModal] = useState(false);
@@ -178,33 +180,22 @@ const handleClearHistory = async () => {
         setPhcInventory(phcInventory.filter(item => item.id !== id));
     }
   };
-  const handleAddNewMedicine = async () => {
+const handleAddNewMedicine = async () => {
       if (!newItem.name || !newItem.stock) return alert("Please fill Name and Stock");
-
       try {
           const res = await fetch(`${INV_API_BASE}/add`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                  phcName: user.name,
-                  newItem: newItem
-              })
+              body: JSON.stringify({ phcName: user.name, newItem: newItem })
           });
-
           if (res.ok) {
               alert("Medicine Added Successfully!");
               setNewItem({ name: '', stock: '', batch: '', expiry: '' });
               setShowAddModal(false);
-              fetchData(); // Refresh list
-          } else {
-              alert("Failed to add medicine");
+              fetchData(); 
           }
-      } catch (e) {
-          console.error(e);
-          alert("Network Error");
-      }
+      } catch (e) { alert("Network Error"); }
   };
-
  
 
   const sendMessage = async () => {
@@ -284,7 +275,7 @@ const handleClearHistory = async () => {
   const startTracking = () => {
     setShowTracker(true); 
   };
-
+const activeChatOrder = orderHistory.find(o => o._id === activeChatId);
   const filteredMedicines = MEDICINE_DB.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const handleLogout = () => { localStorage.removeItem('userInfo'); navigate('/login'); };
   const timeString = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -577,6 +568,7 @@ const handleClearHistory = async () => {
                     <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Expiry Date</label><input className="w-full p-3 border rounded-xl" type="date" value={newItem.expiry} onChange={e => setNewItem({...newItem, expiry: e.target.value})} /></div>
                 </div>
                 <div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3"><button onClick={() => setShowAddModal(false)} className="px-5 py-2 text-slate-600">Cancel</button><button onClick={addNewItem} className="px-6 py-2 bg-blue-600 text-white rounded-xl">Save</button></div>
+            <button onClick={handleAddNewMedicine} className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700">Save Item</button>
             </div>
         </div>
       )}
