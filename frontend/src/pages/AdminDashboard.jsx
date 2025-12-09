@@ -12,6 +12,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 import logoMain from '../assets/logo_final.png';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement, BarElement);
+  const stats = getAnalytics();
 
 // Mock Data for PHCs (For display in Users tab)
 const PHC_LIST = [
@@ -122,7 +123,6 @@ const [requests, setRequests] = useState([]);
       };
   };
 
-  const stats = getAnalytics();
 
   // Charts (Unchanged)
   const lineChartData = {
