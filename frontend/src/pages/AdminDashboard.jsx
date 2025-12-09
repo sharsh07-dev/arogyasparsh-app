@@ -13,8 +13,7 @@ import logoMain from '../assets/logo_final.png';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement, BarElement);
 
-
-// Mock Data for PHCs (For display in Users tab)
+// Mock Data for PHCs
 const PHC_LIST = [
   { name: "PHC Chamorshi", location: "Chamorshi", status: "Active", phone: "+91 98765 43210" },
   { name: "PHC Gadhchiroli", location: "Gadhchiroli", status: "Active", phone: "+91 98765 43211" },
@@ -28,42 +27,36 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  // Data States
-  // ❌ DELETED: inventoryValue state
-  const [ setStats] = useState({ totalRequests: 0, pending: 0, approved: 0, critical: 0 });
-  const [recentActivity, setRecentActivity] = useState([]);
-  const [operators, setOperators] = useState([]); 
+  // --- DATA STATES ---
+  // ✅ FIX 1: Store raw requests here, not "stats"
+  const [requests, setRequests] = useState([]); 
   const [inventory, setInventory] = useState([]); 
+  const [operators, setOperators] = useState([]); 
+  const [recentActivity, setRecentActivity] = useState([]);
 
   // APIs
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
   const INV_URL = "https://arogyasparsh-backend.onrender.com/api/hospital-inventory";
   const OPERATOR_API = "https://arogyasparsh-backend.onrender.com/api/drone-operators"; 
-  const stats = getAnalytics();
+
   const fetchAdminData = async () => {
     try {
-      // 1. Stats & Activity
+      // 1. Fetch Requests
       const res = await fetch(API_URL);
       if (res.ok) {
         const data = await res.json();
-        setStats({
-          totalRequests: data.length,
-          pending: data.filter(r => r.status === 'Pending').length,
-          approved: data.filter(r => r.status === 'Approved' || r.status === 'Delivered').length,
-          critical: data.filter(r => r.urgency === 'Critical').length
-        });
+        setRequests(data); // ✅ Store raw data
         setRecentActivity(data.slice(0, 5));
       }
 
-      // 2. Inventory
+      // 2. Fetch Inventory
       const invRes = await fetch(INV_URL);
       if (invRes.ok) {
         const invData = await invRes.json();
         setInventory(invData);
-        // ❌ DELETED: Inventory value calculation (totalVal)
       }
 
-      // 3. Operators
+      // 3. Fetch Operators
       const opRes = await fetch(OPERATOR_API);
       if (opRes.ok) {
           const opData = await opRes.json();
@@ -75,7 +68,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     fetchAdminData();
-    const interval = setInterval(fetchAdminData, 5000); // Auto-refresh every 5s
+    const interval = setInterval(fetchAdminData, 5000); 
     return () => clearInterval(interval);
   }, []);
 
@@ -87,51 +80,48 @@ const AdminDashboard = () => {
       catch(e) { alert("Error removing operator"); }
   };
 
-  // ✅ MODIFIED: Removed totalVal calculation
+  // ✅ FIX 2: Calculate 'stats' on the fly from 'requests'
+  // This prevents the "stats already declared" error and ensures data is live.
   const getAnalytics = () => {
-      let data = requests;
-      
-      // Filter logic preserved
-      const totalOrders = data.length;
-      const critical = data.filter(r => r.urgency === 'Critical').length;
-      const delivered = data.filter(r => r.status === 'Delivered').length;
-      
-      // ❌ DELETED: totalVal calculation
-const [requests, setRequests] = useState([]);
-      const dates = {};
-      data.forEach(r => { const d = new Date(r.createdAt).toLocaleDateString('en-GB'); dates[d] = (dates[d] || 0) + 1; });
+      const totalRequests = requests.length;
+      const pending = requests.filter(r => r.status === 'Pending').length;
+      const approved = requests.filter(r => r.status === 'Approved' || r.status === 'Delivered').length;
+      const critical = requests.filter(r => r.urgency === 'Critical').length;
 
-      const itemCounts = {};
-      data.forEach(r => {
-          const match = r.item.match(/(\d+)x\s+(.+)/);
-          const name = match ? match[2].trim() : r.item;
-          const qty = match ? parseInt(match[1]) : r.qty;
-          itemCounts[name] = (itemCounts[name] || 0) + qty;
-      });
-      const topItems = Object.entries(itemCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
-
-      const phcStats = {};
-      data.forEach(r => { if (!phcStats[r.phc]) phcStats[r.phc] = 0; phcStats[r.phc]++; });
+      // Inventory Valuation (Optional calculation)
+      const inventoryValue = inventory.reduce((acc, item) => acc + (parseInt(item.stock || 0) * 100), 0);
 
       return {
-          totalOrders, critical, delivered, data, // ❌ totalVal removed from return
-          charts: {
-              trends: { labels: Object.keys(dates), datasets: [{ label: 'Orders', data: Object.values(dates), borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)', fill: true, tension: 0.4 }] },
-              topItems: { labels: topItems.map(i => i[0]), datasets: [{ label: 'Quantity', data: topItems.map(i => i[1]), backgroundColor: '#10b981', borderRadius: 4 }] },
-              phcRanking: { labels: Object.keys(phcStats), datasets: [{ label: 'Requests', data: Object.values(phcStats), backgroundColor: '#f59e0b' }] }
-          }
+          totalRequests,
+          pending,
+          approved,
+          critical,
+          inventoryValue
       };
   };
 
+  // Generate the stats object for JSX
+  const stats = getAnalytics();
 
-  // Charts (Unchanged)
+  // --- CHARTS DATA ---
   const lineChartData = {
     labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    datasets: [{ label: 'Drone Sorties', data: [12, 19, 3, 5, 2, 3, 15], borderColor: 'rgb(59, 130, 246)', backgroundColor: 'rgba(59, 130, 246, 0.5)', tension: 0.4 }]
+    datasets: [{
+      label: 'Drone Sorties',
+      data: [12, 19, 3, 5, 2, 3, 15],
+      borderColor: 'rgb(59, 130, 246)',
+      backgroundColor: 'rgba(59, 130, 246, 0.5)',
+      tension: 0.4
+    }]
   };
+
   const doughnutData = {
     labels: ['Critical', 'High', 'Standard'],
-    datasets: [{ data: [stats.critical, stats.totalRequests - stats.critical - stats.pending, stats.pending], backgroundColor: ['#EF4444', '#F59E0B', '#3B82F6'], borderWidth: 0 }]
+    datasets: [{
+      data: [stats.critical, stats.totalRequests - stats.critical - stats.pending, stats.pending],
+      backgroundColor: ['#EF4444', '#F59E0B', '#3B82F6'],
+      borderWidth: 0
+    }]
   };
 
   return (
@@ -184,15 +174,14 @@ const [requests, setRequests] = useState([]);
           {/* 1. OVERVIEW TAB */}
           {activeTab === 'overview' && (
             <div className="max-w-7xl mx-auto space-y-6">
-              {/* ✅ MODIFIED KPI CARDS (Removed Inventory Value) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100"><p className="text-xs font-bold text-slate-400 uppercase">Total Requests</p><h3 className="text-2xl font-bold text-slate-800 mt-1">{stats.totalRequests}</h3></div>
                 
+                {/* Replaced Inventory Value with Fulfillment Rate as requested before */}
+                <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100"><p className="text-xs font-bold text-slate-400 uppercase">Fulfillment Rate</p><h3 className="text-2xl font-bold text-green-600 mt-1">{stats.totalRequests > 0 ? ((stats.approved / stats.totalRequests) * 100).toFixed(1) : 0}%</h3></div>
+                
                 <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100"><p className="text-xs font-bold text-slate-400 uppercase">Pending</p><h3 className="text-2xl font-bold text-slate-800 mt-1">{stats.pending}</h3></div>
-                
                 <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100"><p className="text-xs font-bold text-red-600 uppercase">Critical</p><h3 className="text-2xl font-bold text-red-600 mt-1">{stats.critical}</h3></div>
-                
-                <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100"><p className="text-xs font-bold text-slate-400 uppercase">Fulfillment Rate</p><h3 className="text-2xl font-bold text-green-600 mt-1">{stats.totalRequests > 0 ? (stats.approved / stats.totalRequests * 100).toFixed(1) : 0}%</h3></div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100"><h3 className="font-bold text-slate-800 mb-4">Analytics</h3><div className="h-64"><Line data={lineChartData} options={{ maintainAspectRatio: false }} /></div></div>
@@ -221,7 +210,7 @@ const [requests, setRequests] = useState([]);
             </div>
           )}
 
-          {/* 3. INVENTORY TAB (RESTORED Existing Feature) */}
+          {/* 3. INVENTORY TAB */}
           {activeTab === 'inventory' && (
             <div className="max-w-7xl mx-auto bg-white rounded-2xl border shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-slate-100"><h3 className="font-bold text-slate-800">Global Hospital Inventory</h3></div>
@@ -241,7 +230,7 @@ const [requests, setRequests] = useState([]);
             </div>
           )}
 
-          {/* 4. USERS (PHC) TAB (RESTORED Existing Feature) */}
+          {/* 4. USERS (PHC) TAB */}
           {activeTab === 'users' && (
             <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
                 {PHC_LIST.map((phc, i) => (
