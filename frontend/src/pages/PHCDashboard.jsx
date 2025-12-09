@@ -211,21 +211,33 @@ const handleAddNewMedicine = async () => {
       } catch (err) { alert("Failed to send"); }
   };
 
-  const submitReport = async () => {
-      if (!reportData.details || !targetReportId) return;
+  // ✅ INCIDENT REPORT FUNCTION
+  const submitIncident = async () => {
+      // Validation
+      if (!incidentData.details || !activeIncidentId) {
+          return alert("Please provide details for the report.");
+      }
+
       try {
-          await fetch(`${API_URL}/${targetReportId}/incident`, {
+          const res = await fetch(`${REQUEST_API}/${activeIncidentId}/incident`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(reportData)
+              body: JSON.stringify(incidentData)
           });
-          alert("Incident Reported");
-          setShowReportModal(false);
-          setReportData({ type: 'Damaged', details: '' });
-          fetchData();
-      } catch (err) { alert("Failed"); }
-  };
 
+          if (res.ok) {
+              alert("Incident Reported to SDH successfully.");
+              setShowIncidentModal(false); // Close modal
+              setIncidentData({ type: 'Damaged', details: '' }); // Reset form
+              fetchData(); // Refresh list to show the alert icon
+          } else {
+              alert("Failed to submit report.");
+          }
+      } catch (err) { 
+          console.error(err);
+          alert("Network Error: Could not report incident."); 
+      }
+  };
   const addToCart = (item) => {
     const existing = cart.find(c => c.id === item.id);
     if (existing) setCart(cart.map(c => c.id === item.id ? { ...c, qty: c.qty + 1 } : c));
