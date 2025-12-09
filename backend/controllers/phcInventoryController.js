@@ -86,4 +86,4 @@ const updateStock = async (req, res) => {
   }
 };
 
-module.exports = { getInventory, updateStock };
+module.exports = { getInventory, updateStock, resetPhcInventory };
