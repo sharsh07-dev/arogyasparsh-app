@@ -595,8 +595,11 @@ const activeChatOrder = orderHistory.find(o => o._id === activeChatId);
                     </div>
                     <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Expiry Date</label><input className="w-full p-3 border rounded-xl" type="date" value={newItem.expiry} onChange={e => setNewItem({...newItem, expiry: e.target.value})} /></div>
                 </div>
-                <div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3"><button onClick={() => setShowAddModal(false)} className="px-5 py-2 text-slate-600">Cancel</button><button onClick={addNewItem} className="px-6 py-2 bg-blue-600 text-white rounded-xl">Save</button></div>
-            <button onClick={handleAddNewMedicine} className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700">Save Item</button>
+               <div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3">
+  <button onClick={() => setShowAddModal(false)} className="px-5 py-2 text-slate-600">Cancel</button>
+  <button onClick={handleAddNewMedicine} className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700">Save</button>
+</div>
+
             </div>
         </div>
       )}
