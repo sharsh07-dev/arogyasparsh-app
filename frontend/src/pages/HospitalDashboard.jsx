@@ -430,7 +430,7 @@ const fetchOperators = async () => {
         img: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=300&q=80" 
     }]); 
     setShowAddModal(false); 
-  };
+  };//commit
 
   return (
     <div className={`min-h-screen bg-slate-50 flex font-sans text-slate-800 relative`}>
