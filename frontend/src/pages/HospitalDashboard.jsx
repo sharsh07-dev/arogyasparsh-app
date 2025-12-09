@@ -85,8 +85,7 @@ const HospitalDashboard = () => {
   
   const [activeTab, setActiveTab] = useState('alerts');
   const [requests, setRequests] = useState([]); 
- const [newOperator, setNewOperator] = useState({ name: '', qualification: '', licenseNumber: '', experience: '', contact: '', photo: '' });
-  
+ 
   const [inventory, setInventory] = useState(LOCAL_MEDICINE_DB.map(item => ({
       ...item, stock: 0, expiry: 'N/A', batch: 'N/A'
   })));
@@ -101,7 +100,7 @@ const HospitalDashboard = () => {
       licenseNumber: '', 
       experience: '', 
       contact: '', 
-      photo: '' 
+      photo: '' // Added Photo Field
   });
   const [viewItemList, setViewItemList] = useState(null);
   
