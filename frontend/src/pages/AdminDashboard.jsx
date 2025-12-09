@@ -11,7 +11,7 @@ import {
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 
-import logoMain from '../assets/logo_final.png';//last
+import logoMain from '../assets/logo_final.png';
 
 // Register ChartJS
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, ArcElement, Filler);
@@ -354,6 +354,6 @@ const AdminDashboard = () => {
       )}
     </div>
   );
-};//updated evrything// uodateinf
+};
 
 export default AdminDashboard;
