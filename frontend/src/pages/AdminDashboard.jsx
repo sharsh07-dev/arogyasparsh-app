@@ -29,7 +29,7 @@ const AdminDashboard = () => {
   
   // Data States
   // ❌ DELETED: inventoryValue state
-  const [stats, setStats] = useState({ totalRequests: 0, pending: 0, approved: 0, critical: 0 });
+  const [ setStats] = useState({ totalRequests: 0, pending: 0, approved: 0, critical: 0 });
   const [recentActivity, setRecentActivity] = useState([]);
   const [operators, setOperators] = useState([]); 
   const [inventory, setInventory] = useState([]); 
