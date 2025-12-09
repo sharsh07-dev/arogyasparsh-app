@@ -6,7 +6,7 @@ import {
   Battery, Signal, Plane, Plus, Minus, Search, 
   Map as MapIcon, VolumeX, Siren, X, Check, Menu,
   Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2, Globe, Timer, Zap, Brain, Cpu, Terminal, 
-  TrendingUp, ClipboardList, Filter, MessageCircle, Send, AlertTriangle, ShieldAlert, BarChart3, Calendar,RotateCcw
+  TrendingUp, ClipboardList, Filter, MessageCircle, Send, AlertTriangle, ShieldAlert, BarChart3, Calendar,RotateCcw,HardHat
 } from 'lucide-react';
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
@@ -85,6 +85,7 @@ const HospitalDashboard = () => {
   
   const [activeTab, setActiveTab] = useState('alerts');
   const [requests, setRequests] = useState([]); 
+ const [newOperator, setNewOperator] = useState({ name: '', qualification: '', licenseNumber: '', experience: '', contact: '', photo: '' });
   
   const [inventory, setInventory] = useState(LOCAL_MEDICINE_DB.map(item => ({
       ...item, stock: 0, expiry: 'N/A', batch: 'N/A'
@@ -323,7 +324,39 @@ handleManualRefresh();
           alert(`📍 Static Location [${req.phc}]:\n\nLatitude: ${coords.lat}\nLongitude: ${coords.lng}\n\n⚠️ Using database default.`);
       }
   };
-
+const handleAddOperator = async () => {
+      if(!newOperator.name || !newOperator.licenseNumber) return alert("Please fill Name and License");
+      try {
+          const res = await fetch(OPERATOR_API, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(newOperator)
+          });
+          if(res.ok) {
+              alert("Operator Added!");
+              setNewOperator({ name: '', qualification: '', licenseNumber: '', experience: '', contact: '' });
+              setShowOperatorModal(false);
+              fetchRequests();
+              {/* Inside the Add Operator Modal Form */}
+<div className="space-y-1.5">
+    <label className="text-xs font-bold text-slate-500 uppercase">Photo URL</label>
+    <input 
+        className="w-full p-3 border rounded-xl bg-slate-50" 
+        placeholder="https://example.com/photo.jpg" 
+        value={newOperator.photo} 
+        onChange={e => setNewOperator({...newOperator, photo: e.target.value})} 
+    />
+</div>
+          }
+      } catch(e) { alert("Error adding operator"); }
+  };
+  const removeOperator = async (id) => {
+      if(!confirm("Remove this operator?")) return;
+      try {
+          await fetch(`${OPERATOR_API}/${id}`, { method: "DELETE" });
+          fetchRequests();
+      } catch(e) { alert("Error removing operator"); }
+  };
   const updateStatusInDB = async (id, newStatus) => { try { await fetch(`${API_URL}/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }), }); fetchRequests(); } catch (err) {} };
   const handleApprove = (id, urgency) => { updateStatusInDB(id, 'Approved'); };
   const handleDispatch = (req) => { if(!confirm("Confirm Manual Dispatch?")) return; handleAutoDispatch(req, 0); };
@@ -371,6 +404,8 @@ handleManualRefresh();
           <button onClick={() => {setActiveTab('map'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'map' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><MapIcon size={18} /> Live Tracking</button>
           <button onClick={() => {setActiveTab('inventory'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'inventory' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><Package size={18} /> Inventory</button>
           <button onClick={() => {setActiveTab('reports'); setIsMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'reports' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><ShieldAlert size={18} /> FeedBack Reports</button>
+       <button onClick={() => setActiveTab('operators')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'operators' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><HardHat size={18} /> Drone Pilots</button>
+          <button onClick={() => setActiveTab('reports')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === 'reports' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><ShieldAlert size={18} /> Safety Reports</button>
         </nav>
         <div className="p-4 border-t border-slate-800"><button onClick={handleLogout} className="w-full flex items-center gap-2 text-red-400 hover:bg-slate-800 p-3 rounded-xl"><LogOut size={16} /> Logout</button></div>
       </aside>
@@ -424,6 +459,41 @@ handleManualRefresh();
                             </div>
                         </div>
                     )})}
+                </div>
+            )}
+            {/* ✅ NEW TAB: DRONE OPERATORS */}
+            {activeTab === 'operators' && (
+                <div className="max-w-6xl mx-auto">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold text-slate-800">Registered Drone Pilots</h2>
+                        <button onClick={() => setShowOperatorModal(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-blue-700"><UserPlus size={16}/> Add Operator</button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {operators.map((op) => (
+                            <div key={op._id} className="bg-white p-6 rounded-xl border shadow-sm flex flex-col gap-2 relative">
+                                <button onClick={() => removeOperator(op._id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500"><Trash2 size={16}/></button>
+                                {/* ✅ PASTE YOUR NEW CODE HERE ✅ */}
+                    <div className="flex items-center gap-3 mb-2">
+                        <img 
+                            src={op.photo || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} 
+                            alt="Pilot" 
+                            className="w-12 h-12 rounded-full object-cover border border-slate-200"
+                        />
+                        <div>
+                            <h3 className="font-bold text-lg text-slate-800">{op.name}</h3>
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{op.status}</span>
+                        </div>
+                    </div>
+                    {/* ----------------------------- */}
+
+                    <div className="text-sm text-slate-600 space-y-1">
+                        {/* ... existing details code ... */}
+                    </div>
+                </div>
+            ))}
+        </div>
+        {/* ... */}
+                    {operators.length === 0 && <div className="text-center py-10 text-slate-400">No operators registered. Add one to begin.</div>}
                 </div>
             )}
 
@@ -573,7 +643,45 @@ handleManualRefresh();
       {activeChatId && activeChatRequest && (<div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"><div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[500px]"><div className="bg-blue-600 p-4 flex justify-between items-center text-white"><h3 className="font-bold flex items-center gap-2"><MessageCircle size={18}/> Chat with PHC</h3><button onClick={() => setActiveChatId(null)}><X size={20}/></button></div><div className="flex-1 p-4 overflow-y-auto bg-slate-50 space-y-3">{activeChatRequest.chat?.map((c, i) => (<div key={i} className={`flex ${c.sender === 'Hospital' ? 'justify-end' : 'justify-start'}`}><div className={`p-3 rounded-xl text-sm max-w-[80%] ${c.sender === 'Hospital' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border border-slate-200 rounded-bl-none'}`}><p>{c.message}</p><span className="text-[10px] opacity-70 block mt-1 text-right">{new Date(c.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div></div>))}</div><div className="p-3 bg-white border-t flex gap-2"><input className="flex-1 bg-slate-100 border-0 rounded-xl px-4 py-2 text-sm focus:outline-none" placeholder="Type message..." value={chatMessage} onChange={(e)=>setChatMessage(e.target.value)} onKeyPress={(e)=>e.key==='Enter' && sendMessage()}/><button onClick={sendMessage} className="bg-blue-600 text-white p-2 rounded-xl hover:bg-blue-700"><Send size={18}/></button></div></div></div>)}
       {viewItemList && (<div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"><div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"><div className="bg-blue-600 p-4 flex justify-between items-center text-white"><h3 className="font-bold flex items-center gap-2"><ClipboardList size={18} /> Packing List</h3><button onClick={() => setViewItemList(null)} className="hover:bg-blue-700 p-1 rounded"><X size={20}/></button></div><div className="p-6 max-h-96 overflow-y-auto bg-slate-50"><div className="space-y-3">{viewItemList.item.split(', ').map((itm, idx) => (<div key={idx} className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm"><span className="font-bold text-slate-800">{itm}</span><span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-bold">Pack This</span></div>))}</div></div><div className="p-4 bg-white text-right border-t border-slate-200"><button onClick={() => setViewItemList(null)} className="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-bold text-sm shadow-md">Done Packing</button></div></div></div>)}
       {viewProof && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-4 rounded shadow-lg w-96"><img src={viewProof.proofFiles[0]} className="w-full"/><button onClick={()=>setViewProof(null)} className="mt-2 w-full bg-gray-200 p-2 rounded">Close</button></div></div>}
-      {showAddModal && (<div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-0 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100"><div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center"><div><h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Package className="text-blue-600" size={20}/> Add New Medicine</h3></div><button onClick={() => setShowAddModal(false)}><X size={20} /></button></div><div className="p-6 space-y-5"><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Name</label><input className="w-full p-3 border rounded-xl" placeholder="Medicine Name" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} /></div><div className="grid grid-cols-2 gap-5"><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Batch</label><input className="w-full p-3 border rounded-xl" placeholder="Batch ID" value={newItem.batch} onChange={e => setNewItem({...newItem, batch: e.target.value})} /></div><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Stock</label><input className="w-full p-3 border rounded-xl" type="number" value={newItem.stock} onChange={e => setNewItem({...newItem, stock: e.target.value})} /></div></div><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Expiry Date</label><input className="w-full p-3 border rounded-xl" type="date" value={newItem.expiry} onChange={e => setNewItem({...newItem, expiry: e.target.value})} /></div></div><div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3"><button onClick={() => setShowAddModal(false)} className="px-5 py-2 text-slate-600">Cancel</button><button onClick={addNewItem} className="px-6 py-2 bg-blue-600 text-white rounded-xl">Save</button></div></div></div>)}
+     
+     {showAddModal && (<div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-0 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100"><div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center"><div><h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Package className="text-blue-600" size={20}/> Add New Medicine</h3></div><button onClick={() => setShowAddModal(false)}><X size={20} /></button></div><div className="p-6 space-y-5"><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Name</label><input className="w-full p-3 border rounded-xl" placeholder="Medicine Name" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} /></div><div className="grid grid-cols-2 gap-5"><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Batch</label><input className="w-full p-3 border rounded-xl" placeholder="Batch ID" value={newItem.batch} onChange={e => setNewItem({...newItem, batch: e.target.value})} /></div><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Stock</label><input className="w-full p-3 border rounded-xl" type="number" value={newItem.stock} onChange={e => setNewItem({...newItem, stock: e.target.value})} /></div></div><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Expiry Date</label><input className="w-full p-3 border rounded-xl" type="date" value={newItem.expiry} onChange={e => setNewItem({...newItem, expiry: e.target.value})} /></div></div><div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3"><button onClick={() => setShowAddModal(false)} className="px-5 py-2 text-slate-600">Cancel</button><button onClick={addNewItem} className="px-6 py-2 bg-blue-600 text-white rounded-xl">Save</button></div></div></div>)}
+    {/* ✅ ADD OPERATOR MODAL */}
+      {showOperatorModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-0 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
+                <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><UserPlus className="text-blue-600" size={20}/> Register Drone Pilot</h3>
+                        <p className="text-xs text-slate-400 mt-1">Add details for new pilot authorization.</p>
+                    </div>
+                    <button onClick={() => setShowOperatorModal(false)}><X size={20} /></button>
+                </div>
+                <div className="p-6 space-y-4">
+
+                    <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase">Photo URL</label>
+                <input 
+                    className="w-full p-3 border rounded-xl bg-slate-50" 
+                    placeholder="https://example.com/photo.jpg" 
+                    value={newOperator.photo} 
+                    onChange={e => setNewOperator({...newOperator, photo: e.target.value})} 
+                />
+            </div>
+                    <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Full Name</label><input className="w-full p-3 border rounded-xl bg-slate-50" placeholder="e.g. Rahul Verma" value={newOperator.name} onChange={e => setNewOperator({...newOperator, name: e.target.value})} /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">License No.</label><input className="w-full p-3 border rounded-xl bg-slate-50" placeholder="DGCA-XXXX" value={newOperator.licenseNumber} onChange={e => setNewOperator({...newOperator, licenseNumber: e.target.value})} /></div>
+                        <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Experience</label><input className="w-full p-3 border rounded-xl bg-slate-50" placeholder="e.g. 5 Years" value={newOperator.experience} onChange={e => setNewOperator({...newOperator, experience: e.target.value})} /></div>
+                    </div>
+                    <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Qualification</label><input className="w-full p-3 border rounded-xl bg-slate-50" placeholder="e.g. Certified Drone Pilot" value={newOperator.qualification} onChange={e => setNewOperator({...newOperator, qualification: e.target.value})} /></div>
+                    <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Contact</label><input className="w-full p-3 border rounded-xl bg-slate-50" placeholder="Phone / Email" value={newOperator.contact} onChange={e => setNewOperator({...newOperator, contact: e.target.value})} /></div>
+                </div>
+                <div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3">
+                    <button onClick={() => setShowOperatorModal(false)} className="px-5 py-2 text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
+                    <button onClick={handleAddOperator} className="px-6 py-2 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700">Register Pilot</button>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 };
