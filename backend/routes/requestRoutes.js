@@ -202,5 +202,13 @@ router.post("/:id/incident", async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 });
+router.delete("/clear-history", async (req, res) => {
+    try {
+        await Request.deleteMany({}); // Deletes ALL orders
+        res.status(200).json({ message: "Order history cleared successfully" });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
 
 module.exports = router;
