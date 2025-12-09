@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { getInventory, updateStock } = require("../controllers/phcInventoryController");
+const { getInventory, updateStock,resetPhcInventory } = require("../controllers/phcInventoryController");
 
 // Define routes
 router.get("/:phcName", getInventory);
