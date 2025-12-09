@@ -11,7 +11,7 @@ import {
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 
-import logoMain from '../assets/logo_final.png';
+import logoMain from '../assets/logo_final.png';//last
 
 // Register ChartJS
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, ArcElement, Filler);
