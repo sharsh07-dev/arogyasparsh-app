@@ -41,6 +41,32 @@ const getInventory = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+const addMedicine = async (req, res) => {
+  try {
+    const { phcName, newItem } = req.body;
+    
+    let inventory = await PhcInventory.findOne({ phcName });
+    if (!inventory) {
+      // Create if doesn't exist
+      inventory = new PhcInventory({ phcName, items: [] });
+    }
+
+    // Add new item with a unique ID
+    const itemEntry = {
+        id: Date.now(), // Generate ID
+        ...newItem,
+        stock: parseInt(newItem.stock) || 0
+    };
+
+    inventory.items.push(itemEntry);
+    await inventory.save();
+
+    res.status(200).json(inventory.items);
+  } catch (err) {
+    console.error("Add Medicine Error:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
 
 const updateStock = async (req, res) => {
   try {

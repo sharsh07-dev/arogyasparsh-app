@@ -4,7 +4,9 @@ const { getInventory, updateStock } = require("../controllers/phcInventoryContro
 
 // Define routes
 router.get("/:phcName", getInventory);
+router.post("/add", addMedicine);
 router.put("/update", updateStock);
+
 
 // ✅ CORRECT EXPORT (Must be 'router', not '{ router }' or an object)
 module.exports = router;

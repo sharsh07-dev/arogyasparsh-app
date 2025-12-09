@@ -7,7 +7,7 @@ const upload = multer({ storage });
 // ✅ Models
 const Request = require("../models/Request");
 const HospitalInventory = require("../models/Hospital_Inventory");
-const PhcInventory = require("../models/PhcInventory"); // ✅ Added PHC Model
+const PhcInventory = require("../models/PhcInventory");
 
 // GET: Fetch all requests
 router.get("/", async (req, res) => {
@@ -49,7 +49,7 @@ router.post("/", upload.array('proofFiles'), async (req, res) => {
   }
 });
 
-// ✅ PUT: Handle Status Updates (Approve = Deduct Hospital / Delivered = Add PHC)
+// ✅ PUT: Handle Status & Stock Updates (ROBUST VERSION)
 router.put("/:id", async (req, res) => {
   try {
     const { status } = req.body;
@@ -59,28 +59,40 @@ router.put("/:id", async (req, res) => {
       return res.status(404).json({ message: "Request not found" });
     }
 
+    console.log(`🔄 Processing Update: ${request._id} -> ${status}`);
+
     // ---------------------------------------------------------
     // 1. HOSPITAL DEDUCTION (When Approved/Dispatched)
     // ---------------------------------------------------------
     const isNewApproval = (status === 'Approved' || status === 'Dispatched') && request.status === 'Pending';
 
     if (isNewApproval) {
+        console.log("🏥 Deducting from Hospital Inventory...");
         const hospInv = await HospitalInventory.findOne();
+        
         if (hospInv && hospInv.items) {
             const orderItems = request.item.split(',').map(s => s.trim());
+            
             orderItems.forEach(orderItem => {
-                const match = orderItem.match(/^(\d+)x\s+(.+)$/);
+                // Regex: Allow optional spaces around 'x'
+                const match = orderItem.match(/^(\d+)\s*x\s+(.+)$/);
                 if (match) {
                     const qtyToDeduct = parseInt(match[1]);
-                    const medicineName = match[2];
+                    const medicineName = match[2].trim();
+
                     const inventoryItem = hospInv.items.find(i => 
-                        i.name.toLowerCase().trim() === medicineName.toLowerCase().trim()
+                        i.name.toLowerCase().trim() === medicineName.toLowerCase()
                     );
+
                     if (inventoryItem) {
                         inventoryItem.stock = Math.max(0, inventoryItem.stock - qtyToDeduct);
+                        console.log(`   - Deducted ${qtyToDeduct} of ${medicineName}`);
+                    } else {
+                        console.log(`   ⚠️ Item not found in Hospital DB: ${medicineName}`);
                     }
                 }
             });
+            hospInv.markModified('items'); // Force Mongoose to see the change
             await hospInv.save();
         }
     }
@@ -91,36 +103,58 @@ router.put("/:id", async (req, res) => {
     const isJustDelivered = status === 'Delivered' && request.status !== 'Delivered';
 
     if (isJustDelivered) {
-        // Find the specific PHC Inventory (e.g., "PHC Panera")
-        const phcInv = await PhcInventory.findOne({ phcName: request.phc });
+        console.log(`🚑 Adding to PHC Inventory: ${request.phc}`);
+        
+        // Try strict match first
+        let phcInv = await PhcInventory.findOne({ phcName: request.phc });
+        
+        // If not found, try adding "PHC " prefix (Common mismatch: "Panera" vs "PHC Panera")
+        if (!phcInv && !request.phc.toLowerCase().includes("phc")) {
+             console.log("   - Strict match failed, trying with 'PHC ' prefix...");
+             phcInv = await PhcInventory.findOne({ phcName: `PHC ${request.phc}` });
+        }
+        // If still not found, try removing "PHC " prefix
+        if (!phcInv && request.phc.toLowerCase().includes("phc")) {
+             console.log("   - Strict match failed, trying without 'PHC ' prefix...");
+             phcInv = await PhcInventory.findOne({ phcName: request.phc.replace("PHC ", "") });
+        }
 
         if (phcInv && phcInv.items) {
-            // Parse items again
             const orderItems = request.item.split(',').map(s => s.trim());
 
             orderItems.forEach(orderItem => {
-                const match = orderItem.match(/^(\d+)x\s+(.+)$/);
+                const match = orderItem.match(/^(\d+)\s*x\s+(.+)$/);
                 if (match) {
                     const qtyToAdd = parseInt(match[1]);
-                    const medicineName = match[2];
+                    const medicineName = match[2].trim();
 
-                    // Find matching item in PHC inventory
                     const inventoryItem = phcInv.items.find(i => 
-                        i.name.toLowerCase().trim() === medicineName.toLowerCase().trim()
+                        i.name.toLowerCase().trim() === medicineName.toLowerCase()
                     );
 
                     if (inventoryItem) {
-                        // ✅ Update Stock: 450 + 50 = 500
-                        inventoryItem.stock = (parseInt(inventoryItem.stock) || 0) + qtyToAdd;
+                        const oldStock = parseInt(inventoryItem.stock) || 0;
+                        inventoryItem.stock = oldStock + qtyToAdd;
+                        console.log(`   + Added ${qtyToAdd} to ${medicineName} (New Total: ${inventoryItem.stock})`);
                     } else {
-                        // Optional: Create item if it doesn't exist in PHC
-                        // (Skipping for now to keep logic simple/safe)
+                        console.log(`   ⚠️ Item ${medicineName} not found in PHC inventory. Creating it...`);
+                        // Auto-create item if missing
+                        phcInv.items.push({
+                            id: Date.now() + Math.floor(Math.random() * 1000),
+                            name: medicineName,
+                            stock: qtyToAdd,
+                            batch: "NEW-DELIVERY",
+                            expiry: "2026-01-01" // Default safe expiry
+                        });
                     }
                 }
             });
 
+            phcInv.markModified('items'); // Critical for array updates
             await phcInv.save();
-            console.log(`✅ Stock updated for ${request.phc}`);
+            console.log("✅ PHC Inventory Saved.");
+        } else {
+            console.error(`❌ Could not find PHC Inventory Document for: ${request.phc}`);
         }
     }
 
