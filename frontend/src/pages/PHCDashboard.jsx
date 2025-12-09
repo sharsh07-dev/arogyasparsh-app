@@ -144,25 +144,28 @@ const [showIncidentModal, setShowIncidentModal] = useState(false);
   }, []);
 
 const handleClearHistory = async () => {
-      if (!confirm("⚠️ Are you sure you want to delete ALL order history? This cannot be undone.")) return;
-      
-      try {
-          const res = await fetch(`${REQUEST_API}/clear-history`, {
-              method: "DELETE"
-          });
-          
-          if (res.ok) {
-              alert("✅ Order History Cleared!");
-              setOrderHistory([]); // Clear local state
-              fetchData(); // Refresh data
-          } else {
-              alert("Failed to clear history.");
-          }
-      } catch (e) {
-          console.error(e);
-          alert("Network Error");
-      }
-  };
+  if (!confirm("⚠️ Are you sure you want to delete ALL order history? This cannot be undone.")) return;
+
+  try {
+    // if your backend supports a clear-all admin endpoint, call it; otherwise remove this
+    const res = await fetch(`${API_URL}/clear-history`, {
+      method: "DELETE"
+    });
+
+    if (res.ok) {
+      alert("✅ Order History Cleared!");
+      setOrderHistory([]); // Clear local state
+      fetchData(); // Refresh data
+    } else {
+      const text = await res.text().catch(() => '');
+      console.warn('Clear history failed', res.status, text);
+      alert("Failed to clear history: " + (text || res.status));
+    }
+  } catch (e) {
+    console.error("Network error clearing history:", e);
+    alert("Network Error");
+  }
+};
 
   const updateLocalStock = async (id, change) => {
       try {
@@ -181,21 +184,32 @@ const handleClearHistory = async () => {
     }
   };
 const handleAddNewMedicine = async () => {
-      if (!newItem.name || !newItem.stock) return alert("Please fill Name and Stock");
-      try {
-          const res = await fetch(`${INV_API_BASE}/add`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ phcName: user.name, newItem: newItem })
-          });
-          if (res.ok) {
-              alert("Medicine Added Successfully!");
-              setNewItem({ name: '', stock: '', batch: '', expiry: '' });
-              setShowAddModal(false);
-              fetchData(); 
-          }
-      } catch (e) { alert("Network Error"); }
-  };
+  if (!newItem.name || !newItem.stock) return alert("Please fill Name and Stock");
+  try {
+    const phcEncoded = encodeURIComponent(user.name);
+    // If your API expects POST at /api/phc-inventory/<phcName> or /add, adapt accordingly.
+    const res = await fetch(`${INV_URL}/${phcEncoded}`, {
+      method: "PUT", // or POST depending on your backend API contract
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newItem })
+    });
+
+    if (res.ok) {
+      alert("Medicine Added Successfully!");
+      setNewItem({ name: '', stock: '', batch: '', expiry: '' });
+      setShowAddModal(false);
+      fetchData();
+    } else {
+      const text = await res.text().catch(() => '');
+      console.warn('Add medicine failed', res.status, text);
+      alert("Failed to add medicine: " + (text || res.status));
+    }
+  } catch (e) {
+    console.error("Network error adding medicine:", e);
+    alert("Network Error");
+  }
+};
+
  
 
   const sendMessage = async () => {
@@ -213,31 +227,33 @@ const handleAddNewMedicine = async () => {
 
   // ✅ INCIDENT REPORT FUNCTION
   const submitIncident = async () => {
-      // Validation
-      if (!incidentData.details || !activeIncidentId) {
-          return alert("Please provide details for the report.");
-      }
+  if (!incidentData.details || !activeIncidentId) {
+    return alert("Please provide details for the report.");
+  }
 
-      try {
-          const res = await fetch(`${REQUEST_API}/${activeIncidentId}/incident`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(incidentData)
-          });
+  try {
+    const res = await fetch(`${API_URL}/${encodeURIComponent(activeIncidentId)}/incident`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(incidentData)
+    });
 
-          if (res.ok) {
-              alert("Incident Reported to SDH successfully.");
-              setShowIncidentModal(false); // Close modal
-              setIncidentData({ type: 'Damaged', details: '' }); // Reset form
-              fetchData(); // Refresh list to show the alert icon
-          } else {
-              alert("Failed to submit report.");
-          }
-      } catch (err) { 
-          console.error(err);
-          alert("Network Error: Could not report incident."); 
-      }
-  };
+    if (res.ok) {
+      alert("Incident Reported to SDH successfully.");
+      setShowIncidentModal(false);
+      setIncidentData({ type: 'Damaged', details: '' });
+      fetchData();
+    } else {
+      const text = await res.text().catch(() => '');
+      console.warn('Incident post failed', res.status, text);
+      alert("Failed to submit report: " + (text || res.status));
+    }
+  } catch (err) {
+    console.error("Network Error: Could not report incident.", err);
+    alert("Network Error: Could not report incident.");
+  }
+};
+
   const addToCart = (item) => {
     const existing = cart.find(c => c.id === item.id);
     if (existing) setCart(cart.map(c => c.id === item.id ? { ...c, qty: c.qty + 1 } : c));
