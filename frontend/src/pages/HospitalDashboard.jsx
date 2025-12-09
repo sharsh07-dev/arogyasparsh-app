@@ -665,16 +665,7 @@ const handleAddOperator = async () => {
                     <button onClick={() => setShowOperatorModal(false)}><X size={20} /></button>
                 </div>
                 <div className="p-6 space-y-4">
-
-                    <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase">Photo URL</label>
-                <input 
-                    className="w-full p-3 border rounded-xl bg-slate-50" 
-                    placeholder="https://example.com/photo.jpg" 
-                    value={newOperator.photo} 
-                    onChange={e => setNewOperator({...newOperator, photo: e.target.value})} 
-                />
-            </div>
+                    <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Photo URL</label><input className="w-full p-3 border rounded-xl bg-slate-50" placeholder="https://example.com/photo.jpg" value={newOperator.photo} onChange={e => setNewOperator({...newOperator, photo: e.target.value})} /></div>
                     <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Full Name</label><input className="w-full p-3 border rounded-xl bg-slate-50" placeholder="e.g. Rahul Verma" value={newOperator.name} onChange={e => setNewOperator({...newOperator, name: e.target.value})} /></div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">License No.</label><input className="w-full p-3 border rounded-xl bg-slate-50" placeholder="DGCA-XXXX" value={newOperator.licenseNumber} onChange={e => setNewOperator({...newOperator, licenseNumber: e.target.value})} /></div>
