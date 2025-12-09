@@ -166,17 +166,34 @@ const PHCDashboard = () => {
         setPhcInventory(phcInventory.filter(item => item.id !== id));
     }
   };
+  const handleAddNewMedicine = async () => {
+      if (!newItem.name || !newItem.stock) return alert("Please fill Name and Stock");
 
-  const addNewItem = () => { 
-    if(!newItem.name) return alert("Fill details"); 
-    setPhcInventory([...phcInventory, { 
-        id: Date.now(), 
-        ...newItem, 
-        stock: parseInt(newItem.stock), 
-        img: logoMain 
-    }]); 
-    setShowAddModal(false); 
+      try {
+          const res = await fetch(`${INV_API_BASE}/add`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                  phcName: user.name,
+                  newItem: newItem
+              })
+          });
+
+          if (res.ok) {
+              alert("Medicine Added Successfully!");
+              setNewItem({ name: '', stock: '', batch: '', expiry: '' });
+              setShowAddModal(false);
+              fetchData(); // Refresh list
+          } else {
+              alert("Failed to add medicine");
+          }
+      } catch (e) {
+          console.error(e);
+          alert("Network Error");
+      }
   };
+
+ 
 
   const sendMessage = async () => {
       if (!chatMessage.trim() || !activeChatId) return;
