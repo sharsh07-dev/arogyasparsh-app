@@ -13,7 +13,7 @@ const ForgotPassword = () => {
 
   // Step 1: Send OTP
   const handleSendOtp = async (e) => {
-    e.preventDefault();//hello
+    e.preventDefault();//hellooooooo
     setError('');
     try {
       const res = await fetch('https://arogyasparsh-backend.onrender.com/api/auth/forgot-password', {
