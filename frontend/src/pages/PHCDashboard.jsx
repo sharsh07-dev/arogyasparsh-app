@@ -448,13 +448,23 @@ const handleClearHistory = async () => {
                                     </p>
                                     <p className="text-xs text-slate-500 mt-1">Ordered: {new Date(order.createdAt).toLocaleString()}</p>
                                 </div>
-                                <div className="text-right">
-                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                        order.status === 'Delivered' ? 'bg-green-100 text-green-700' : 
-                                        order.status === 'Dispatched' ? 'bg-blue-100 text-blue-700' : 
-                                        'bg-yellow-100 text-yellow-700'
-                                    }`}>{order.status}</span>
-                                </div>
+                              <div className="flex items-center gap-3">
+                                {/* ✅ RESTORED CHAT BUTTON */}
+                                <button onClick={() => setActiveChatId(order._id)} className="p-2 bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 rounded-full transition-colors relative">
+                                    <MessageCircle size={18} />
+                                    {order.chat?.length > 0 && <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>}
+                                </button>
+                                
+                                {/* ✅ RESTORED REPORT BUTTON */}
+                                <button onClick={() => { setActiveIncidentId(order._id); setShowIncidentModal(true); }} className="text-xs font-bold text-slate-400 hover:text-red-500 flex items-center gap-1">
+                                    <AlertOctagon size={14} /> Report
+                                </button>
+
+                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                    order.status === 'Delivered' ? 'bg-green-100 text-green-700' : 
+                                    order.status === 'Dispatched' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'
+                                }`}>{order.status}</span>
+                            </div>
                             </div>
                         ))
                     )}
@@ -488,18 +498,17 @@ const handleClearHistory = async () => {
 
       {/* MODALS */}
       {/* CHAT */}
-      {activeChatId && activeChatRequest && (
+      {activeChatId && activeChatOrder && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[500px]">
                 <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
-                    <h3 className="font-bold flex items-center gap-2"><MessageCircle size={18}/> Chat with Hospital</h3>
+                    <h3 className="font-bold flex items-center gap-2"><MessageCircle size={18}/> Chat with SDH</h3>
                     <button onClick={() => setActiveChatId(null)}><X size={20}/></button>
                 </div>
                 <div className="flex-1 p-4 overflow-y-auto bg-slate-50 space-y-3">
-                    {activeChatRequest.chat?.length === 0 && <p className="text-center text-slate-400 text-sm mt-10">No messages yet. Start the conversation.</p>}
-                    {activeChatRequest.chat?.map((c, i) => (
-                        <div key={i} className={`flex ${c.sender === 'PHC' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`p-3 rounded-xl text-sm max-w-[80%] ${c.sender === 'PHC' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border border-slate-200 rounded-bl-none'}`}>
+                    {activeChatOrder.chat?.map((c, i) => (
+                        <div key={i} className={`flex ${c.sender === user.name ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`p-3 rounded-xl text-sm max-w-[80%] ${c.sender === user.name ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border border-slate-200 rounded-bl-none'}`}>
                                 <p>{c.message}</p>
                                 <span className="text-[10px] opacity-70 block mt-1 text-right">{new Date(c.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
                             </div>
@@ -515,17 +524,23 @@ const handleClearHistory = async () => {
       )}
 
       {/* INCIDENT REPORT */}
-      {showReportModal && (
+     {showIncidentModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6">
-                 <h3 className="text-xl font-bold text-red-600 flex items-center gap-2 mb-4"><AlertTriangle/> FeedBack</h3>
-                 <div className="space-y-4">
-                     <div><label className="block text-xs font-bold mb-1">Issue Type</label><select className="w-full border p-2 rounded-lg" value={reportData.type} onChange={(e)=>setReportData({...reportData, type: e.target.value})}><option>Damaged Kit</option><option>Wrong Medicine</option><option>Delivery Delay</option><option>Other</option></select></div>
-                     <div><label className="block text-xs font-bold mb-1">Details</label><textarea className="w-full border p-2 rounded-lg h-24" placeholder="Describe what went wrong..." value={reportData.details} onChange={(e)=>setReportData({...reportData, details: e.target.value})}/></div>
-                     <button onClick={submitReport} className="w-full bg-red-600 text-white py-3 rounded-xl font-bold">Submit Report</button>
-                     <button onClick={() => setShowReportModal(false)} className="w-full text-slate-500 py-2 text-sm">Cancel</button>
-                 </div>
-             </div>
+            <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl">
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-red-600"><AlertTriangle /> Report Issue</h3>
+                <label className="text-xs font-bold text-slate-500 uppercase">Issue Type</label>
+                <select className="w-full p-3 border rounded-xl mb-4" value={incidentData.type} onChange={e => setIncidentData({...incidentData, type: e.target.value})}>
+                    <option>Damaged Goods</option>
+                    <option>Late Delivery</option>
+                    <option>Wrong Item</option>
+                </select>
+                <label className="text-xs font-bold text-slate-500 uppercase">Details</label>
+                <textarea className="w-full p-3 border rounded-xl mb-4 h-24" placeholder="Describe what went wrong..." value={incidentData.details} onChange={e => setIncidentData({...incidentData, details: e.target.value})}></textarea>
+                <div className="flex justify-end gap-3">
+                    <button onClick={() => setShowIncidentModal(false)} className="px-4 py-2 text-slate-600">Cancel</button>
+                    <button onClick={submitIncident} className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold">Submit Report</button>
+                </div>
+            </div>
         </div>
       )}
 
@@ -546,6 +561,7 @@ const handleClearHistory = async () => {
             </div>
         </div>
       )}
+      
 
       {/* ADD MEDICINE MODAL */}
       {showAddModal && (
