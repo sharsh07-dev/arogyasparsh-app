@@ -144,6 +144,7 @@ const HospitalDashboard = () => {
 
 const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
   const INV_URL = "https://arogyasparsh-backend.onrender.com/api/hospital-inventory";
+  const OPERATOR_API = "https://arogyasparsh-backend.onrender.com/api/drone-operators";
   const fetchRequests = async () => {
     try {
       const res = await fetch(API_URL);
