@@ -7,6 +7,7 @@ const upload = multer({ storage });
 // ✅ Models
 const Request = require("../models/Request");
 const HospitalInventory = require("../models/Hospital_Inventory");
+const PhcInventory = require("../models/PhcInventory"); // ✅ Added PHC Model
 
 // GET: Fetch all requests
 router.get("/", async (req, res) => {
@@ -48,7 +49,7 @@ router.post("/", upload.array('proofFiles'), async (req, res) => {
   }
 });
 
-// ✅ PUT: Update Status & Deduct Stock Smartly
+// ✅ PUT: Handle Status Updates (Approve = Deduct Hospital / Delivered = Add PHC)
 router.put("/:id", async (req, res) => {
   try {
     const { status } = req.body;
@@ -58,40 +59,68 @@ router.put("/:id", async (req, res) => {
       return res.status(404).json({ message: "Request not found" });
     }
 
-    // Check if we are approving for the first time
-    // We deduct stock ONLY when moving from 'Pending' -> 'Approved' or 'Dispatched'
-    // This prevents double deduction if you click 'Dispatched' after 'Approved'.
+    // ---------------------------------------------------------
+    // 1. HOSPITAL DEDUCTION (When Approved/Dispatched)
+    // ---------------------------------------------------------
     const isNewApproval = (status === 'Approved' || status === 'Dispatched') && request.status === 'Pending';
 
     if (isNewApproval) {
         const hospInv = await HospitalInventory.findOne();
-        
         if (hospInv && hospInv.items) {
-            // 1. Parse the Item String (e.g. "10x Inj. Atropine, 5x Inj. Adrenaline")
             const orderItems = request.item.split(',').map(s => s.trim());
-
             orderItems.forEach(orderItem => {
-                // Regex to extract Qty and Name: "10x Name" -> qty=10, name="Name"
                 const match = orderItem.match(/^(\d+)x\s+(.+)$/);
-                
                 if (match) {
                     const qtyToDeduct = parseInt(match[1]);
                     const medicineName = match[2];
-
-                    // 2. Find matching medicine in Inventory
                     const inventoryItem = hospInv.items.find(i => 
                         i.name.toLowerCase().trim() === medicineName.toLowerCase().trim()
                     );
-
-                    // 3. Deduct Stock
                     if (inventoryItem) {
                         inventoryItem.stock = Math.max(0, inventoryItem.stock - qtyToDeduct);
                     }
                 }
             });
-
-            // 4. Save Inventory Changes
             await hospInv.save();
+        }
+    }
+
+    // ---------------------------------------------------------
+    // 2. PHC ADDITION (When Delivered)
+    // ---------------------------------------------------------
+    const isJustDelivered = status === 'Delivered' && request.status !== 'Delivered';
+
+    if (isJustDelivered) {
+        // Find the specific PHC Inventory (e.g., "PHC Panera")
+        const phcInv = await PhcInventory.findOne({ phcName: request.phc });
+
+        if (phcInv && phcInv.items) {
+            // Parse items again
+            const orderItems = request.item.split(',').map(s => s.trim());
+
+            orderItems.forEach(orderItem => {
+                const match = orderItem.match(/^(\d+)x\s+(.+)$/);
+                if (match) {
+                    const qtyToAdd = parseInt(match[1]);
+                    const medicineName = match[2];
+
+                    // Find matching item in PHC inventory
+                    const inventoryItem = phcInv.items.find(i => 
+                        i.name.toLowerCase().trim() === medicineName.toLowerCase().trim()
+                    );
+
+                    if (inventoryItem) {
+                        // ✅ Update Stock: 450 + 50 = 500
+                        inventoryItem.stock = (parseInt(inventoryItem.stock) || 0) + qtyToAdd;
+                    } else {
+                        // Optional: Create item if it doesn't exist in PHC
+                        // (Skipping for now to keep logic simple/safe)
+                    }
+                }
+            });
+
+            await phcInv.save();
+            console.log(`✅ Stock updated for ${request.phc}`);
         }
     }
 
