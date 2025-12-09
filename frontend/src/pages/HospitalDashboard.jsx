@@ -6,7 +6,7 @@ import {
   Battery, Signal, Plane, Plus, Minus, Search, 
   Map as MapIcon, VolumeX, Siren, X, Check, Menu,
   Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2, Globe, Timer, Zap, Brain, Cpu, Terminal, 
-  TrendingUp, ClipboardList, Filter, MessageCircle, Send, AlertTriangle, ShieldAlert, BarChart3, Calendar
+  TrendingUp, ClipboardList, Filter, MessageCircle, Send, AlertTriangle, ShieldAlert, BarChart3, Calendar,RotateCcw
 } from 'lucide-react';
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
@@ -123,6 +123,10 @@ const HospitalDashboard = () => {
         return [{ time: new Date().toLocaleTimeString(), msg, color }, ...prev].slice(0, 50);
     });
   };
+  const handleManualRefresh = () => {
+      fetchRequests();
+      fetchPredictions(); // <--- CRITICAL FIX: Refresh AI too!
+  };
 
   const [processingQueue, setProcessingQueue] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -192,7 +196,7 @@ const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
  // ✅ FIX: Auto-Refresh Restored & Safe
   useEffect(() => {
     fetchRequests(); // Initial fetch
-
+handleManualRefresh();
     const interval = setInterval(() => {
       fetchRequests(); // Auto-refresh every 3s
     }, 3000);
@@ -232,16 +236,15 @@ const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
     }
   };
 // ✅ FIX: Strict Filtering for PHC vs District Data
-  useEffect(() => {
+ useEffect(() => {
       if (predictions.length === 0) return;
 
       if (selectedPhc === "All") {
-          // Show District Aggregated Data
-          const districtData = predictions.filter(p => p.phc === "District Overall");
-          // If no aggregated data (maybe only 1 PHC exists), fallback to all
+          // Show District Data
+          const districtData = predictions.filter(p => p.phc === "Chamorshi Sub-District");
           setFilteredPredictions(districtData.length > 0 ? districtData : predictions.slice(0, 5));
       } else {
-          // Show Specific PHC Data
+          // Show PHC Data
           const phcData = predictions.filter(p => p.phc === selectedPhc);
           if (phcData.length === 0) {
               setFilteredPredictions([{ name: "No AI Prediction", predictedQty: 0, trend: "No Data", phc: selectedPhc }]);
@@ -375,6 +378,13 @@ const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
       <main className={`flex-1 overflow-hidden flex flex-col relative w-full`}>
         <header className="bg-white border-b border-slate-200 px-4 py-4 flex justify-between items-center shadow-sm z-10">
           <div className="flex items-center gap-3">
+            <button 
+                onClick={handleManualRefresh} // ✅ CALLS BOTH NOW
+                className="p-2 hover:bg-slate-100 rounded-full text-slate-500 hover:text-blue-600 transition-colors"
+                title="Refresh Data"
+              >
+                <RotateCcw size={20} />
+              </button>
             <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-slate-600"><Menu size={24} /></button>
             <h1 className="text-lg md:text-2xl font-bold text-slate-800">{activeTab === 'alerts' ? 'Autonomous Command Center' : activeTab === 'analytics' ? 'Predictive AI Analytics' : activeTab === 'reports' ? 'Incident Analytics' : (activeTab === 'map' ? 'Global Tracking' : 'Inventory')}</h1>
           </div>
