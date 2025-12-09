@@ -34,6 +34,7 @@ app.use("/api/requests", requestRoutes);
 app.use("/api/phc-inventory", phcInventoryRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/hospital-inventory", hospitalInventoryRoutes); // ✅ This fixes the 404
+// Add this line with your other routes
 app.use("/api/drone-operators", droneOperatorRoutes);
 const PORT = process.env.PORT || 5000;
 
