@@ -102,6 +102,7 @@ const HospitalDashboard = () => {
       contact: '', 
       photo: '' // Added Photo Field
   });
+  const [operators, setOperators] = useState([]);
   const [viewItemList, setViewItemList] = useState(null);
   
   const [predictions, setPredictions] = useState([]); 
