@@ -145,6 +145,7 @@ const HospitalDashboard = () => {
 const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
   const INV_URL = "https://arogyasparsh-backend.onrender.com/api/hospital-inventory";
   const OPERATOR_API = "https://arogyasparsh-backend.onrender.com/api/drone-operators";
+
   const fetchRequests = async () => {
     try {
       const res = await fetch(API_URL);
@@ -208,6 +209,7 @@ const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
   useEffect(() => {
     fetchRequests(); // Initial fetch
 handleManualRefresh();
+fetchOperators(); //
     const interval = setInterval(() => {
       fetchRequests(); // Auto-refresh every 3s
     }, 3000);
@@ -334,6 +336,22 @@ handleManualRefresh();
           alert(`📍 Static Location [${req.phc}]:\n\nLatitude: ${coords.lat}\nLongitude: ${coords.lng}\n\n⚠️ Using database default.`);
       }
   };
+
+
+  const fetchOperators = async () => {
+      try {
+          const opRes = await fetch(OPERATOR_API);
+          if (opRes.ok) {
+              const opData = await opRes.json();
+              if (Array.isArray(opData)) {
+                  setOperators(opData);
+                  console.log("✅ Operators Loaded:", opData.length);
+              }
+          } else {
+              console.error("Failed to fetch operators:", opRes.status);
+          }
+      } catch (err) { console.error("Operator Fetch Error", err); }
+  };
 // ✅ IMPROVED ADD OPERATOR FUNCTION
   const handleAddOperator = async () => {
       // 1. Validation
@@ -365,7 +383,8 @@ handleManualRefresh();
                   photo: '' 
               });
               setShowOperatorModal(false);
-              fetchRequests(); // Refresh the list
+              fetchRequests(); 
+              await fetchOperators();// Refresh the list
           } else {
               // 3. Show EXACT Error from Backend
               console.error("Server Error:", data);
@@ -381,6 +400,7 @@ handleManualRefresh();
       try {
           await fetch(`${OPERATOR_API}/${id}`, { method: "DELETE" });
           fetchRequests();
+          await fetchOperators();
       } catch(e) { alert("Error removing operator"); }
   };
   const updateStatusInDB = async (id, newStatus) => { try { await fetch(`${API_URL}/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }), }); fetchRequests(); } catch (err) {} };
