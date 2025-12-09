@@ -231,14 +231,23 @@ const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
         setFilteredPredictions(mockData.slice(0, 3));
     }
   };
-  useEffect(() => { fetchPredictions(); }, []);
-
+// ✅ FIX: Strict Filtering for PHC vs District Data
   useEffect(() => {
+      if (predictions.length === 0) return;
+
       if (selectedPhc === "All") {
-          setFilteredPredictions(predictions.slice(0, 3));
+          // Show District Aggregated Data
+          const districtData = predictions.filter(p => p.phc === "District Overall");
+          // If no aggregated data (maybe only 1 PHC exists), fallback to all
+          setFilteredPredictions(districtData.length > 0 ? districtData : predictions.slice(0, 5));
       } else {
-          const filtered = predictions.filter(p => p.phc === selectedPhc);
-          setFilteredPredictions(filtered.length > 0 ? filtered : [{ name: "No Data", predictedQty: 0, trend: "Stable" }]);
+          // Show Specific PHC Data
+          const phcData = predictions.filter(p => p.phc === selectedPhc);
+          if (phcData.length === 0) {
+              setFilteredPredictions([{ name: "No AI Prediction", predictedQty: 0, trend: "No Data", phc: selectedPhc }]);
+          } else {
+              setFilteredPredictions(phcData);
+          }
       }
   }, [selectedPhc, predictions]);
 
