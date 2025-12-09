@@ -417,19 +417,71 @@ const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
                 </div>
             )}
 
-            {/* 2. ANALYTICS TAB */}
+           {/* 2. ANALYTICS TAB (FIXED UI) */}
             {activeTab === 'analytics' && (
-                <div className="max-w-6xl mx-auto">
-                    {predictions.length > 0 && (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                             <div className="md:col-span-3 flex justify-between items-center mb-2">
-                                 <h4 className="text-sm font-bold text-slate-500 uppercase flex items-center gap-2"><TrendingUp size={16}/> AI Demand Predictions</h4>
-                                 <div className="flex items-center gap-2"><Filter size={14} className="text-slate-400"/><select className="bg-white border border-slate-300 text-xs p-2 rounded-lg outline-none font-medium text-slate-600" onChange={(e) => setSelectedPhc(e.target.value)}><option value="All">All PHCs</option><option value="PHC Chamorshi">PHC Chamorshi</option><option value="PHC Gadhchiroli">PHC Gadhchiroli</option><option value="PHC Panera">PHC Panera</option><option value="PHC Belgaon">PHC Belgaon</option><option value="PHC Dhutergatta">PHC Dhutergatta</option><option value="PHC Gatta">PHC Gatta</option><option value="PHC Gaurkheda">PHC Gaurkheda</option><option value="PHC Murmadi">PHC Murmadi</option></select></div>
-                             </div>
-                             {filteredPredictions.map((pred, i) => (<div key={i} className="bg-white border border-slate-200 p-4 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-shadow"><div><p className="text-[10px] text-slate-400 mb-1 uppercase font-bold">{pred.phc || "District Wide"}</p><p className="text-sm font-bold text-slate-800">{pred.name}</p><p className="text-lg font-bold text-indigo-600">{pred.predictedQty} <span className="text-xs text-slate-400 font-normal">units/week</span></p></div><div className={`p-2.5 rounded-lg ${pred.trend.includes('Rising') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}><TrendingUp size={24} /></div></div>))}
+                <div className="max-w-6xl mx-auto space-y-6">
+                    
+                    {/* Header & Controls */}
+                    <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                         <h4 className="text-sm font-bold text-slate-500 uppercase flex items-center gap-2">
+                             <TrendingUp size={16}/> AI Demand Predictions
+                         </h4>
+                         <div className="flex items-center gap-2">
+                             <Filter size={14} className="text-slate-400"/>
+                             <select 
+                                 className="bg-slate-50 border border-slate-300 text-xs p-2 rounded-lg outline-none font-medium text-slate-600" 
+                                 onChange={(e) => setSelectedPhc(e.target.value)}
+                             >
+                                 <option value="All">District View</option>
+                                 <option value="PHC Chamorshi">PHC Chamorshi</option>
+                                 <option value="PHC Gadhchiroli">PHC Gadhchiroli</option>
+                                 <option value="PHC Panera">PHC Panera</option>
+                                 <option value="PHC Belgaon">PHC Belgaon</option>
+                                 <option value="PHC Dhutergatta">PHC Dhutergatta</option>
+                                 <option value="PHC Gatta">PHC Gatta</option>
+                                 <option value="PHC Gaurkheda">PHC Gaurkheda</option>
+                                 <option value="PHC Murmadi">PHC Murmadi</option>
+                             </select>
+                         </div>
+                    </div>
+
+                    {/* AI Cards or No Data Message */}
+                    {filteredPredictions.length > 0 && filteredPredictions[0].name !== "No Data" ? (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                             {filteredPredictions.map((pred, i) => (
+                                 <div key={i} className="bg-white border border-slate-200 p-4 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
+                                     <div>
+                                         <p className="text-[10px] text-slate-400 mb-1 uppercase font-bold">{pred.phc || "District Wide"}</p>
+                                         <p className="text-sm font-bold text-slate-800">{pred.name}</p>
+                                         <p className="text-lg font-bold text-indigo-600">
+                                             {pred.predictedQty} <span className="text-xs text-slate-400 font-normal">units/week</span>
+                                         </p>
+                                     </div>
+                                     <div className={`p-2.5 rounded-lg ${pred.trend && pred.trend.includes('Rising') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                                         <TrendingUp size={24} />
+                                         <span className="text-[10px] block font-bold mt-1">{pred.trend}</span>
+                                     </div>
+                                 </div>
+                             ))}
+                        </div>
+                    ) : (
+                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-8 text-center">
+                            <Brain size={48} className="mx-auto text-blue-300 mb-3" />
+                            <h3 className="text-lg font-bold text-blue-900">AI Model Initializing...</h3>
+                            <p className="text-sm text-blue-600 mt-1">Insufficient data to generate predictions.</p>
+                            <p className="text-xs text-slate-500 mt-2">Place 10+ orders from the PHC Dashboard to train the model.</p>
                         </div>
                     )}
-                    <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-xs h-64 overflow-y-auto border border-slate-700 shadow-inner relative"><div className="flex items-center gap-2 mb-2 border-b border-slate-700 pb-1 sticky top-0 bg-slate-900 w-full"><Terminal size={14}/> SYSTEM LOGS [AUTO-PILOT ENABLED]:</div>{aiLogs.map((log, i) => (<p key={i} className={`mb-1 ${log.color}`}>{log.time} &gt; {log.msg}</p>))}</div>
+
+                    {/* System Logs */}
+                    <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-xs h-64 overflow-y-auto border border-slate-700 shadow-inner relative">
+                        <div className="flex items-center gap-2 mb-2 border-b border-slate-700 pb-1 sticky top-0 bg-slate-900 w-full">
+                            <Terminal size={14}/> SYSTEM LOGS [AUTO-PILOT ENABLED]:
+                        </div>
+                        {aiLogs.map((log, i) => (
+                            <p key={i} className={`mb-1 ${log.color}`}>{log.time} &gt; {log.msg}</p>
+                        ))}
+                    </div>
                 </div>
             )}
 

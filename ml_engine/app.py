@@ -32,7 +32,7 @@ except Exception as e:
 
 # GLOBAL MAP
 PHC_KEYWORD_MAP = {
-    "wagholi": "Wagholi PHC", "chamorshi": "PHC Chamorshi", "gadhchiroli": "PHC Gadhchiroli",
+     "chamorshi": "PHC Chamorshi", "gadhchiroli": "PHC Gadhchiroli",
     "panera": "PHC Panera", "belgaon": "PHC Belgaon", "dhutergatta": "PHC Dhutergatta",
     "gatta": "PHC Gatta", "gaurkheda": "PHC Gaurkheda", "murmadi": "PHC Murmadi"
 }
@@ -125,7 +125,7 @@ def generate_predictions():
         
         for item_name, total_qty in district_data.items():
             future_predictions.append({
-                "phc": "District Overall",
+                "phc": "Chamorshi Sub-District",
                 "name": item_name,
                 "predictedQty": total_qty,
                 "trend": "Aggregated"
