@@ -78,6 +78,7 @@ const PHCDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [addedFeedback, setAddedFeedback] = useState({});
   const [currentTime, setCurrentTime] = useState(new Date());
+const [addingMedicine, setAddingMedicine] = useState(false);
 
   const [proofFiles, setProofFiles] = useState([]);
   const [urgency, setUrgency] = useState('Standard');
@@ -184,31 +185,87 @@ const handleClearHistory = async () => {
     }
   };
 const handleAddNewMedicine = async () => {
-  if (!newItem.name || !newItem.stock) return alert("Please fill Name and Stock");
+  // basic validation
+  if (!newItem.name || newItem.stock === '' || newItem.stock === undefined) {
+    return alert("Please fill Name and Stock");
+  }
+  if (addingMedicine) return;
+  setAddingMedicine(true);
+
+  // normalize payload
+  const payload = {
+    phcName: user.name,
+    newItem: {
+      ...newItem,
+      stock: Number(newItem.stock) || 0
+    }
+  };
+
+  // safe base (use the INV_URL constant you already declared)
+  const base = typeof INV_URL !== 'undefined' ? INV_URL : (typeof INV_API_BASE !== 'undefined' ? INV_API_BASE : null);
+  if (!base) {
+    console.error('Inventory API base is not defined (INV_URL / INV_API_BASE)');
+    alert('Internal config error: no inventory API defined.');
+    setAddingMedicine(false);
+    return;
+  }
+
+  // try the most likely endpoint first: POST /api/phc-inventory/add
+  const url = `${base.replace(/\/$/, '')}/add`;
+
   try {
-    const phcEncoded = encodeURIComponent(user.name);
-    // If your API expects POST at /api/phc-inventory/<phcName> or /add, adapt accordingly.
-    const res = await fetch(`${INV_URL}/${phcEncoded}`, {
-      method: "PUT", // or POST depending on your backend API contract
+    const res = await fetch(url, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ newItem })
+      body: JSON.stringify(payload)
     });
 
+    // Read text first so we can handle HTML error pages gracefully
+    const text = await res.text().catch(() => '');
+
     if (res.ok) {
-      alert("Medicine Added Successfully!");
+      // Try parse JSON if present
+      try {
+        const json = text ? JSON.parse(text) : null;
+        console.log('Add medicine response JSON:', json);
+      } catch (e) {
+        // not JSON, ignore
+      }
+
+      alert("✅ Medicine Added Successfully!");
       setNewItem({ name: '', stock: '', batch: '', expiry: '' });
       setShowAddModal(false);
-      fetchData();
-    } else {
-      const text = await res.text().catch(() => '');
-      console.warn('Add medicine failed', res.status, text);
-      alert("Failed to add medicine: " + (text || res.status));
+      fetchData(); // Refresh list immediately
+      setAddingMedicine(false);
+      return;
     }
+
+    // not ok — try to parse JSON error, fallback to text
+    let serverMsg = text || `HTTP ${res.status}`;
+    try {
+      const parsed = text ? JSON.parse(text) : null;
+      if (parsed && (parsed.error || parsed.message)) {
+        serverMsg = parsed.error || parsed.message;
+      }
+    } catch (e) {
+      // ignore JSON parse error (server returned HTML)
+    }
+
+    console.warn(`Add medicine failed ${res.status}`, serverMsg);
+    if (serverMsg.includes('<!DOCTYPE html') || serverMsg.includes('<html')) {
+      alert(`Failed to add medicine: server returned an HTML error page (status ${res.status}). Check server logs.`);
+    } else {
+      alert(`Failed to add medicine: ${serverMsg}`);
+    }
+
   } catch (e) {
-    console.error("Network error adding medicine:", e);
-    alert("Network Error");
+    console.error('Network error while adding medicine:', e);
+    alert('Network Error: Could not reach inventory API.');
+  } finally {
+    setAddingMedicine(false);
   }
 };
+
 
  
 
@@ -597,7 +654,9 @@ const activeChatOrder = orderHistory.find(o => o._id === activeChatId);
                 </div>
                <div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3">
   <button onClick={() => setShowAddModal(false)} className="px-5 py-2 text-slate-600">Cancel</button>
-  <button onClick={handleAddNewMedicine} className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700">Save</button>
+  <button onClick={handleAddNewMedicine} className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700">Save</button><button onClick={handleAddNewMedicine} disabled={addingMedicine} className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700">
+  {addingMedicine ? 'Saving...' : 'Save'}
+</button>
 </div>
 
             </div>
