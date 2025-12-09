@@ -533,7 +533,7 @@ const activeChatOrder = orderHistory.find(o => o._id === activeChatId);
                                 
                                 {/* ✅ RESTORED REPORT BUTTON */}
                                 <button onClick={() => { setActiveIncidentId(order._id); setShowIncidentModal(true); }} className="text-xs font-bold text-slate-400 hover:text-red-500 flex items-center gap-1">
-                                    <AlertOctagon size={14} /> Report
+                                    <AlertOctagon size={14} /> Feedback
                                 </button>
 
                                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${
