@@ -333,31 +333,47 @@ handleManualRefresh();
           alert(`📍 Static Location [${req.phc}]:\n\nLatitude: ${coords.lat}\nLongitude: ${coords.lng}\n\n⚠️ Using database default.`);
       }
   };
-const handleAddOperator = async () => {
-      if(!newOperator.name || !newOperator.licenseNumber) return alert("Please fill Name and License");
+// ✅ IMPROVED ADD OPERATOR FUNCTION
+  const handleAddOperator = async () => {
+      // 1. Validation
+      if(!newOperator.name || !newOperator.licenseNumber) {
+          return alert("Please fill at least the Name and License Number.");
+      }
+
       try {
+          console.log("📤 Sending Data:", newOperator); // Debug log
+
           const res = await fetch(OPERATOR_API, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(newOperator)
           });
+
+          // 2. Read Server Response
+          const data = await res.json();
+
           if(res.ok) {
-              alert("Operator Added!");
-              setNewOperator({ name: '', qualification: '', licenseNumber: '', experience: '', contact: '' });
+              alert("✅ Operator Added Successfully!");
+              // Reset Form
+              setNewOperator({ 
+                  name: '', 
+                  qualification: '', 
+                  licenseNumber: '', 
+                  experience: '', 
+                  contact: '', 
+                  photo: '' 
+              });
               setShowOperatorModal(false);
-              fetchRequests();
-              {/* Inside the Add Operator Modal Form */}
-<div className="space-y-1.5">
-    <label className="text-xs font-bold text-slate-500 uppercase">Photo URL</label>
-    <input 
-        className="w-full p-3 border rounded-xl bg-slate-50" 
-        placeholder="https://example.com/photo.jpg" 
-        value={newOperator.photo} 
-        onChange={e => setNewOperator({...newOperator, photo: e.target.value})} 
-    />
-</div>
+              fetchRequests(); // Refresh the list
+          } else {
+              // 3. Show EXACT Error from Backend
+              console.error("Server Error:", data);
+              alert(`Failed: ${data.message || "Unknown Server Error"}`);
           }
-      } catch(e) { alert("Error adding operator"); }
+      } catch(e) { 
+          console.error("Network Error:", e);
+          alert("Network Error: Check console for details."); 
+      }
   };
   const removeOperator = async (id) => {
       if(!confirm("Remove this operator?")) return;
@@ -654,7 +670,7 @@ const handleAddOperator = async () => {
      
      {showAddModal && (<div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-0 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100"><div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center"><div><h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Package className="text-blue-600" size={20}/> Add New Medicine</h3></div><button onClick={() => setShowAddModal(false)}><X size={20} /></button></div><div className="p-6 space-y-5"><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Name</label><input className="w-full p-3 border rounded-xl" placeholder="Medicine Name" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} /></div><div className="grid grid-cols-2 gap-5"><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Batch</label><input className="w-full p-3 border rounded-xl" placeholder="Batch ID" value={newItem.batch} onChange={e => setNewItem({...newItem, batch: e.target.value})} /></div><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Stock</label><input className="w-full p-3 border rounded-xl" type="number" value={newItem.stock} onChange={e => setNewItem({...newItem, stock: e.target.value})} /></div></div><div className="space-y-1.5"><label className="text-xs font-bold text-slate-500 uppercase">Expiry Date</label><input className="w-full p-3 border rounded-xl" type="date" value={newItem.expiry} onChange={e => setNewItem({...newItem, expiry: e.target.value})} /></div></div><div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3"><button onClick={() => setShowAddModal(false)} className="px-5 py-2 text-slate-600">Cancel</button><button onClick={addNewItem} className="px-6 py-2 bg-blue-600 text-white rounded-xl">Save</button></div></div></div>)}
     {/* ✅ ADD OPERATOR MODAL */}
-      {showOperatorModal && (
+    {showOperatorModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white p-0 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
                 <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
