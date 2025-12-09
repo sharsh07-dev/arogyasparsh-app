@@ -85,5 +85,12 @@ const updateStock = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
-
+const resetPhcInventory = async (req, res) => {
+    try {
+        await PhcInventory.deleteMany({});
+        res.status(200).json({ message: "PHC Inventory Reset Successfully. Data will regenerate on next load." });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
 module.exports = { getInventory, updateStock, resetPhcInventory };
