@@ -9,7 +9,7 @@ const requestRoutes = require("./routes/requestRoutes");
 const phcInventoryRoutes = require("./routes/phcInventoryRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const hospitalInventoryRoutes = require("./routes/hospitalInventoryRoutes.js"); // ✅ Ensure this exists
-
+const droneOperatorRoutes = require("./routes/droneOperatorRoutes");
 dotenv.config();
 connectDB();
 
@@ -34,7 +34,7 @@ app.use("/api/requests", requestRoutes);
 app.use("/api/phc-inventory", phcInventoryRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/hospital-inventory", hospitalInventoryRoutes); // ✅ This fixes the 404
-
+app.use("/api/drone-operators", droneOperatorRoutes);
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
