@@ -210,6 +210,7 @@ const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
     fetchRequests(); // Initial fetch
 handleManualRefresh();
 fetchOperators(); //
+
     const interval = setInterval(() => {
       fetchRequests(); // Auto-refresh every 3s
     }, 3000);
@@ -229,7 +230,18 @@ fetchOperators(); //
         fetchRequests(); 
     } catch (err) { alert("Failed to send message"); }
   };
-
+const fetchOperators = async () => {
+      try {
+          const opRes = await fetch(OPERATOR_API);
+          if (opRes.ok) {
+              const opData = await opRes.json();
+              if (Array.isArray(opData)) {
+                  setOperators(opData);
+              }
+          }
+      } catch (err) { console.error("Operator Fetch Error", err); }
+  };
+  
   const fetchPredictions = async () => {
     try {
         const res = await fetch("https://arogyasparsh-backend.onrender.com/api/analytics/predict"); 
@@ -338,20 +350,6 @@ fetchOperators(); //
   };
 
 
-  const fetchOperators = async () => {
-      try {
-          const opRes = await fetch(OPERATOR_API);
-          if (opRes.ok) {
-              const opData = await opRes.json();
-              if (Array.isArray(opData)) {
-                  setOperators(opData);
-                  console.log("✅ Operators Loaded:", opData.length);
-              }
-          } else {
-              console.error("Failed to fetch operators:", opRes.status);
-          }
-      } catch (err) { console.error("Operator Fetch Error", err); }
-  };
 // ✅ IMPROVED ADD OPERATOR FUNCTION
   const handleAddOperator = async () => {
       // 1. Validation
