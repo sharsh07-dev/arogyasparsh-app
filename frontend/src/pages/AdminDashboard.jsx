@@ -12,7 +12,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 import logoMain from '../assets/logo_final.png';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement, BarElement);
-  const stats = getAnalytics();
+
 
 // Mock Data for PHCs (For display in Users tab)
 const PHC_LIST = [
@@ -39,7 +39,7 @@ const AdminDashboard = () => {
   const API_URL = "https://arogyasparsh-backend.onrender.com/api/requests";
   const INV_URL = "https://arogyasparsh-backend.onrender.com/api/hospital-inventory";
   const OPERATOR_API = "https://arogyasparsh-backend.onrender.com/api/drone-operators"; 
-
+  const stats = getAnalytics();
   const fetchAdminData = async () => {
     try {
       // 1. Stats & Activity
