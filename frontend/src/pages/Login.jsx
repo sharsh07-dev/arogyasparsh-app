@@ -11,7 +11,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
+  const navigate = useNavigate();//changed
 //changes o bve 
   const handleLogin = async (e) => {
     e.preventDefault();
