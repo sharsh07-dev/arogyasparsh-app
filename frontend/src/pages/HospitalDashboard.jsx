@@ -6,7 +6,7 @@ import {
   Battery, Signal, Plane, Plus, Minus, Search, 
   Map as MapIcon, VolumeX, Siren, X, Check, Menu,
   Pill, QrCode, Layers, Save, Trash2, FileText, Eye, Building2, Globe, Timer, Zap, Brain, Cpu, Terminal, 
-  TrendingUp, ClipboardList, Filter, MessageCircle, Send, AlertTriangle, ShieldAlert, BarChart3, Calendar,RotateCcw,HardHat
+  TrendingUp, ClipboardList, Filter, MessageCircle, Send, AlertTriangle, ShieldAlert, BarChart3, Calendar,RotateCcw,HardHat,UserPlus
 } from 'lucide-react';
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
